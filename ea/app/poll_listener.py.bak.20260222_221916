@@ -1,0 +1,96 @@
+from __future__ import annotations
+import asyncio, json
+from app.settings import settings
+from app.audit import log_event
+from app.telegram import TelegramClient
+from app.config import load_tenants
+from app.db import connect
+from app.briefings import build_briefing_for_tenant
+
+async def handle_poll_answer(update: dict, tenants_cfg: dict, cross_rules: list):
+    # poll_answer update has: poll_id, user, option_ids
+    pa = update.get("poll_answer") or {}
+    poll_id = pa.get("poll_id")
+    option_ids = pa.get("option_ids") or []
+    user = pa.get("user") or {}
+    username = user.get("username") or user.get("first_name") or "user"
+
+    if not poll_id:
+        return
+
+    # Find which tenant created this poll
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT tenant, chat_id, options FROM telegram_polls WHERE poll_id=%s ORDER BY id DESC LIMIT 1", (poll_id,))
+            row = cur.fetchone()
+    if not row:
+        return
+    tenant_key = row["tenant"]
+    options = row["options"] or []
+    picked = []
+    for i in option_ids:
+        try:
+            picked.append(options[i])
+        except Exception:
+            pass
+
+    log_event(tenant_key,"telegram","poll_answer",f"{username} voted",{"picked":picked})
+
+    # Apply cross notifications
+    for rule in cross_rules:
+        if rule.get("when_tenant") != tenant_key:
+            continue
+        substr = rule.get("if_option_contains","")
+        if substr and not any(substr in p for p in picked):
+            continue
+        for n in rule.get("notify") or []:
+            target = n.get("tenant")
+            via = n.get("via") or ["telegram"]
+            msg = n.get("message","")
+            if target in tenants_cfg and "telegram" in via:
+                tc = tenants_cfg[target]
+                if tc.telegram_chat_id and settings.EA_TELEGRAM_BOT_TOKEN:
+                    tg = TelegramClient(settings.EA_TELEGRAM_BOT_TOKEN)
+                    try:
+                        await tg.send_message(tc.telegram_chat_id, msg, markdown=False)
+                    except Exception as e:
+                        log_event(target,"telegram","error","cross notify failed",{"err":str(e)})
+
+    # Minimal action reactions (examples)
+    # If "🔁 Retry" chosen -> rebuild and resend briefing
+    if any("Retry" in p or "🔁" in p for p in picked):
+        tc = tenants_cfg.get(tenant_key)
+        if tc and tc.telegram_chat_id and settings.EA_TELEGRAM_BOT_TOKEN:
+            tg = TelegramClient(settings.EA_TELEGRAM_BOT_TOKEN)
+            brief = await build_briefing_for_tenant(tc)
+            await tg.send_message(tc.telegram_chat_id, brief["text"], markdown=True)
+            if brief.get("options"):
+                poll = await tg.send_poll(tc.telegram_chat_id, "STATUS BOARD (Checkliste)", brief["options"], multiple=True, anonymous=False)
+                # store poll
+                with connect() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "INSERT INTO telegram_polls (tenant, chat_id, message_id, poll_id, options, context) VALUES (%s,%s,%s,%s,%s,%s)",
+                            (tenant_key, str(tc.telegram_chat_id), poll.get("message_id"), poll["poll"]["id"], json.dumps(brief["options"]), json.dumps({"kind":"briefing"})),
+                        )
+                        conn.commit()
+
+async def poll_loop():
+    if not settings.EA_TELEGRAM_BOT_TOKEN:
+        log_event(None,"telegram","info","no telegram token configured; poll loop disabled")
+        return
+    tg = TelegramClient(settings.EA_TELEGRAM_BOT_TOKEN)
+    offset = None
+    tenants_cfg, cross_rules = load_tenants()
+    log_event(None,"telegram","info","starting telegram long-poll loop",{})
+    while True:
+        try:
+            updates = await tg.get_updates(offset=offset, timeout=25)
+            for u in updates:
+                offset = max(offset or 0, u["update_id"] + 1)
+                if "poll_answer" in u:
+                    await handle_poll_answer(u, tenants_cfg, cross_rules)
+        except Exception as e:
+            log_event(None,"telegram","error","poll loop error",{"err":str(e)})
+            await asyncio.sleep(3)
+

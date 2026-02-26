@@ -1,0 +1,42 @@
+tenants:
+  - key: tibor
+    label: "Tibor"
+    openclaw_container: "openclaw-gateway-tibor"
+    family_openclaw_container: "openclaw-gateway-family-girschele"
+    whatsapp_to_e164: "+436647916419"
+    telegram:
+      enabled: true
+      chat_id: "1354554303"
+    tasks:
+      enabled: true
+      tasklist_id: ""    # optional; if blank EA will at least include tasklists output
+    briefing:
+      local_time: "07:00"
+      include_family: true
+    whatsapp_memory:
+      enabled: true
+
+  - key: liz
+    label: "Liz"
+    openclaw_container: "openclaw-gateway-liz"
+    family_openclaw_container: "openclaw-gateway-family-girschele"
+    whatsapp_to_e164: ""  # set when you know it
+    telegram:
+      enabled: true
+      chat_id: "0"        # TODO: set Liz chat id; 0 disables sending
+    tasks:
+      enabled: true
+      tasklist_id: ""
+    briefing:
+      local_time: "07:05"
+      include_family: false
+    whatsapp_memory:
+      enabled: true
+
+cross_notifications:
+  # If Liz clicks coffee/bread in HER poll -> notify Tibor immediately (Telegram + WhatsApp best-effort)
+  - when_tenant: "liz"
+    if_option_contains: ["☕", "Kaffee", "coffee", "Brot", "bread"]
+    message_template: "🧠 Signal von Liz: {picked} (bitte berücksichtigen)."
+    notify:
+      - tenant: "tibor"

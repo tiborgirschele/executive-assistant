@@ -1,0 +1,71 @@
+from __future__ import annotations
+
+from typing import List, Sequence
+
+from app.docker_exec import docker_exec
+from app.audit import log_event
+
+
+async def gog(container: str, args: List[str], timeout_s: int = 40) -> str:
+    out, err, rc = await docker_exec(container, ["gog", *args], timeout_s=timeout_s)
+    if rc != 0:
+        raise RuntimeError((err or out or "").strip() or f"gog rc={rc}")
+    return (out or "").strip()
+
+
+async def _try_candidates(container: str, candidates: Sequence[List[str]], label: str, timeout_s: int = 40) -> str:
+    last_err = None
+    for args in candidates:
+        try:
+            return await gog(container, args, timeout_s=timeout_s)
+        except Exception as e:
+            last_err = str(e)
+            log_event("gog.cmd_fail", f"{label}: {' '.join(args)} -> {last_err}", payload={"container": container})
+    return f"[{label}] unavailable ({last_err or 'no candidates'})"
+
+
+async def gog_gmail_search(container: str, query: str, limit: int = 20) -> str:
+    candidates = [
+        ["gmail", "search", query, "--limit", str(limit)],
+        ["gmail", "search", query],
+    ]
+    return await _try_candidates(container, candidates, "gmail_search", timeout_s=60)
+
+
+async def gog_gmail_get(container: str, message_id: str) -> str:
+    candidates = [
+        ["gmail", "get", message_id, "--format", "full"],
+        ["gmail", "get", message_id],
+    ]
+    return await _try_candidates(container, candidates, "gmail_get", timeout_s=60)
+
+
+async def gog_calendar_upcoming(container: str, days: int = 7) -> str:
+    candidates = [
+        ["calendar", "upcoming", str(days)],
+        ["calendar", "upcoming", "--days", str(days)],
+        ["calendar", "next", str(days)],
+        ["calendar", "list", "--days", str(days)],
+        ["calendar", "list", str(days)],
+    ]
+    return await _try_candidates(container, candidates, "calendar_upcoming", timeout_s=60)
+
+
+async def gog_tasks_list_lists(container: str) -> str:
+    candidates = [
+        ["tasks", "list-lists"],
+        ["tasks", "lists"],
+        ["tasks", "tasklists"],
+        ["tasks", "listlists"],
+    ]
+    return await _try_candidates(container, candidates, "tasks_list_lists", timeout_s=60)
+
+
+async def gog_tasks_list(container: str, tasklist_id: str) -> str:
+    candidates = [
+        ["tasks", "list", tasklist_id],
+        ["tasks", "list", "--tasklist", tasklist_id],
+        ["tasks", "tasks", tasklist_id],
+        ["tasks", "show", tasklist_id],
+    ]
+    return await _try_candidates(container, candidates, "tasks_list", timeout_s=60)

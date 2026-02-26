@@ -1,0 +1,57 @@
+from __future__ import annotations
+import psycopg
+from psycopg.rows import dict_row
+from app.settings import settings
+
+def connect():
+    return psycopg.connect(settings.EA_DB_DSN, row_factory=dict_row)
+
+def init_db():
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS audit_events (
+                id BIGSERIAL PRIMARY KEY,
+                ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+                tenant TEXT,
+                component TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                message TEXT NOT NULL,
+                payload JSONB
+            );
+            """)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS whatsapp_memory (
+                id BIGSERIAL PRIMARY KEY,
+                ts TIMESTAMPTZ NOT NULL,
+                tenant TEXT NOT NULL,
+                source TEXT NOT NULL,
+                dir TEXT NOT NULL,
+                peer TEXT,
+                text TEXT NOT NULL
+            );
+            """)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS location_events (
+                id BIGSERIAL PRIMARY KEY,
+                ts TIMESTAMPTZ NOT NULL,
+                tenant TEXT NOT NULL,
+                lat DOUBLE PRECISION,
+                lon DOUBLE PRECISION,
+                accuracy_m DOUBLE PRECISION,
+                label TEXT
+            );
+            """)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS telegram_polls (
+                id BIGSERIAL PRIMARY KEY,
+                ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+                tenant TEXT NOT NULL,
+                chat_id TEXT NOT NULL,
+                message_id BIGINT,
+                poll_id TEXT,
+                options JSONB NOT NULL,
+                context JSONB
+            );
+            """)
+            conn.commit()

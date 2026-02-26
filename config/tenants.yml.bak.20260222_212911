@@ -1,0 +1,60 @@
+# Tenants define *who gets a briefing*, where it is sent, and which sources to include.
+# IMPORTANT: set the correct OpenClaw container names and Telegram chat IDs.
+
+tenants:
+  tibor:
+    label: "Tibor"
+    # The OpenClaw gateway container that has Tibor's gog + channels configured.
+    openclaw_container: "openclaw-gateway-tibor"
+
+    # Include the family account by also querying a 2nd OpenClaw container.
+    include_family: true
+    family_openclaw_container: "openclaw-gateway-family"
+
+    telegram:
+      chat_id: "1354554303"  # Tibor's Telegram chat ID
+      briefing_time_local: "07:00"
+
+    # Optional: WhatsApp for cross-notifications (if your OpenClaw setup can deliver)
+    whatsapp:
+      enabled: false
+      to_e164: "+436647916419"
+
+    tasks:
+      enabled: true
+      # If your gog CLI needs a tasklist id, put it here; otherwise leave null and the system will list.
+      tasklist_id: null
+
+    memory:
+      # Use ingest endpoints to push WhatsApp history summaries (Tasker / exports / bridge).
+      whatsapp_memory_enabled: true
+
+  liz:
+    label: "Liz"
+    openclaw_container: "openclaw-gateway-frau"
+    include_family: true
+    family_openclaw_container: "openclaw-gateway-family"
+
+    telegram:
+      chat_id: "REPLACE_WITH_LIZ_CHAT_ID"
+      briefing_time_local: "07:00"
+
+    whatsapp:
+      enabled: false
+      to_e164: "+43REPLACE"
+
+    tasks:
+      enabled: true
+      tasklist_id: null
+
+    memory:
+      whatsapp_memory_enabled: true
+
+# Cross rules: if Liz votes certain poll options, notify Tibor.
+cross_notifications:
+  - when_tenant: "liz"
+    if_option_contains: "☕"
+    notify:
+      - tenant: "tibor"
+        via: ["telegram", "whatsapp"]
+        message: "Liz hat ☕ gewählt."

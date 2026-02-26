@@ -1,0 +1,3 @@
+#!/bin/sh
+# Execute the native binary directly
+exec /usr/local/bin/gog.bin "$@"

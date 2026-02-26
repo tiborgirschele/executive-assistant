@@ -1,0 +1,55 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Dict, Tuple
+
+import yaml
+
+from app.settings import settings
+
+
+@dataclass
+class TenantConfig:
+    key: str
+    label: str
+    openclaw_container: str
+    family_openclaw_container: str
+
+    telegram_enabled: bool
+    telegram_chat_id: str
+
+    tasks_enabled: bool
+    tasklist_id: str
+
+    briefing_local_time: str
+    include_family: bool
+
+    whatsapp_memory_enabled: bool
+
+    # Optional: used as "identity" for OpenClaw agent runs + WhatsApp notifications
+    whatsapp_to_e164: str = ""
+
+
+def load_tenants() -> Tuple[Dict[str, TenantConfig], Dict[str, Any]]:
+    with open(settings.EA_TENANTS_YAML, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+
+    tenants: Dict[str, TenantConfig] = {}
+    for t in cfg.get("tenants", []):
+        key = str(t["key"])
+        tenants[key] = TenantConfig(
+            key=key,
+            label=str(t.get("label", key)),
+            openclaw_container=str(t["openclaw_container"]),
+            family_openclaw_container=str(t.get("family_openclaw_container", "")),
+            telegram_enabled=bool((t.get("telegram") or {}).get("enabled", True)),
+            telegram_chat_id=str((t.get("telegram") or {}).get("chat_id", "0")),
+            tasks_enabled=bool((t.get("tasks") or {}).get("enabled", False)),
+            tasklist_id=str((t.get("tasks") or {}).get("tasklist_id", "")),
+            briefing_local_time=str((t.get("briefing") or {}).get("local_time", "07:00")),
+            include_family=bool((t.get("briefing") or {}).get("include_family", False)),
+            whatsapp_memory_enabled=bool((t.get("whatsapp_memory") or {}).get("enabled", False)),
+            whatsapp_to_e164=str(t.get("whatsapp_to_e164") or t.get("whatsapp_to") or "").strip(),
+        )
+
+    return tenants, cfg
