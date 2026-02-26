@@ -16,3 +16,7 @@ _snapshot/
 __pycache__/
 *env*
 
+daemon-gogcli-config/
+briefing_cron.log
+config/*.bak.*
+ea/app/*.bak.*
