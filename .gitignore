@@ -1,0 +1,33 @@
+# Core Secrets
+.env
+.env.*
+*.pem
+*.key
+*.ovpn
+*secret*
+*token*
+
+# Google Cloud & OAuth JSONs
+*.json
+litellm_keys/
+daemon-gogcli-config/
+data-*/
+credentials*/
+pristine_creds.json
+
+# DBs & Attachments (Personal data)
+attachments/
+logs/
+
+# Backups & Patch Scripts
+backups/
+*.bak*
+*patch*.py
+*fix*.py
+*healer*.py
+*validator*.sh
+*.sh
+
+# Python cache
+__pycache__/
+*.pyc

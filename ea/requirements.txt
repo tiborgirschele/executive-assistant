@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+httpx
+pyyaml
+psycopg2-binary
+psycopg[binary]
+pytz
+litellm
+google-cloud-aiplatform
+python-dotenv
+redis
+segno>=1.6.0
+pypdf>=4.0.0
+pypdf>=4.0.0
