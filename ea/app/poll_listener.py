@@ -1,6 +1,6 @@
+from __future__ import annotations
 import asyncio
 import os
-from __future__ import annotations
 import httpx, asyncio, os, sys, traceback, re, json, io, base64, urllib.parse, time, threading, html
 from datetime import datetime, timezone
 import urllib.request
