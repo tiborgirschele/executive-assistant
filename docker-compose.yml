@@ -1,15 +1,48 @@
 services:
-  ea-daemon:
+  ea-api:
     build:
       context: .
       dockerfile: ea/Dockerfile
     image: ea-os:latest
-    container_name: ea-daemon
+    container_name: ea-api
     restart: unless-stopped
-    env_file:
-      - .env
+    env_file: [.env]
     environment:
-      - EA_ROLE=monolith
+      - EA_ROLE=api
+      - TZ=Europe/Vienna
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./config:/config:ro
+      - ./attachments:/attachments:rw
+      - ./logs:/logs:rw
+    depends_on:
+      ea-db:
+        condition: service_healthy
+
+  ea-poller:
+    image: ea-os:latest
+    container_name: ea-poller
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      - EA_ROLE=poller
+      - TZ=Europe/Vienna
+    volumes:
+      - ./config:/config:ro
+      - ./attachments:/attachments:rw
+      - ./logs:/logs:rw
+    depends_on:
+      ea-db:
+        condition: service_healthy
+
+  ea-worker:
+    image: ea-os:latest
+    container_name: ea-worker
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      - EA_ROLE=worker
       - TZ=Europe/Vienna
     volumes:
       - ./config:/config:ro
@@ -23,12 +56,27 @@ services:
       ea-db:
         condition: service_healthy
 
+  ea-outbox:
+    image: ea-os:latest
+    container_name: ea-outbox
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      - EA_ROLE=outbox
+      - TZ=Europe/Vienna
+    volumes:
+      - ./config:/config:ro
+      - ./attachments:/attachments:rw
+      - ./logs:/logs:rw
+    depends_on:
+      ea-db:
+        condition: service_healthy
+
   ea-db:
     image: postgres:16-alpine
     container_name: ea-db
     restart: unless-stopped
-    env_file:
-      - .env
+    env_file: [.env]
     volumes:
       - ea_pgdata:/var/lib/postgresql/data
     healthcheck:

@@ -1,1 +1,45 @@
-async def run_worker(): pass
+import asyncio, traceback
+from app.queue import claim_update, mark_update_done, mark_update_error
+import app.poll_listener as pl
+
+async def _route_update(u_data):
+    if 'callback_query' in u_data: await pl.handle_callback(u_data['callback_query'])
+    elif 'message' in u_data:
+        msg = u_data['message']
+        chat_id = msg.get('chat', {}).get('id')
+        if not chat_id: return
+        cmd_text = str(msg.get('text') or msg.get('caption') or "").strip()
+        if cmd_text.startswith('/'): await pl.handle_command(chat_id, cmd_text, msg)
+        elif msg.get('text') or msg.get('photo') or msg.get('document') or msg.get('voice') or msg.get('audio'):
+            await pl.handle_intent(chat_id, msg)
+
+async def run_worker():
+    print("==================================================", flush=True)
+    print("🧠 EA OS WORKER: ONLINE (Processing Postgres Inbox)", flush=True)
+    print("==================================================", flush=True)
+    
+    # Keeps the watchdog thread from killing us
+    asyncio.create_task(pl.heartbeat_pinger())
+    
+    while True:
+        job = None
+        try:
+            job = await asyncio.to_thread(claim_update)
+            if not job:
+                await asyncio.sleep(0.5)
+                continue
+            
+            print(f"⚙️ Worker: Claimed job {job['update_id']}! Executing...", flush=True)
+            
+            # Execute your existing monolithic processing logic safely!
+            await asyncio.wait_for(_route_update(job["payload_json"]), timeout=240.0)
+            
+            await asyncio.to_thread(mark_update_done, tenant=job["tenant"], update_id=job["update_id"])
+            print(f"✅ Worker: Job {job['update_id']} finished and committed.", flush=True)
+            
+        except Exception as e:
+            print(f"🚨 WORKER ERROR: {traceback.format_exc()}", flush=True)
+            if job:
+                try: await asyncio.to_thread(mark_update_error, tenant=job["tenant"], update_id=job["update_id"], attempt_count=job["attempt_count"], error=str(e))
+                except: pass
+            await asyncio.sleep(1)
