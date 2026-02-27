@@ -520,11 +520,11 @@ async def handle_command(chat_id: int, text: str, msg: dict):
                     
                     cached = await asyncio.to_thread(db.fetchone, "SELECT artifact_id FROM render_cache WHERE tenant = 'ea_bot' AND render_request_hash = %s", (req_hash,))
                     
-                    os.makedirs("/attachments/artifacts", exist_ok=True)
+                    os.makedirs(os.path.join(os.environ.get("EA_ATTACHMENTS_DIR", "/attachments"), "artifacts"), exist_ok=True)
                     img_bytes = None
                     
-                    if cached and os.path.exists(f"/attachments/artifacts/{cached['artifact_id']}.png"):
-                        with open(f"/attachments/artifacts/{cached['artifact_id']}.png", "rb") as f:
+                    if cached and os.path.exists(f"{os.environ.get('EA_ATTACHMENTS_DIR', '/attachments')}/artifacts/{cached['artifact_id']}.png"):
+                        with open(f"{os.environ.get('EA_ATTACHMENTS_DIR', '/attachments')}/artifacts/{cached['artifact_id']}.png", "rb") as f:
                             img_bytes = f.read()
                     else:
                         mg = MarkupGoClient()
@@ -532,17 +532,28 @@ async def handle_command(chat_id: int, text: str, msg: dict):
                         img_bytes = await mg.render_image_buffer(payload)
                         
                         art_id = str(uuid.uuid4())
-                        with open(f"/attachments/artifacts/{art_id}.png", "wb") as f:
+                        with open(f"{os.environ.get('EA_ATTACHMENTS_DIR', '/attachments')}/artifacts/{art_id}.png", "wb") as f:
                             f.write(img_bytes)
                             
                         await asyncio.to_thread(db.execute, "INSERT INTO render_cache (tenant, render_request_hash, provider, format, artifact_id) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
                             ('ea_bot', req_hash, 'markupgo', 'png', art_id))
 
                     if img_bytes:
-                        await tg.send_photo(chat_id, img_bytes, caption=safe_txt[:1000] + ("..." if len(safe_txt)>1000 else ""), parse_mode="HTML", reply_markup=markup)
+                        # PROPER V2 ARCHITECTURE: Route through EA_TG_OUTBOX
+                        outbox_table = os.environ.get("EA_TG_OUTBOX", "tg_outbox")
+                        photo_path = f"{os.environ.get('EA_ATTACHMENTS_DIR', '/attachments')}/artifacts/{art_id}.png"
+                        
+                        import json
+                        payload = json.dumps({"photo": photo_path, "caption": safe_txt[:1000] + ("..." if len(safe_txt)>1000 else ""), "parse_mode": "HTML"})
+                        
+                        await asyncio.to_thread(
+                            db.execute, 
+                            f"INSERT INTO {outbox_table} (tenant, chat_id, message_type, payload) VALUES (%s, %s, %s, %s)",
+                            (tenant, chat_id, 'photo', payload)
+                        )
                         try: await tg.delete_message(chat_id, res['message_id'])
                         except: pass
-                        return # Success!
+                        return # Success! Queued for Outbox.
                 except Exception as mg_err:
                     print(f"MarkupGo rendering failed: {mg_err}", flush=True)
                     safe_txt += f"\n\n⚙️ <b>OODA Diagnostic (Rendering):</b>\n<code>{str(mg_err)}</code>"
