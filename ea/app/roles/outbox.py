@@ -1,4 +1,4 @@
-import asyncio, httpx, os
+import asyncio, httpx, os, json
 from app.db import get_db
 from app.settings import TELEGRAM_BOT_TOKEN, EA_ATTACHMENTS_DIR
 
@@ -37,6 +37,7 @@ async def run_outbox():
                         with open(photo_path, "rb") as f:
                             data = {"chat_id": chat_id, "parse_mode": payload.get("parse_mode", "HTML")}
                             if "caption" in payload: data["caption"] = payload["caption"]
+                            if "reply_markup" in payload: data["reply_markup"] = json.dumps(payload["reply_markup"])
                             res = await client.post(f"{api_url}/sendPhoto", data=data, files={"photo": f})
                     else:
                         tg_payload = {"chat_id": chat_id, "text": payload.get("text", "Empty msg"), "parse_mode": payload.get("parse_mode", "HTML")}

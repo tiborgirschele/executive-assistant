@@ -6,99 +6,105 @@ services:
     image: ea-os:latest
     container_name: ea-api
     restart: unless-stopped
-    env_file: [.env]
+    env_file:
+    - .env
     environment:
-      - EA_ROLE=api
-      - TZ=Europe/Vienna
+    - EA_ROLE=api
+    - TZ=Europe/Vienna
     ports:
-      - "8090:8090"
+    - 8090:8090
     volumes:
-      - ./config:/config:ro
-      - ./attachments:/attachments:rw
-      - ./logs:/logs:rw
+    - ./config:/config:ro
+    - ./attachments:/attachments:rw
+    - ./logs:/logs:rw
     depends_on:
       ea-db:
         condition: service_healthy
-
   ea-poller:
     image: ea-os:latest
     container_name: ea-poller
     restart: unless-stopped
-    env_file: [.env]
+    env_file:
+    - .env
     environment:
-      - EA_ROLE=poller
-      - TZ=Europe/Vienna
+    - EA_ROLE=poller
+    - TZ=Europe/Vienna
     volumes:
-      - ./config:/config:ro
-      - ./attachments:/attachments:rw
-      - ./logs:/logs:rw
+    - ./config:/config:ro
+    - ./attachments:/attachments:rw
+    - ./logs:/logs:rw
     depends_on:
       ea-db:
         condition: service_healthy
-
   ea-worker:
     image: ea-os:latest
     container_name: ea-worker
     restart: unless-stopped
-    env_file: [.env]
+    env_file:
+    - .env
     environment:
-      - EA_ROLE=worker
-      - TZ=Europe/Vienna
+    - EA_ROLE=worker
+    - TZ=Europe/Vienna
     volumes:
-      - ./config:/config:ro
-      - ./attachments:/attachments:rw
-      - ./logs:/logs:rw
-      - ./daemon-gogcli-config:/root/.config/gogcli:rw
-      - ./bin/gog:/usr/local/bin/gog:ro
-      - ./bin/gog.bin:/usr/local/bin/gog.bin:ro
-      - /var/run/docker.sock:/var/run/docker.sock
+    - ./config:/config:ro
+    - ./attachments:/attachments:rw
+    - ./logs:/logs:rw
+    - ./daemon-gogcli-config:/root/.config/gogcli:rw
+    - ./bin/gog:/usr/local/bin/gog:ro
+    - ./bin/gog.bin:/usr/local/bin/gog.bin:ro
+    - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       ea-db:
         condition: service_healthy
-
   ea-outbox:
     image: ea-os:latest
     container_name: ea-outbox
     restart: unless-stopped
-    env_file: [.env]
+    env_file:
+    - .env
     environment:
-      - EA_ROLE=outbox
-      - TZ=Europe/Vienna
+    - EA_ROLE=outbox
+    - TZ=Europe/Vienna
     volumes:
-      - ./config:/config:ro
-      - ./attachments:/attachments:rw
-      - ./logs:/logs:rw
+    - ./config:/config:ro
+    - ./attachments:/attachments:rw
+    - ./logs:/logs:rw
     depends_on:
       ea-db:
         condition: service_healthy
-
   ea-teable-sync:
     image: ea-os:latest
     container_name: ea-teable-sync
     restart: unless-stopped
-    env_file: [.env]
+    env_file:
+    - .env
     environment:
-      - TZ=Europe/Vienna
-    command: ["python", "-m", "app.integrations.teable.sync_worker"]
+    - TZ=Europe/Vienna
+    command:
+    - python
+    - -m
+    - app.integrations.teable.sync_worker
     volumes:
-      - ./config:/config:ro
-      - ./logs:/logs:rw
+    - ./config:/config:ro
+    - ./logs:/logs:rw
     depends_on:
       ea-db:
         condition: service_healthy
-
   ea-db:
     image: postgres:16-alpine
     container_name: ea-db
     restart: unless-stopped
-    env_file: [.env]
+    env_file:
+    - .env
     volumes:
-      - ea_pgdata:/var/lib/postgresql/data
+    - ea_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U postgres
       interval: 5s
       timeout: 5s
       retries: 10
-
 volumes:
-  ea_pgdata:
+  ea_pgdata: null
+
