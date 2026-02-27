@@ -500,6 +500,54 @@ async def handle_command(chat_id: int, text: str, msg: dict):
                 
                 safe_txt = clean_html_for_telegram(txt)
                 
+                # --- PATCH M: OODA MARKUPGO RENDERING ---
+                try:
+                    from app.tools.markupgo_client import MarkupGoClient, render_request_hash
+                    import uuid, os, asyncio
+                    from app.db import get_db
+                    
+                    await _update_status("🎨 <i>Rendering visual briefing via MarkupGo...</i>")
+                    
+                    db = get_db()
+                    row = await asyncio.to_thread(db.fetchone, "SELECT template_id FROM template_registry WHERE key = 'briefing.image' AND is_active = TRUE ORDER BY version DESC LIMIT 1")
+                    template_id = row["template_id"] if row else ""
+                    if not template_id:
+                        raise ValueError("OODA: No active template found for 'briefing.image'. Act: Run SQL: INSERT INTO template_registry (tenant, key, provider, template_id) VALUES ('ea_bot', 'briefing.image', 'markupgo', 'YOUR_ID');")
+                        
+                    context = {"briefing_text": txt}
+                    options = {"format": "png"}
+                    req_hash = render_request_hash(template_id, context, options, "png")
+                    
+                    cached = await asyncio.to_thread(db.fetchone, "SELECT artifact_id FROM render_cache WHERE tenant = 'ea_bot' AND render_request_hash = %s", (req_hash,))
+                    
+                    os.makedirs("/attachments/artifacts", exist_ok=True)
+                    img_bytes = None
+                    
+                    if cached and os.path.exists(f"/attachments/artifacts/{cached['artifact_id']}.png"):
+                        with open(f"/attachments/artifacts/{cached['artifact_id']}.png", "rb") as f:
+                            img_bytes = f.read()
+                    else:
+                        mg = MarkupGoClient()
+                        payload = {"source": {"type": "template", "data": {"id": template_id, "context": context}}, "options": options}
+                        img_bytes = await mg.render_image_buffer(payload)
+                        
+                        art_id = str(uuid.uuid4())
+                        with open(f"/attachments/artifacts/{art_id}.png", "wb") as f:
+                            f.write(img_bytes)
+                            
+                        await asyncio.to_thread(db.execute, "INSERT INTO render_cache (tenant, render_request_hash, provider, format, artifact_id) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                            ('ea_bot', req_hash, 'markupgo', 'png', art_id))
+
+                    if img_bytes:
+                        await tg.send_photo(chat_id, img_bytes, caption=safe_txt[:1000] + ("..." if len(safe_txt)>1000 else ""), parse_mode="HTML", reply_markup=markup)
+                        try: await tg.delete_message(chat_id, res['message_id'])
+                        except: pass
+                        return # Success!
+                except Exception as mg_err:
+                    print(f"MarkupGo rendering failed: {mg_err}", flush=True)
+                    safe_txt += f"\n\n⚙️ <b>OODA Diagnostic (Rendering):</b>\n<code>{str(mg_err)}</code>"
+                # ----------------------------------------
+                
                 try: 
                     await tg.edit_message_text(chat_id, res['message_id'], safe_txt, parse_mode="HTML", reply_markup=markup, disable_web_page_preview=True)
                 except Exception as tg_err: 
