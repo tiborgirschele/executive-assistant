@@ -4,8 +4,8 @@ from app.db import get_db
 def create_action(tenant: str, action_type: str, payload: dict, days: int = 7) -> str:
     db = get_db()
     act_id = str(uuid.uuid4())
-    db.execute("INSERT INTO typed_actions (id, tenant, action_type, payload_json, expires_at) VALUES (%s, %s, %s, %s, NOW() + interval '%s days')",
-               (act_id, tenant, action_type, json.dumps(payload), days))
+    db.execute("INSERT INTO typed_actions (id, tenant, action_type, payload_json, expires_at) VALUES (%s, %s, %s, %s, NOW() + interval '7 days')",
+               (act_id, tenant, action_type, json.dumps(payload)))
     return act_id
 
 def consume_action(tenant: str, act_id: str):

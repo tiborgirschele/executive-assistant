@@ -24,6 +24,6 @@ def enqueue_outbox(tenant: str, chat_id: int, payload_dict: dict) -> str:
     outbox_id = str(uuid.uuid4())
     db.execute("""
         INSERT INTO tg_outbox (id, tenant, chat_id, payload_json)
-        VALUES (%s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s::jsonb)
     """, (outbox_id, tenant, chat_id, json.dumps(payload_dict)))
     return outbox_id

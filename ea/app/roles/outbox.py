@@ -40,6 +40,7 @@ async def run_outbox():
                             res = await client.post(f"{api_url}/sendPhoto", data=data, files={"photo": f})
                     else:
                         tg_payload = {"chat_id": chat_id, "text": payload.get("text", "Empty msg"), "parse_mode": payload.get("parse_mode", "HTML")}
+                        if "reply_markup" in payload: tg_payload["reply_markup"] = payload["reply_markup"]
                         res = await client.post(f"{api_url}/sendMessage", json=tg_payload)
 
                     if res.status_code == 200:
