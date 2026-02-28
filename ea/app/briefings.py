@@ -227,7 +227,7 @@ async def build_briefing_for_tenant(tenant, status_cb=None) -> dict:
                     try:
                         end_ts = datetime.fromisoformat(dt_str)
                         if end_ts.tzinfo is None: end_ts = end_ts.replace(tzinfo=timezone.utc)
-                        if end_ts <= now - timedelta(hours=24): continue
+                        if end_ts <= now - timedelta(days=7): continue
                         
                         ev_title = str(ev.get('summary') or ev.get('title') or '')
                         dedupe_key = f"{ev_title}_{dt_str}"
