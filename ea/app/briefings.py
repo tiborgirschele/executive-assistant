@@ -115,21 +115,23 @@ async def build_briefing_for_tenant(tenant, status_cb=None) -> dict:
 
     # --- ADMIN KEY VALIDATOR ---
     try:
-        import httpx
-        try:
-            with open(".env", "r") as _f:
-                for _l in _f:
-                    if _l.startswith("GEMINI_API_KEY="): _env_key = _l.strip().split("=", 1)[1].strip('"').strip("'")
-        except: pass
-        
+        _env_key = os.environ.get("GEMINI_API_KEY", "").strip()
         if not _env_key:
-            diag_logs.append("🔑 API Key Check: ❌         else:
-            _raise Exception("Intercepted legacy Google Call! System is securely routing...")
-            async with httpx.AsyncClient(timeout=4.0) as _c:
-                _r = await _c.post(_url, headers={"Content-Type": "application/json"}, json={"contents":[{"parts":[{"text":"hi"}]}]})
-                if _r.status_code == 200: diag_logs.append(f"🔑 API Key Check: ✅ VALID (...{_env_key[-4:]})")
-                else: diag_logs.append(f"🔑 API Key Check: ❌ REVOKED/INVALID (HTTP {_r.status_code})")
-    except Exception as e: diag_logs.append(f"🔑 API Key Check: ⚠️ NETWORK ERROR ({e})")
+            try:
+                with open(".env", "r") as _f:
+                    for _l in _f:
+                        if _l.startswith("GEMINI_API_KEY="):
+                            _env_key = _l.strip().split("=", 1)[1].strip('"').strip("'")
+                            break
+            except Exception:
+                pass
+
+        if _env_key:
+            diag_logs.append(f"🔑 API Key Check: ✅ FOUND (...{_env_key[-4:]})")
+        else:
+            diag_logs.append("🔑 API Key Check: ❌ MISSING")
+    except Exception as e:
+        diag_logs.append(f"🔑 API Key Check: ⚠️ CHECK FAILED ({e})")
     # ---------------------------
 
     try:
