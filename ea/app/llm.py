@@ -1,3 +1,32 @@
+
+# ==========================================
+# META-OODA SHIELD: PREVENT RAW OS CRASHES
+# ==========================================
+import subprocess
+if not hasattr(subprocess, '_ooda_shielded'):
+    _orig_run = subprocess.run
+    def ooda_safe_run(*args, **kwargs):
+        try:
+            return _orig_run(*args, **kwargs)
+        except FileNotFoundError as e:
+            # Die KI hat versucht, ein nicht existentes Binary (wie 'docker') aufzurufen
+            cmd = args[0][0] if args and isinstance(args[0], (list, tuple)) else str(args[0] if args else kwargs.get('args', 'unknown'))
+            err_msg = f"🛡️ OODA Meta-Feedback: Command '{cmd}' blocked. EA OS is running inside an isolated Docker container and cannot execute host binaries."
+            return subprocess.CompletedProcess(args=args[0] if args else kwargs.get('args'), returncode=127, stdout=b'', stderr=err_msg.encode('utf-8'))
+    subprocess.run = ooda_safe_run
+    
+    _orig_check_output = subprocess.check_output
+    def ooda_safe_check_output(*args, **kwargs):
+        try:
+            return _orig_check_output(*args, **kwargs)
+        except FileNotFoundError as e:
+            cmd = args[0][0] if args and isinstance(args[0], (list, tuple)) else str(args[0] if args else kwargs.get('args', 'unknown'))
+            return f"🛡️ OODA Meta-Feedback: Command '{cmd}' blocked. Container isolated.".encode('utf-8')
+    subprocess.check_output = ooda_safe_check_output
+    
+    subprocess._ooda_shielded = True
+# ==========================================
+
 import json, urllib.request
 from app.settings import settings
 
@@ -49,7 +78,7 @@ def ask_llm(prompt: str, system_prompt: str = "Du bist ein präziser Executive A
     if getattr(settings, 'gemini_api_key', None):
         try:
             print("🔄 OODA Orient: Routing to Gemini...", flush=True)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={settings.gemini_api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={settings.gemini_api_key}"
             data = json.dumps({"contents": [{"parts": [{"text": f"{system_prompt}\n\n{prompt}"}]}]}).encode('utf-8')
             req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
             res = json.loads(urllib.request.urlopen(req, timeout=20).read().decode())
