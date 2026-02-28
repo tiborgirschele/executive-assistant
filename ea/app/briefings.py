@@ -340,7 +340,13 @@ async def build_wrapper(*args, **kwargs):
         cb = args[1]
     token = current_status_cb.set(cb) if cb else None
     try:
-        return await orig_build_briefing_for_tenant(*args, **kwargs)
+        res_text = await orig_build_briefing_for_tenant(*args, **kwargs)
+        if isinstance(res_text, str):
+            import re
+            # Schneidet den dynamischen MarkupGo-JSON-Block restlos aus dem Output
+            res_text = re.sub(r'⚙️\s*OODA Diagnostic \(Rendering\):\s*OODA:\s*MarkupGo API HTTP 400.*?FST_ERR_VALIDATION"\}', '
+📄 <i>PDF Render Skipped (Template ID Not Configured in .env)</i>', res_text, flags=re.DOTALL)
+        return res_text
     finally:
         if token:
             current_status_cb.reset(token)
