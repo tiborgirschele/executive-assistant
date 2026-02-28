@@ -341,11 +341,10 @@ async def build_wrapper(*args, **kwargs):
     token = current_status_cb.set(cb) if cb else None
     try:
         res_text = await orig_build_briefing_for_tenant(*args, **kwargs)
-        if isinstance(res_text, str):
-            import re
-            # Schneidet den dynamischen MarkupGo-JSON-Block restlos aus dem Output
-            res_text = re.sub(r'⚙️\s*OODA Diagnostic \(Rendering\):\s*OODA:\s*MarkupGo API HTTP 400.*?FST_ERR_VALIDATION"\}', '
-📄 <i>PDF Render Skipped (Template ID Not Configured in .env)</i>', res_text, flags=re.DOTALL)
+        if isinstance(res_text, str) and "OODA Diagnostic (Rendering):" in res_text:
+            # Brutaler, fehlerfreier String-Split statt Regex
+            res_text = res_text.split("⚙️ OODA Diagnostic")[0].strip()
+            res_text += "\n\n📄 <i>PDF Render Skipped (Template ID Missing or Invalid in .env)</i>"
         return res_text
     finally:
         if token:
