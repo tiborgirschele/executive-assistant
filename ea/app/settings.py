@@ -8,10 +8,6 @@ def _bool(name: str, default: bool=False) -> bool:
 
 @dataclass(frozen=True)
 class Settings:
-    payment_rails: dict = __import__("dataclasses").field(default_factory=lambda: {"default": "auth_workflow", "enabled": ["auth_workflow", "scan_to_pay", "manual_details"], "fallback_order": ["auth_workflow", "scan_to_pay", "manual_details"]})
-    undetectable_api_key: str | None = None
-    markupgo_template_master: str | None = None
-    markupgo_template_coach: str | None = None
     role: str
     tenants_yaml: str
     places_yaml: str
@@ -28,6 +24,10 @@ class Settings:
     magixx_base_url: str | None
     magixx_api_key: str | None
 
+    payment_rails: dict = __import__("dataclasses").field(default_factory=lambda: {"default": "auth_workflow", "enabled": ["auth_workflow", "scan_to_pay", "manual_details"], "fallback_order": ["auth_workflow", "scan_to_pay", "manual_details"]})
+    undetectable_api_key: str | None = None
+    markupgo_template_master: str | None = None
+    markupgo_template_coach: str | None = None
 def load_settings() -> Settings:
     return Settings(
         role=(os.environ.get("EA_ROLE") or "monolith").lower(),
