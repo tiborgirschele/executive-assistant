@@ -1,4 +1,14 @@
 services:
+  ea-event-worker:
+    build:
+      context: .
+      dockerfile: ea/Dockerfile
+    container_name: ea-event-worker
+    command: python -m app.workers.event_worker
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - ea-db
   ea-api:
     build:
       context: .
@@ -105,19 +115,5 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-  ea-event-worker:
-    image: ea-os:latest
-    container_name: ea-event-worker
-    restart: unless-stopped
-    env_file: *id001
-    environment:
-    - TZ=Europe/Vienna
-    - EA_ROLE=event_worker
-    volumes: *id002
-    depends_on: *id003
-    command:
-    - python
-    - -m
-    - app.roles.event_worker
 volumes:
   ea_pgdata: null

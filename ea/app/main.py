@@ -81,3 +81,22 @@ async def metasurvey_webhook(tenant: str, request: Request):
     dedupe = payload.get("response_id", "unknown")
     db.execute("INSERT INTO external_events (tenant, source, event_type, dedupe_key, payload_json) VALUES (%s, 'metasurvey', 'submission', %s, %s) ON CONFLICT DO NOTHING", (tenant, dedupe, json.dumps(payload)))
     return {"status": "ok"}
+
+@app.post("/webhooks/browseract/{tenant}/{workflow}")
+async def browseract_webhook(tenant: str, workflow: str, request: Request):
+    import json, hashlib
+    from app.db import get_db
+    try: payload = await request.json()
+    except Exception: return {"status": "error", "reason": "invalid_json"}
+    
+    payload_str = json.dumps(payload, sort_keys=True)
+    dedupe = request.headers.get("x-webhook-id") or hashlib.sha256(payload_str.encode('utf-8')).hexdigest()
+    
+    db = get_db()
+    db.execute('''
+        INSERT INTO external_events (tenant, source, event_type, dedupe_key, payload_json, status) 
+        VALUES (%s, 'browseract', %s, %s, %s::jsonb, 'new') 
+        ON CONFLICT DO NOTHING
+    ''', (tenant, workflow, dedupe, payload_str))
+    if hasattr(db, 'commit'): db.commit()
+    return {"status": "ok", "durability": "persisted"}
