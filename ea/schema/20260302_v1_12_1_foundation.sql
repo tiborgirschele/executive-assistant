@@ -1,0 +1,22 @@
+BEGIN;
+CREATE TABLE IF NOT EXISTS stuck_events (id SERIAL PRIMARY KEY, intent TEXT, failure_class TEXT, service_name TEXT, correlation_id TEXT, user_safe_context_json TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, resolved_at TIMESTAMP);
+CREATE TABLE IF NOT EXISTS recovery_attempts (id SERIAL PRIMARY KEY, correlation_id TEXT, strategy TEXT, outcome TEXT, circuit_breaker_key TEXT, notice_queued BOOLEAN, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS telegram_callback_states (token_hash VARCHAR(64) PRIMARY KEY, user_id TEXT, chat_id TEXT, action_family TEXT, raw_context_json TEXT, expires_at TIMESTAMP, used_at TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS feedback_events (id SERIAL PRIMARY KEY, feedback_type TEXT, action TEXT, briefing_item_id TEXT, cluster_id TEXT, concept_key TEXT, user_id TEXT, raw_reason_code TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS review_queue_items (id SERIAL PRIMARY KEY, status TEXT, claim_token TEXT, claimed_by TEXT, claim_expires_at TIMESTAMP, sanitised_hint_json TEXT, raw_document_ref TEXT, resolution TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP);
+CREATE TABLE IF NOT EXISTS replay_events (id SERIAL PRIMARY KEY, document_id TEXT, pipeline_stage TEXT, attempt_count INT DEFAULT 0, status TEXT, correlation_id TEXT, dead_letter_reason TEXT, last_error TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP);
+CREATE TABLE IF NOT EXISTS source_pool_items (pool_key TEXT PRIMARY KEY, freshness_class TEXT, snapshot_ref TEXT, refreshed_at TIMESTAMP, stale_after TIMESTAMP, locked_until TIMESTAMP, last_error TEXT, last_success_at TIMESTAMP);
+CREATE TABLE IF NOT EXISTS connector_notices (id SERIAL PRIMARY KEY, connector_key TEXT, severity TEXT, notice_state TEXT, next_delivery_at TIMESTAMP, dedupe_hash TEXT, delivered_at TIMESTAMP);
+CREATE TABLE IF NOT EXISTS egress_audit (id SERIAL PRIMARY KEY, correlation_id TEXT, model TEXT, purpose TEXT, data_class TEXT, redaction_applied BOOLEAN, response_class TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+
+CREATE INDEX IF NOT EXISTS idx_stuck_events_correlation_id ON stuck_events (correlation_id);
+CREATE INDEX IF NOT EXISTS idx_recovery_attempts_correlation_id ON recovery_attempts (correlation_id);
+CREATE INDEX IF NOT EXISTS idx_telegram_callback_states_expires_at ON telegram_callback_states (expires_at);
+CREATE INDEX IF NOT EXISTS idx_telegram_callback_states_used_at ON telegram_callback_states (used_at);
+CREATE INDEX IF NOT EXISTS idx_feedback_events_feedback_type ON feedback_events (feedback_type);
+CREATE INDEX IF NOT EXISTS idx_review_queue_items_status ON review_queue_items (status);
+CREATE INDEX IF NOT EXISTS idx_replay_events_status ON replay_events (status);
+CREATE INDEX IF NOT EXISTS idx_source_pool_items_locked_until ON source_pool_items (locked_until);
+CREATE INDEX IF NOT EXISTS idx_connector_notices_next_delivery_at ON connector_notices (next_delivery_at);
+CREATE INDEX IF NOT EXISTS idx_egress_audit_correlation_id ON egress_audit (correlation_id);
+COMMIT;

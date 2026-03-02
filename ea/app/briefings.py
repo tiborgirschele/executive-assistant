@@ -497,17 +497,18 @@ async def v19_meta_ai_wrapper(*args, **kwargs):
     res = await _orig_build_v19(*args, **kwargs)
 
     if isinstance(res, str):
-        # 1. MarkupGo Meta AI Übernahme
+        # v1.12.1 SUPERVISED ESCALATION (Mum Brain Boundary)
         if "OODA Diagnostic (Rendering):" in res and ("MarkupGo" in res or "FST_ERR_VALIDATION" in res):
-            # Löscht alles ab dem Zahnrad und ersetzt es durch unsere Payload
-            res = re.sub(r'⚙️\s*OODA Diagnostic \(Rendering\):.*', '', res, flags=re.DOTALL).strip()
-            res += "\n\n⚙️ <b>OODA Diagnostic (Rendering):</b>\n🤖 <i>META AI ACTIVATED: MarkupGo Template missing. Dispatched BrowserAct RPA to create template autonomously.</i>"
-            
+            import re as regex
             try:
-                from app.meta_ai import trigger_browseract_rpa
-                asyncio.create_task(trigger_browseract_rpa(tenant_id, 'markupgo', 'create_template', {}))
-            except Exception:
-                pass
+                from app.supervisor import trigger_mum_brain
+                # L1 gives up, L2 steps in. Sync fallback to user, async logging to DB.
+                cid = trigger_mum_brain(None, "MarkupGo HTTP 400 Validation Error", fallback="telegram_text", failure_class="markup_api_400", intent="render_visuals")
+                res = regex.sub(r'⚙️\s*OODA Diagnostic \(Rendering\):.*', '', res, flags=regex.DOTALL).strip()
+                res = f"⚠️ *Degraded Service*\nVisual rendering failed (Ticket `{cid}`). Showing plain text fallback.\n\n" + res
+            except Exception as e:
+                res = regex.sub(r'⚙️\s*OODA Diagnostic \(Rendering\):.*', '', res, flags=regex.DOTALL).strip()
+                res = f"⚠️ *Degraded Service*\nVisual rendering failed. (Fallback error: {e})\n\n" + res
 
         # 2. Coaching MetaSurvey Übernahme
         try:

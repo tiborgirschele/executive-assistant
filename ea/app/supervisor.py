@@ -1,10 +1,16 @@
-import functools, logging, uuid, builtins, asyncio, json
+import functools, logging, uuid, asyncio, json
 
 def trigger_mum_brain(db_conn, e_msg, fallback="telegram_text", failure_class="system_error", intent="unknown"):
     """v1.12.1 L2 Supervisor Programmatic API"""
     cid = uuid.uuid4().hex[:8]
     logging.error(f"🚨 [L2 SUPERVISOR] Escalation triggered for '{intent}'. CorrID: {cid}. Msg: {str(e_msg)[:100]}...")
     
+    if db_conn is None:
+        try:
+            from app.db import get_db
+            db_conn = get_db()
+        except: pass
+
     # MANDATORY: Erase dirty transaction state!
     if db_conn:
         try:
@@ -30,28 +36,3 @@ def trigger_mum_brain(db_conn, e_msg, fallback="telegram_text", failure_class="s
             except: pass
             
     return cid
-
-def supervised(fallback="telegram_text", failure_class="system_error", intent="unknown"):
-    """v1.12.1 L2 Supervisor Decorator"""
-    def decorator(func):
-        def _handle_failure(e, args, func_name):
-            db = getattr(builtins, '_ooda_global_db', None)
-            cid = trigger_mum_brain(db, str(e), fallback, failure_class, intent)
-            if fallback == "telegram_text":
-                logging.warning("⚠️ [L2 SUPERVISOR] Dropping visual layer. Executing inline text fallback.")
-                return f"⚠️ *Degraded Service*\nVisual rendering for `{intent}` failed, but your briefing is safe.\n\n_(Error logged for engineering: `{cid}`)_"
-            return fallback
-
-        if asyncio.iscoroutinefunction(func):
-            @functools.wraps(func)
-            async def async_wrapper(*args, **kwargs):
-                try: return await func(*args, **kwargs)
-                except Exception as e: return _handle_failure(e, args, func.__name__)
-            return async_wrapper
-        else:
-            @functools.wraps(func)
-            def sync_wrapper(*args, **kwargs):
-                try: return func(*args, **kwargs)
-                except Exception as e: return _handle_failure(e, args, func.__name__)
-            return sync_wrapper
-    return decorator
