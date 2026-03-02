@@ -96,7 +96,7 @@ async def call_llm(prompt: str, temp=0.1) -> str:
     err_report = f"🚨 ALL GEMINI KEYS FAILED!\n\n{joined_errs}\n\n💡 FIX: Google revoked these keys because they were posted in chat. Generate ONE new key and use the update_keys.sh script!"
     return json.dumps({"error": err_report})
 
-async def build_briefing_for_tenant(tenant, status_cb=None) -> dict:
+async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
     t_openclaw = get_val(tenant, 'openclaw_container', '')
     t_account = get_val(tenant, 'google_account', '')
     t_key = get_val(tenant, 'key', 'tibor')
@@ -512,3 +512,59 @@ async def v19_meta_ai_wrapper(*args, **kwargs):
     return res
 
 build_briefing_for_tenant = v19_meta_ai_wrapper
+
+
+
+# =================================================================
+# v1.12.5 BULLETPROOF SEND BOUNDARY & MUM BRAIN WRAPPER
+# =================================================================
+import builtins
+import io
+import sys
+import traceback
+
+async def build_briefing_for_tenant(*args, **kwargs):
+    old_stdout = sys.stdout
+    captured_output = io.StringIO()
+    sys.stdout = captured_output
+    
+    res = None
+    exc = None
+    try:
+        # 1. Führe die alte L1-Pipeline aus
+        res = await _raw_build_briefing_for_tenant(*args, **kwargs)
+    except Exception as e:
+        exc = e
+        traceback.print_exc()
+    finally:
+        # 2. Output wieder freigeben
+        sys.stdout = old_stdout
+        
+    printed_str = captured_output.getvalue()
+    if printed_str:
+        print(printed_str, end="", flush=True)
+        
+    # 3. PHASE B ESCALATION: Fange JEDES toxische JSON oder Error-Prints!
+    res_str = str(res) + " " + printed_str + " " + str(exc)
+    
+    if "MarkupGo" in res_str or "FST_ERR" in res_str or '"statusCode":' in res_str or exc:
+        print("🚨 [L2 WRAPPER] Intercepted toxic payload! Triggering Mum Brain Phase B...", flush=True)
+        try:
+            from app.supervisor import trigger_mum_brain
+            from app.telegram.safety import sanitize_for_telegram
+            
+            db = getattr(builtins, '_ooda_global_db', None)
+            mode = "status-first" if len(str(res)) < 300 else "simplified-first"
+            chat_id = args[0] if len(args) > 0 else "system"
+            
+            # Ticket in die Datenbank schreiben
+            error_payload = str(exc) if exc else res_str
+            cid = trigger_mum_brain(db, error_payload, fallback_mode=mode, failure_class="markup_api_400", intent="render_visuals", chat_id=chat_id)
+            
+            # Den Müll verbrennen und sicheren Telegram-Text ausliefern
+            return sanitize_for_telegram(error_payload, correlation_id=cid, mode=mode, message_kind="briefing")
+        except Exception as inner_e:
+            print(f"L2 Wrapper crashed: {inner_e}")
+            return "⏳ *Preparing your briefing in safe mode...*\n_(Formatting repair running in background.)_"
+        
+    return res
