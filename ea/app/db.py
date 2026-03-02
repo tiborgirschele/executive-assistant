@@ -96,7 +96,6 @@ def log_to_db(tenant=None, component=None, event_type=None, message=None, payloa
     )
 
 
-
 import logging, os, re, builtins, uuid
 
 def _get_persistent_memory():
