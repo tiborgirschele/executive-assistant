@@ -639,7 +639,11 @@ async def handle_command(chat_id: int, text: str, msg: dict):
                     if _ea_fault in ('invalid_template_id', 'renderer_unavailable'):
                         open_markupgo_breaker(_ea_fault, skill='markupgo', location='poll_listener')
                     log_render_guard('renderer_text_only', _ea_fault, skill='markupgo', location='poll_listener')
-                    safe_txt += f'\n\n⚙️ <b>OODA Diagnostic (Rendering):</b>\n<code>{str(mg_err)}</code>'
+                    # Keep raw renderer diagnostics in logs, not in normal user-visible briefings.
+                    if str((os.getenv('EA_RENDER_DIAGNOSTIC_TO_CHAT', '') or '')).strip().lower() in ('1', 'true', 'yes', 'on'):
+                        safe_txt += f'\n\n⚙️ <b>OODA Diagnostic (Rendering):</b>\n<code>{str(mg_err)}</code>'
+                    else:
+                        safe_txt += '\n\n📝 <i>Visual template unavailable, switched to safe text mode.</i>'
                 try:
                     await tg.edit_message_text(chat_id, res['message_id'], safe_txt, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=True)
                 except Exception as tg_err:
