@@ -17,6 +17,7 @@ for _name in [n for n in dir(_legacy) if not n.startswith("_")]:
     globals()[_name] = getattr(_legacy, _name)
 
 from .safety import SAFE_PLACEHOLDER_COPY, SAFE_SIMPLIFIED_COPY, install_telegram_safety, sanitize_telegram_text
+from .callback_tokens import consume_callback_token, issue_callback_token
 
 try:
     _patched = install_telegram_safety(globals().get("TelegramClient")) if globals().get("TelegramClient") else []
