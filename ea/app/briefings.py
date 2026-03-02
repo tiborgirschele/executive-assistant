@@ -332,7 +332,7 @@ except ImportError:
 current_status_cb = contextvars.ContextVar('current_status_cb', default=None)
 
 if 'orig_build_briefing_for_tenant' not in globals():
-    orig_build_briefing_for_tenant = build_briefing_for_tenant
+    orig_build_briefing_for_tenant = _raw_build_briefing_for_tenant
 
 async def build_wrapper(*args, **kwargs):
     cb = kwargs.get('status_cb')
