@@ -12,3 +12,4 @@ redis
 segno>=1.6.0
 pypdf>=4.0.0
 pypdf>=4.0.0
+docker>=7.1.0

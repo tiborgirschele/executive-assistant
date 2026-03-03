@@ -14,11 +14,12 @@ from app.sepa_qr import generate_epc_qr
 from app.sepa_xml import generate_pain001_xml
 from app.open_loops import OpenLoops
 from app.briefings import build_briefing_for_tenant, get_val, call_llm, call_powerful_llm
-from app.articles_digest import fetch_browseract_articles, select_interesting, render_articles_pdf, collect_user_signal_terms
+from app.articles_digest import fetch_browseract_articles, select_interesting, render_articles_pdf, collect_user_signal_terms, enrich_full_articles
 from app.memory import get_button_context, save_button_context
 from app.render_guard import classify_markupgo_error, log_render_guard, markupgo_breaker_open, open_markupgo_breaker, promote_known_good_template_if_needed
 from app.repair.healer import system_health_snapshot
 from app.policy.household import gate_household_document_action
+from app.intake.survey_planner import plan_article_preference_survey
 LAST_HEARTBEAT = time.time()
 
 def _watchdog_loop():
@@ -198,11 +199,16 @@ async def _send_browseract_articles_pdf(chat_id: int, tenant_name: str, tenant_c
             if force:
                 await tg.send_message(chat_id, '🗞️ No recent BrowserAct articles found yet for Economist/Atlantic/NYT.')
             return False
+        picked = await enrich_full_articles(picked, max_fetch=6)
         title = f"Executive Reading Brief | {datetime.now().strftime('%Y-%m-%d')}"
         pdf_bytes = await render_articles_pdf(picked, title=title)
         filename = f"EA_Reading_Brief_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
         caption = f"🗞️ <b>{len(picked)} interesting articles</b> from Economist / Atlantic / NYT."
         await tg.send_document(chat_id, pdf_bytes, filename, caption=caption, parse_mode='HTML')
+        refs = [{"title": a.title[:160], "url": a.url[:360], "publisher": a.publisher} for a in picked[:8]]
+        principal = get_val(tenant_cfg, 'google_account', '') or str(chat_id)
+        tenant_for_survey = get_val(tenant_cfg, 'google_account', '') or tenant_name
+        asyncio.create_task(plan_article_preference_survey(tenant=tenant_for_survey, principal=principal, article_refs=refs))
         return True
     except Exception as e:
         log_render_guard('articles_pdf_failed', str(e)[:140], location='poll_listener')

@@ -156,7 +156,7 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
     keep_kws = ['nicht zugestellt', 'wartet auf abholung', 'fehlgeschlagen', 'abholbereit', 'action required']
     for acc in accounts:
         try:
-            raw_mails = await safe_gog(t_openclaw, ['gmail', 'messages', 'search', 'newer_than:1d', '--limit', '40', '--json'], acc, timeout=20.0)
+            raw_mails = await safe_gog(t_openclaw, ['gmail', 'messages', 'search', 'newer_than:1d', '--max', '40', '--json'], acc, timeout=20.0)
             mails = _safe_extract_array(raw_mails)
             for m in mails:
                 raw_val = json.dumps(m, ensure_ascii=False).lower()
@@ -193,7 +193,7 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
             flags_to_try = [['--timeMin', today_start], ['--time-min', today_start], ['--start', today_start], []]
             events = []
             for flags in flags_to_try:
-                cmd = ['calendar', 'events', 'list', cid, '--limit', '50', '--json'] + flags
+                cmd = ['calendar', 'events', '--max', '50', '--json'] + flags
                 raw_cal = await safe_gog(t_openclaw, cmd, acc, timeout=12.0)
                 events = _safe_extract_array(raw_cal)
                 if events:

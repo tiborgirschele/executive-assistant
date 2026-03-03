@@ -4,14 +4,47 @@ import os
 import asyncio
 import re
 import time
+import shutil
+
+try:
+    import docker as docker_sdk
+except Exception:
+    docker_sdk = None
 
 async def gog_cli(container: str, command: list, account: str = "") -> str:
     cmd = ["docker", "exec", "-e", f"GEMINI_API_KEY={os.environ.get('GEMINI_API_KEY', '')}", "-e", f"LITELLM_API_KEY={os.environ.get('GEMINI_API_KEY', '')}", "-e", "LLM_MODEL=gemini/gemini-2.5-flash", "-u", "root", container, "gog"] + command
     try:
-        process = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
-        stdout, _ = await asyncio.wait_for(process.communicate(), timeout=30.0)
-        return stdout.decode('utf-8', errors='replace')
-    except Exception as e: return "[]"
+        if shutil.which("docker"):
+            process = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+            stdout, _ = await asyncio.wait_for(process.communicate(), timeout=30.0)
+            return stdout.decode('utf-8', errors='replace')
+    except Exception:
+        pass
+
+    # Fallback when docker CLI is unavailable in this runtime image.
+    if docker_sdk is not None:
+        try:
+            def _exec_via_sdk() -> str:
+                client = docker_sdk.DockerClient(base_url='unix://var/run/docker.sock')
+                c = client.containers.get(container)
+                out = c.exec_run(
+                    ["gog"] + command,
+                    user="root",
+                    environment={
+                        "GEMINI_API_KEY": os.environ.get("GEMINI_API_KEY", ""),
+                        "LITELLM_API_KEY": os.environ.get("GEMINI_API_KEY", ""),
+                        "LLM_MODEL": "gemini/gemini-2.5-flash",
+                    },
+                    demux=False,
+                )
+                data = out.output if hasattr(out, "output") else out[1]
+                if isinstance(data, (bytes, bytearray)):
+                    return data.decode("utf-8", errors="replace")
+                return str(data or "")
+            return await asyncio.wait_for(asyncio.to_thread(_exec_via_sdk), timeout=30.0)
+        except Exception:
+            pass
+    return "[]"
 
 async def gog_scout(container: str, prompt: str, account: str, status_cb=None, task_name="Task") -> str:
     cmd = ["docker", "exec", "-e", f"GEMINI_API_KEY={os.environ.get('GEMINI_API_KEY', '')}", "-e", f"LITELLM_API_KEY={os.environ.get('GEMINI_API_KEY', '')}", "-e", "LLM_MODEL=gemini/gemini-2.5-flash",  "-e", "GOG_KEYRING_PASSWORD=rangersofB5", "-e", "WEB_PROVIDER=searxng", "-e", "SEARXNG_URL=http://searxng:8080"]
