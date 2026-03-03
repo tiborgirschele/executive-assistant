@@ -1,7 +1,4 @@
 from __future__ import annotations
-import asyncio
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
 
 # Hardened boot logging
 print("\n" + "!"*40, flush=True)
@@ -9,38 +6,22 @@ print("🚀 CHIEF OF STAFF SYSTEM BOOTING", flush=True)
 print("!"*40 + "\n", flush=True)
 
 from app.server import app
-from app.poll_listener import poll_loop
-from app.scheduler import scheduler_loop
-
-@asynccontextmanager
-async def lifespan(app_instance: FastAPI):
-    # This block executes when the server starts
-    print("🤖 Background Threads: INITIALIZING...", flush=True)
-    p_task = asyncio.create_task(poll_loop())
-    s_task = asyncio.create_task(scheduler_loop())
-    
-    yield
-    
-    # Cleanup on shutdown
-    print("🛑 Background Threads: TERMINATING...", flush=True)
-    p_task.cancel()
-    s_task.cancel()
-
-# Attach lifespan to the existing FastAPI instance
-app.router.lifespan_context = lifespan
 
 from fastapi import Request, Header, HTTPException
 import hashlib
 import json
+from app.audit import log_event
+
+def _require_ingest_auth(authorization: str | None) -> None:
+    from app.settings import settings
+    expected = settings.ea_ingest_token or settings.apixdrive_shared_secret
+    if not expected or authorization != f"Bearer {expected}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 @app.post("/webhooks/apixdrive/{tenant}")
 async def apixdrive_ingress(tenant: str, request: Request, authorization: str = Header(None)):
-    from app.settings import settings
     from app.db import get_db
-    
-    # 1. Auth Boundary: P0 Security
-    if not settings.apixdrive_shared_secret or authorization != f"Bearer {settings.apixdrive_shared_secret}":
-        raise HTTPException(status_code=401, detail="Unauthorized: Invalid ApiX-Drive Secret")
+    _require_ingest_auth(authorization)
         
     try:
         payload = await request.json()
@@ -69,34 +50,61 @@ async def apixdrive_ingress(tenant: str, request: Request, authorization: str = 
         )
         return {"status": "accepted", "tenant": tenant, "source": source, "dedupe_key": dedupe_key}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        log_event(
+            tenant,
+            "ingress",
+            "error",
+            "apixdrive ingest persistence failed",
+            {"source": source, "error": str(e)[:300]},
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/webhooks/metasurvey/{tenant}")
-async def metasurvey_webhook(tenant: str, request: Request):
-    try: payload = await request.json()
-    except: return {"error": "invalid json"}
+async def metasurvey_webhook(tenant: str, request: Request, authorization: str = Header(None)):
+    _require_ingest_auth(authorization)
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
     from app.db import get_db
-    import json
     db = get_db()
     dedupe = payload.get("response_id", "unknown")
-    db.execute("INSERT INTO external_events (tenant, source, event_type, dedupe_key, payload_json) VALUES (%s, 'metasurvey', 'submission', %s, %s) ON CONFLICT DO NOTHING", (tenant, dedupe, json.dumps(payload)))
+    db.execute(
+        """
+        INSERT INTO external_events (tenant, source, event_type, dedupe_key, payload_json)
+        VALUES (%s, 'metasurvey', 'submission', %s, %s::jsonb)
+        ON CONFLICT (tenant, source, dedupe_key) DO NOTHING
+        """,
+        (tenant, dedupe, json.dumps(payload)),
+    )
     return {"status": "ok"}
 
 @app.post("/webhooks/browseract/{tenant}/{workflow}")
-async def browseract_webhook(tenant: str, workflow: str, request: Request):
+async def browseract_webhook(tenant: str, workflow: str, request: Request, authorization: str = Header(None)):
+    _require_ingest_auth(authorization)
     import json, hashlib
     from app.db import get_db
-    try: payload = await request.json()
-    except Exception: return {"status": "error", "reason": "invalid_json"}
+    from app.integrations.avomap.security import verify_webhook_signature
+    from app.settings import settings
+    try:
+        raw_body = await request.body()
+        if str(workflow).startswith("avomap."):
+            sig = request.headers.get("x-webhook-signature")
+            if not verify_webhook_signature(settings.avomap_webhook_secret, raw_body, sig):
+                raise HTTPException(status_code=401, detail="Invalid webhook signature")
+        payload = json.loads(raw_body.decode("utf-8"))
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
     
     payload_str = json.dumps(payload, sort_keys=True)
     dedupe = request.headers.get("x-webhook-id") or hashlib.sha256(payload_str.encode('utf-8')).hexdigest()
     
     db = get_db()
     db.execute('''
-        INSERT INTO external_events (tenant, source, event_type, dedupe_key, payload_json, status) 
-        VALUES (%s, 'browseract', %s, %s, %s::jsonb, 'new') 
-        ON CONFLICT DO NOTHING
+        INSERT INTO external_events (tenant, source, event_type, dedupe_key, payload_json)
+        VALUES (%s, 'browseract', %s, %s, %s::jsonb)
+        ON CONFLICT (tenant, source, dedupe_key) DO NOTHING
     ''', (tenant, workflow, dedupe, payload_str))
-    if hasattr(db, 'commit'): db.commit()
     return {"status": "ok", "durability": "persisted"}

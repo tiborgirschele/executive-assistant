@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from typing import Any
 
 from app.db import get_db
+from app.integrations.avomap.security import verify_job_token
 from app.settings import settings
+from app.telegram.media import TELEGRAM_MAX_UPLOAD_BYTES, enforce_video_size_limit
 
 
 def _pick(payload: dict[str, Any], *paths: tuple[str, ...]) -> Any:
@@ -116,8 +119,60 @@ def finalize_avomap_render_event(
     if not spec_id:
         return {"ok": False, "status": "missing_spec_id"}
 
+    if settings.avomap_webhook_secret:
+        job_row = db.fetchone(
+            """
+            SELECT job_id
+            FROM avomap_jobs
+            WHERE spec_id=%s
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (spec_id,),
+        ) or {}
+        job_id = str((job_row or {}).get("job_id") or "").strip()
+        token = str(
+            _pick(data, ("job_token",), ("data", "job_token"), ("meta", "job_token")) or ""
+        ).strip()
+        if not job_id or not verify_job_token(
+            settings.avomap_webhook_secret,
+            tenant=tenant,
+            job_id=job_id,
+            spec_id=spec_id,
+            token=token,
+        ):
+            return {"ok": False, "status": "unauthorized_job_token"}
+
     success = _is_success(data)
     if success and object_ref:
+        local_path = str(
+            _pick(data, ("local_path",), ("file_path",), ("data", "local_path"), ("data", "file_path")) or ""
+        ).strip()
+        size_hint = _pick(
+            data,
+            ("file_size_bytes",),
+            ("size_bytes",),
+            ("data", "file_size_bytes"),
+            ("data", "size_bytes"),
+        )
+        if local_path and os.path.exists(local_path):
+            try:
+                adjusted_path, _meta = enforce_video_size_limit(
+                    local_path,
+                    max_bytes=TELEGRAM_MAX_UPLOAD_BYTES,
+                    dry_run=bool(_pick(data, ("dry_run",), ("data", "dry_run"))),
+                )
+                object_ref = adjusted_path
+            except Exception:
+                pass
+        elif size_hint is not None:
+            try:
+                if int(size_hint) > int(TELEGRAM_MAX_UPLOAD_BYTES):
+                    # Keep completion non-blocking; delivery can decide to send link-only for oversized remote assets.
+                    mime_type = "video/mp4"
+            except Exception:
+                pass
+
         db.execute(
             """
             INSERT INTO avomap_assets (

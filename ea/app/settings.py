@@ -71,6 +71,8 @@ class Settings:
     avomap_duration_target_sec: int = 20
     avomap_late_attach_window_sec: int = 900
     avomap_min_novelty_distance_km: int = 100
+    avomap_webhook_secret: str | None = None
+    avomap_browseract_timeout_sec: int = 180
 
 def load_settings() -> Settings:
     return Settings(
@@ -132,6 +134,8 @@ def load_settings() -> Settings:
         avomap_duration_target_sec=int(os.environ.get("AVOMAP_DURATION_TARGET_SEC", "20")),
         avomap_late_attach_window_sec=int(os.environ.get("AVOMAP_LATE_ATTACH_WINDOW_SEC", "900")),
         avomap_min_novelty_distance_km=int(os.environ.get("AVOMAP_MIN_NOVELTY_DISTANCE_KM", "100")),
+        avomap_webhook_secret=os.environ.get("AVOMAP_WEBHOOK_SECRET"),
+        avomap_browseract_timeout_sec=int(os.environ.get("AVOMAP_BROWSERACT_TIMEOUT_SEC", "180")),
     )
 
 settings = load_settings()

@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 from app.integrations.avomap.specs import TravelVideoSpec
+from app.integrations.routing.service import build_gpx_xml
+from app.settings import settings
 
 
 def build_browseract_payload(spec: TravelVideoSpec, workflow_name: str) -> dict:
+    route_stops = []
+    if isinstance(spec.route_json, dict):
+        route_stops = [s for s in (spec.route_json.get("stops") or []) if isinstance(s, dict)]
+    gpx_xml = build_gpx_xml(route_stops)
     return {
         "platform": "avomap",
         "task": "render_trip_video",
@@ -21,5 +27,7 @@ def build_browseract_payload(spec: TravelVideoSpec, workflow_name: str) -> dict:
             "markers_json": spec.markers_json,
             # Preferred path: GPX/KML import mode for deterministic route setup.
             "import_mode": "gpx_kml_preferred",
+            "gpx_payload": gpx_xml,
+            "max_runtime_sec": int(settings.avomap_browseract_timeout_sec),
         },
     }

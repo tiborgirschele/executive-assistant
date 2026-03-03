@@ -31,9 +31,22 @@ def build_cache_key(
     orientation: str,
     duration_target_sec: int,
 ) -> str:
+    def _norm_stop(stop: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "label": str(stop.get("label") or "").strip().lower(),
+            "city": str(stop.get("city") or "").strip().lower(),
+            "country": str(stop.get("country") or "").strip().lower(),
+            "place_key": str(stop.get("place_key") or "").strip().lower(),
+        }
+
+    route_stops = []
+    if isinstance(route_json, dict):
+        route_stops = [_norm_stop(s) for s in (route_json.get("stops") or []) if isinstance(s, dict)]
+    marker_stops = [_norm_stop(s) for s in markers_json if isinstance(s, dict)]
     payload = {
-        "route_json": route_json,
-        "markers_json": markers_json,
+        # Semantic cache key: text-normalized waypoints only (no raw floating GPS jitter).
+        "route_stops": route_stops,
+        "marker_stops": marker_stops,
         "mode": mode,
         "orientation": orientation,
         "duration_target_sec": int(duration_target_sec),

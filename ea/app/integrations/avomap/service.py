@@ -7,7 +7,10 @@ from typing import Any
 from app.db import get_db
 from app.integrations.avomap.browseract_payloads import build_browseract_payload
 from app.integrations.avomap.detector import detect_new_place
+from app.integrations.avomap.sanitizer import sanitize_route_for_export
+from app.integrations.avomap.security import issue_job_token
 from app.integrations.avomap.specs import TravelVideoSpec, build_cache_key, validate_spec
+from app.integrations.routing.service import resolve_route_stops
 from app.settings import settings
 
 
@@ -228,7 +231,9 @@ class AvoMapService:
         if mode == "none":
             return {"status": "no_candidate", "date_key": day, "decision": decision}
 
-        route_stops = [s for s in (day_context.get("route_stops") or []) if isinstance(s, dict)]
+        raw_route_stops = [s for s in (day_context.get("route_stops") or []) if isinstance(s, dict)]
+        resolved_stops = resolve_route_stops(raw_route_stops, home_base=day_context.get("home_base"))
+        route_stops = sanitize_route_for_export(resolved_stops, home_base=day_context.get("home_base"))
         markers = route_stops[:8]
         route_json = {"stops": route_stops[:8], "date_key": day}
         cache_key = build_cache_key(
@@ -247,7 +252,11 @@ class AvoMapService:
             duration_target_sec=int(settings.avomap_duration_target_sec),
             route_json=route_json,
             markers_json=markers,
-            signal_json={"decision": decision, "generated_at": datetime.now(timezone.utc).isoformat()},
+            signal_json={
+                "decision": decision,
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "opsec_sanitized": True,
+            },
             cache_key=cache_key,
         )
         errs = validate_spec(spec)
@@ -405,6 +414,13 @@ class AvoMapService:
             (spec_id, tenant, settings.avomap_browseract_workflow, f"{tenant}:{person_id}:{day}:{cache_key}"),
         )
         job_id = str((job or {}).get("job_id") or "")
+        payload["data"]["job_id"] = job_id
+        payload["data"]["job_token"] = issue_job_token(
+            settings.avomap_webhook_secret,
+            tenant=tenant,
+            job_id=job_id,
+            spec_id=spec_id,
+        )
 
         self.db.execute(
             """

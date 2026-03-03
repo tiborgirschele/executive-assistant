@@ -13,6 +13,10 @@ BROWSERACT = APP / "intake/browseract.py"
 EVENT_WORKER = APP / "workers/event_worker.py"
 BRIEFINGS = APP / "briefings.py"
 DB = APP / "db.py"
+ROUTING = APP / "integrations/routing/service.py"
+SANITIZER = APP / "integrations/avomap/sanitizer.py"
+AVOMAP_SECURITY = APP / "integrations/avomap/security.py"
+TG_MEDIA = APP / "telegram/media.py"
 SCHEMA = ROOT / "ea/schema/v1_12_6_avomap.sql"
 E2E_SCRIPT = ROOT / "tests/e2e_v1_12_6_avomap.py"
 DESIGN_E2E_SCRIPT = ROOT / "scripts/docker_e2e_design_workflows.sh"
@@ -22,11 +26,15 @@ AVOMAP_FILES = [
     APP / "integrations/avomap/specs.py",
     APP / "integrations/avomap/detector.py",
     APP / "integrations/avomap/service.py",
+    APP / "integrations/avomap/sanitizer.py",
+    APP / "integrations/avomap/security.py",
     APP / "integrations/avomap/browseract_payloads.py",
     APP / "integrations/avomap/finalize.py",
+    APP / "integrations/routing/service.py",
+    APP / "telegram/media.py",
 ]
 
-for path in [SETTINGS, MAIN, BROWSERACT, EVENT_WORKER, BRIEFINGS, DB, E2E_SCRIPT, *AVOMAP_FILES]:
+for path in [SETTINGS, MAIN, BROWSERACT, EVENT_WORKER, BRIEFINGS, DB, ROUTING, SANITIZER, AVOMAP_SECURITY, TG_MEDIA, E2E_SCRIPT, *AVOMAP_FILES]:
     ast.parse(path.read_text(encoding="utf-8"))
 print("[SMOKE][HOST][PASS] v1.12.6 modules parse")
 
@@ -62,6 +70,8 @@ for key in (
     "avomap_default_orientation",
     "avomap_duration_target_sec",
     "avomap_late_attach_window_sec",
+    "avomap_webhook_secret",
+    "avomap_browseract_timeout_sec",
 ):
     assert key in settings_src, key
 print("[SMOKE][HOST][PASS] AVOMAP_* settings wired")
@@ -73,6 +83,11 @@ assert "status IN ('new', 'queued', 'retry', 'failed')" in browseract_src
 event_worker_src = EVENT_WORKER.read_text(encoding="utf-8")
 assert "status IN ('new', 'queued')" in event_worker_src
 print("[SMOKE][HOST][PASS] browseract finalize path wired")
+
+main_src = MAIN.read_text(encoding="utf-8")
+assert "x-webhook-signature" in main_src
+assert "verify_webhook_signature" in main_src
+print("[SMOKE][HOST][PASS] avomap webhook signature gate wired")
 
 brief_src = BRIEFINGS.read_text(encoding="utf-8")
 assert "_avomap_prepare_card" in brief_src
