@@ -19,8 +19,15 @@ from app.memory import get_button_context, save_button_context
 from app.render_guard import classify_markupgo_error, log_render_guard, markupgo_breaker_open, open_markupgo_breaker, promote_known_good_template_if_needed
 from app.repair.healer import system_health_snapshot
 from app.policy.household import gate_household_document_action
-from app.intake.survey_planner import plan_article_preference_survey
+from app.intake.survey_planner import plan_article_preference_survey, plan_briefing_feedback_survey
 LAST_HEARTBEAT = time.time()
+
+
+def _sentinel_enabled_for_role() -> bool:
+    override = os.getenv("EA_SENTINEL_ENABLED")
+    if override is not None:
+        return str(override).strip().lower() in ("1", "true", "yes", "on")
+    return True
 
 def _watchdog_loop():
     while True:
@@ -37,7 +44,10 @@ def _watchdog_loop():
             except:
                 pass
             os._exit(1)
-threading.Thread(target=_watchdog_loop, daemon=True).start()
+
+
+if _sentinel_enabled_for_role():
+    threading.Thread(target=_watchdog_loop, daemon=True).start()
 
 async def heartbeat_pinger():
     global LAST_HEARTBEAT
@@ -45,6 +55,44 @@ async def heartbeat_pinger():
         LAST_HEARTBEAT = time.time()
         await asyncio.sleep(10)
 tg = TelegramClient(settings.telegram_bot_token)
+MENU_REGISTERED = False
+BOT_COMMANDS = [
+    {"command": "brief", "description": "Executive briefing + personal newspaper PDF"},
+    {"command": "auth", "description": "Authorize Google account/services"},
+    {"command": "briefpdf", "description": "Standalone article PDF"},
+    {"command": "articlespdf", "description": "Alias for article PDF"},
+    {"command": "remember", "description": "Store memory fact"},
+    {"command": "brain", "description": "Show stored memory"},
+    {"command": "mumbrain", "description": "Repair and system health status"},
+    {"command": "menu", "description": "Show all commands"},
+    {"command": "help", "description": "Show all commands"},
+    {"command": "start", "description": "Start and show command menu"},
+]
+
+
+def _menu_text() -> str:
+    return (
+        "📋 <b>Command Menu</b>\n\n"
+        "• <code>/brief</code> - Executive briefing + personal newspaper PDF\n"
+        "• <code>/auth [email]</code> - Authenticate Google services\n"
+        "• <code>/briefpdf</code> - Standalone interesting-articles PDF\n"
+        "• <code>/articlespdf</code> - Alias for <code>/briefpdf</code>\n"
+        "• <code>/remember &lt;text&gt;</code> - Save a memory fact\n"
+        "• <code>/brain</code> - Show saved memory\n"
+        "• <code>/mumbrain</code> - System/repair diagnostics\n"
+        "• <code>/menu</code> or <code>/help</code> - Show this menu"
+    )
+
+
+async def _ensure_bot_command_menu():
+    global MENU_REGISTERED
+    if MENU_REGISTERED or not settings.telegram_bot_token:
+        return
+    try:
+        await tg.set_my_commands(BOT_COMMANDS)
+        MENU_REGISTERED = True
+    except Exception:
+        pass
 
 class AuthSessionStore:
 
@@ -124,8 +172,91 @@ def clean_html_for_telegram(text: str) -> str:
     t = re.sub('</?([a-zA-Z0-9]+)[^>]*>', repl, t)
     return re.sub('\\n{3,}', '\n\n', t).strip()
 
+
+def _humanize_agent_report(report: str) -> str:
+    raw = str(report or "").strip()
+    if not raw:
+        return raw
+    lowered = raw.lower()
+    if "no such file or directory: 'docker'" in lowered or "executable file not found" in lowered:
+        return "⚠️ Execution backend is temporarily unavailable. Please try again in a moment."
+    if (
+        "api key expired" in lowered
+        or "api_key_invalid" in lowered
+        or "litellm.badrequesterror" in lowered
+        or "vertex_ai_betaexception" in lowered
+    ):
+        return "⚠️ AI provider authentication failed. Please retry shortly while credentials refresh."
+    if lowered.startswith("error:") or "badrequesterror" in lowered:
+        return "⚠️ I could not complete that request right now. Please try again."
+    return raw
+
 def _safe_err(e) -> str:
     return html.escape(str(e), quote=False)
+
+def _incident_ref(prefix: str = "EA") -> str:
+    return f"{prefix}-{int(time.time())}"
+
+
+def _count_pdf_images(pdf_reader) -> int:
+    total = 0
+    for page in getattr(pdf_reader, "pages", []):
+        try:
+            res = page.get("/Resources") or {}
+            xobj = res.get("/XObject") if hasattr(res, "get") else None
+            if xobj is None:
+                continue
+            try:
+                xobj = xobj.get_object()
+            except Exception:
+                pass
+            if not hasattr(xobj, "items"):
+                continue
+            for _, obj in xobj.items():
+                try:
+                    target = obj.get_object()
+                except Exception:
+                    target = obj
+                subtype = ""
+                try:
+                    subtype = str(target.get("/Subtype") or "")
+                except Exception:
+                    subtype = ""
+                if subtype == "/Image":
+                    total += 1
+        except Exception:
+            continue
+    return total
+
+
+def _validate_newspaper_pdf_bytes(pdf_bytes: bytes, *, min_pages: int = 4, min_images: int = 3) -> tuple[bool, str]:
+    try:
+        import io
+        from pypdf import PdfReader
+    except Exception as e:
+        return False, f"pdf_validation_dependency_missing:{e}"
+    try:
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        page_count = len(reader.pages)
+        if page_count < min_pages:
+            return False, f"page_count:{page_count}<min:{min_pages}"
+        first_text = ""
+        try:
+            first_text = str(reader.pages[0].extract_text() or "")
+        except Exception:
+            first_text = ""
+        if "Tibor Daily" not in first_text:
+            return False, "missing_masthead:Tibor Daily"
+        image_count = _count_pdf_images(reader)
+        if image_count < min_images:
+            return False, f"image_count:{image_count}<min:{min_images}"
+        blob = first_text[:8000]
+        for banned in ("OODA Diagnostic", "statusCode", "FST_ERR_VALIDATION", "Traceback"):
+            if banned in blob:
+                return False, f"banned_token:{banned}"
+        return True, f"ok:pages={page_count},images={image_count}"
+    except Exception as e:
+        return False, f"pdf_validation_error:{e}"
 
 
 def _household_confidence_for_message(chat_id: int, msg: dict) -> float:
@@ -162,14 +293,24 @@ def _message_document_ref(chat_id: int, msg: dict, doc: dict | None, photo: list
 async def check_security(chat_id: int) -> tuple[str, dict]:
     t = get_tenant(chat_id)
     if t:
-        return (get_val(t, 'key', 'tibor'), t)
+        return (str(get_val(t, 'key', f'chat_{chat_id}')), t)
     try:
         if __import__('os').path.exists('/attachments/dynamic_users.json'):
             with open('/attachments/dynamic_users.json', 'r') as f:
                 dt = json.load(f)
             if str(chat_id) in dt:
                 u_info = dt[str(chat_id)]
-                return (f'guest_{chat_id}', {'key': f'guest_{chat_id}', 'label': u_info.get('name', 'Guest'), 'google_account': u_info.get('email', ''), 'openclaw_container': 'openclaw-gateway-tibor', 'is_admin': u_info.get('is_admin', False)})
+                default_openclaw = os.environ.get("EA_DEFAULT_OPENCLAW_CONTAINER", "openclaw-gateway")
+                return (
+                    f'guest_{chat_id}',
+                    {
+                        'key': f'guest_{chat_id}',
+                        'label': u_info.get('name', 'Guest'),
+                        'google_account': u_info.get('email', ''),
+                        'openclaw_container': default_openclaw,
+                        'is_admin': u_info.get('is_admin', False),
+                    },
+                )
     except:
         pass
     return (None, None)
@@ -185,9 +326,11 @@ async def _send_browseract_articles_pdf(chat_id: int, tenant_name: str, tenant_c
             tenant_name,
             get_val(tenant_cfg, 'key', ''),
             get_val(tenant_cfg, 'google_account', ''),
-            'tibor.girschele',
             'ea_bot',
         ]
+        tenant_hint = os.environ.get("EA_ARTICLE_TENANT_HINT", "").strip()
+        if tenant_hint:
+            tenant_candidates.append(tenant_hint)
         articles = await asyncio.to_thread(
             fetch_browseract_articles,
             tenant_candidates=[x for x in tenant_candidates if x],
@@ -216,6 +359,336 @@ async def _send_browseract_articles_pdf(chat_id: int, tenant_name: str, tenant_c
             await tg.send_message(chat_id, f'⚠️ Articles PDF failed: {_safe_err(e)}')
         return False
 
+async def _collect_briefing_articles(tenant_name: str, tenant_cfg: dict) -> list:
+    try:
+        signal_terms = await collect_user_signal_terms(
+            openclaw_container=get_val(tenant_cfg, 'openclaw_container', ''),
+            google_account=get_val(tenant_cfg, 'google_account', ''),
+        )
+        tenant_candidates = [
+            tenant_name,
+            get_val(tenant_cfg, 'key', ''),
+            get_val(tenant_cfg, 'google_account', ''),
+            'ea_bot',
+        ]
+        tenant_hint = os.environ.get("EA_ARTICLE_TENANT_HINT", "").strip()
+        if tenant_hint:
+            tenant_candidates.append(tenant_hint)
+        articles = await asyncio.to_thread(
+            fetch_browseract_articles,
+            tenant_candidates=[x for x in tenant_candidates if x],
+            lookback_days=7,
+            max_events=180,
+        )
+        picked = select_interesting(articles, max_items=8, signal_terms=signal_terms)
+        if not picked:
+            return []
+        return await enrich_full_articles(picked, max_fetch=4)
+    except Exception:
+        return []
+
+def _briefing_newspaper_html(briefing_text: str, tenant_name: str, pref_snapshot: dict | None = None, articles: list | None = None) -> str:
+    raw = re.sub('<[^>]+>', '', briefing_text or '')
+    raw = raw.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+    lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+    sections: dict[str, list[str]] = {"Lead": [], "Must know": [], "Calendar": [], "Signals": []}
+    current = "Lead"
+    for ln in lines:
+        low = ln.lower()
+        if low.startswith('requires attention'):
+            current = "Must know"
+            continue
+        if low.startswith('calendars'):
+            current = "Calendar"
+            continue
+        if low.startswith('⚙️ diagnostics') or low.startswith('diagnostics'):
+            current = "Signals"
+            continue
+        sections.setdefault(current, []).append(ln)
+
+    def _items_html(items: list[str], limit: int = 10) -> str:
+        out = []
+        for i, item in enumerate(items[:limit], start=1):
+            clean = html.escape(item)
+            out.append(f"<li><span class='idx'>{i:02d}</span><span>{clean}</span></li>")
+        return "\n".join(out) if out else "<li><span>No items.</span></li>"
+
+    today = datetime.now().strftime("%A, %d %B %Y")
+    title = f"{tenant_name.title()} Personal Newspaper"
+    pref_snapshot = pref_snapshot or {}
+    pref_positive = pref_snapshot.get("prioritize") or []
+    pref_avoid = pref_snapshot.get("avoid") or []
+    pref_html = (
+        f"<div><b>Prioritize:</b> {html.escape(', '.join(pref_positive[:8]) or 'none')}</div>"
+        f"<div><b>Avoid:</b> {html.escape(', '.join(pref_avoid[:8]) or 'none')}</div>"
+    )
+    story_rows = []
+    for i, a in enumerate((articles or [])[:8], start=1):
+        title = html.escape(str(getattr(a, "title", "") or "Untitled"))
+        publisher = html.escape(str(getattr(a, "publisher", "") or "Unknown"))
+        url = html.escape(str(getattr(a, "url", "") or ""))
+        summary = str(getattr(a, "summary", "") or "").strip()
+        if len(summary) > 260:
+            summary = summary[:260] + "..."
+        summary = html.escape(summary or "No summary available.")
+        story_rows.append(
+            f"""
+            <article class="story">
+              <div class="story-meta">{i:02d} | {publisher}</div>
+              <h4>{title}</h4>
+              <p>{summary}</p>
+              <p><a href="{url}">{url}</a></p>
+            </article>
+            """
+        )
+    stories_html = "\n".join(story_rows) if story_rows else "<p class='empty'>No recent qualifying articles.</p>"
+    return f"""
+    <html>
+      <body>
+        <div class="page">
+          <header class="masthead">
+            <div class="kicker">Executive Morning Edition</div>
+            <h1>{html.escape(title)}</h1>
+            <div class="meta">{html.escape(today)} | EA Concierge Desk</div>
+          </header>
+          <section class="lead">
+            <h2>Lead</h2>
+            <div class="lead-copy">{html.escape(' '.join(sections.get('Lead', [])[:8])) or 'No lead available.'}</div>
+          </section>
+          <section class="grid">
+            <article class="card">
+              <h3>Must know</h3>
+              <ul>{_items_html(sections.get("Must know", []), limit=12)}</ul>
+            </article>
+            <article class="card">
+              <h3>Calendar</h3>
+              <ul>{_items_html(sections.get("Calendar", []), limit=14)}</ul>
+            </article>
+          </section>
+          <section class="signals">
+            <h3>Signals</h3>
+            <ul>{_items_html(sections.get("Signals", []), limit=10)}</ul>
+          </section>
+          <section class="prefs">
+            <h3>Preference Lens</h3>
+            {pref_html}
+          </section>
+          <section class="stories">
+            <h3>Interesting Articles</h3>
+            {stories_html}
+          </section>
+        </div>
+      </body>
+      <style>
+        @page {{ size: A4; margin: 14mm; }}
+        body {{
+          margin: 0;
+          color: #102030;
+          font-family: "Georgia", "Times New Roman", serif;
+          background:
+            radial-gradient(1200px 300px at 10% -15%, #dbeeff 0, transparent 55%),
+            linear-gradient(180deg, #f8fbff 0, #ffffff 45%);
+        }}
+        .page {{ max-width: 980px; margin: 0 auto; }}
+        .masthead {{
+          border-bottom: 4px solid #0d3b66;
+          padding-bottom: 8px;
+          margin-bottom: 14px;
+        }}
+        .kicker {{
+          font: 700 12px/1.2 "Arial", sans-serif;
+          letter-spacing: .12em;
+          text-transform: uppercase;
+          color: #0d3b66;
+        }}
+        h1 {{
+          margin: 4px 0 4px 0;
+          font-size: 42px;
+          line-height: 1.05;
+          letter-spacing: .01em;
+        }}
+        .meta {{
+          font: 500 12px/1.2 "Arial", sans-serif;
+          color: #334e68;
+        }}
+        .lead {{
+          background: #ffffff;
+          border: 1px solid #d8e2ef;
+          border-left: 7px solid #0d3b66;
+          border-radius: 8px;
+          padding: 10px 12px;
+          margin-bottom: 12px;
+        }}
+        h2 {{ margin: 0 0 8px 0; font-size: 24px; }}
+        .lead-copy {{ font-size: 16px; line-height: 1.4; white-space: pre-wrap; }}
+        .grid {{
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-bottom: 12px;
+        }}
+        .card {{
+          background: #fff;
+          border: 1px solid #d8e2ef;
+          border-radius: 8px;
+          padding: 10px 12px;
+        }}
+        h3 {{
+          margin: 0 0 8px 0;
+          font-size: 22px;
+          border-bottom: 1px solid #dbe4ef;
+          padding-bottom: 4px;
+        }}
+        ul {{ list-style: none; margin: 0; padding: 0; }}
+        li {{
+          display: grid;
+          grid-template-columns: 34px 1fr;
+          gap: 6px;
+          margin: 0 0 6px 0;
+          font-size: 14px;
+          line-height: 1.3;
+          break-inside: avoid;
+        }}
+        .idx {{
+          font: 700 11px/1.7 "Arial", sans-serif;
+          color: #486581;
+        }}
+        .signals {{
+          background: #fff;
+          border: 1px solid #d8e2ef;
+          border-radius: 8px;
+          padding: 10px 12px;
+          margin-bottom: 12px;
+        }}
+        .prefs {{
+          background: #fff;
+          border: 1px solid #d8e2ef;
+          border-radius: 8px;
+          padding: 10px 12px;
+          font: 13px/1.45 "Arial", sans-serif;
+          color: #213547;
+        }}
+        .stories {{
+          background: #fff;
+          border: 1px solid #d8e2ef;
+          border-radius: 8px;
+          padding: 10px 12px;
+          margin-top: 12px;
+        }}
+        .story {{
+          border-top: 1px solid #e5edf6;
+          padding-top: 8px;
+          margin-top: 8px;
+        }}
+        .story:first-of-type {{ border-top: 0; padding-top: 0; margin-top: 0; }}
+        .story-meta {{
+          font: 700 11px/1.3 "Arial", sans-serif;
+          letter-spacing: .06em;
+          color: #486581;
+          text-transform: uppercase;
+        }}
+        h4 {{
+          margin: 4px 0;
+          font-size: 18px;
+          line-height: 1.25;
+        }}
+        .story p {{
+          margin: 4px 0;
+          font: 13px/1.45 "Arial", sans-serif;
+          color: #1f2f3f;
+        }}
+        .empty {{
+          margin: 4px 0;
+          font: 13px/1.45 "Arial", sans-serif;
+          color: #52667a;
+        }}
+        a {{ color: #0b5ea8; text-decoration: none; word-break: break-all; }}
+      </style>
+    </html>
+    """
+
+async def _preference_snapshot(tenant_name: str, tenant_cfg: dict, chat_id: int) -> dict:
+    prioritize: list[str] = []
+    avoid: list[str] = []
+    try:
+        terms = await collect_user_signal_terms(
+            openclaw_container=get_val(tenant_cfg, 'openclaw_container', ''),
+            google_account=get_val(tenant_cfg, 'google_account', ''),
+        )
+        prioritize = sorted([t for t in terms if t and len(t) > 3])[:12]
+    except Exception:
+        pass
+    try:
+        from app.db import get_db
+        db = get_db()
+        tenant_keys = []
+        for key in (tenant_name, get_val(tenant_cfg, 'google_account', '')):
+            k = str(key or '').strip()
+            if k and k not in tenant_keys:
+                tenant_keys.append(k)
+        rows = []
+        for tk in tenant_keys:
+            part = await asyncio.to_thread(
+                db.fetchall,
+                """
+                SELECT concept_key, weight, hard_dislike
+                FROM user_interest_profiles
+                WHERE tenant_key=%s AND principal_id=%s
+                ORDER BY hard_dislike DESC, weight ASC
+                LIMIT 20
+                """,
+                (tk, str(chat_id)),
+            ) or []
+            rows.extend(part)
+        for r in rows:
+            c = str(r.get("concept_key") or "").strip()
+            if not c:
+                continue
+            if bool(r.get("hard_dislike")) or float(r.get("weight") or 0.0) < -0.35:
+                avoid.append(c)
+            elif float(r.get("weight") or 0.0) > 0.25:
+                prioritize.append(c)
+    except Exception:
+        pass
+    # Keep list deterministic and compact.
+    prioritize = list(dict.fromkeys(prioritize))[:12]
+    avoid = list(dict.fromkeys(avoid))[:12]
+    return {"prioritize": prioritize, "avoid": avoid}
+
+async def _send_briefing_newspaper_pdf(chat_id: int, tenant_name: str, tenant_cfg: dict, briefing_text: str) -> bool:
+    try:
+        from app.tools.markupgo_client import MarkupGoClient
+        from app.newspaper import build_issue_for_brief, render_issue_html, validate_issue
+        pref = await _preference_snapshot(tenant_name, tenant_cfg, chat_id)
+        issue = await build_issue_for_brief(
+            tenant_name=tenant_name,
+            tenant_cfg=tenant_cfg,
+            chat_id=chat_id,
+            briefing_text=briefing_text,
+            preference_snapshot=pref,
+        )
+        errs = validate_issue(issue)
+        if errs:
+            log_render_guard("brief_newspaper_invalid_issue", "; ".join(errs)[:200], location="poll_listener")
+            return False
+        html_doc = render_issue_html(issue)
+        mg = MarkupGoClient()
+        payload = {"source": {"type": "html", "data": html_doc}, "options": {}}
+        pdf_bytes = await mg.render_pdf_buffer(payload, timeout_s=60.0)
+        if not pdf_bytes:
+            return False
+        ok, detail = _validate_newspaper_pdf_bytes(pdf_bytes, min_pages=4, min_images=3)
+        if not ok:
+            log_render_guard("brief_newspaper_pdf_quality_gate_failed", detail[:180], location="poll_listener")
+            return False
+        log_render_guard("brief_newspaper_pdf_quality_gate_passed", detail[:180], location="poll_listener")
+        filename = f"{tenant_name}_Personal_Newspaper_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+        await tg.send_document(chat_id, pdf_bytes, filename, caption="📰 <b>Your personal newspaper</b>", parse_mode='HTML')
+        return True
+    except Exception as e:
+        log_render_guard('brief_newspaper_pdf_failed', str(e)[:140], location='poll_listener')
+        return False
+
 def build_dynamic_ui(report_text: str, context_prompt: str, fwd_name: str=None) -> dict:
     kb = []
     if fwd_name:
@@ -238,15 +711,32 @@ async def handle_photo(chat_id: int, msg: dict):
 
 async def trigger_auth_flow(chat_id: int, email: str, t: dict, scopes: str=''):
     res = await tg.send_message(chat_id, f'🔄 Generating secure OAuth link for <b>{email}</b>...', parse_mode='HTML')
-    t_openclaw = get_val(t, 'openclaw_container', 'openclaw-gateway-tibor')
-    is_admin = get_val(t, 'is_admin', False) or get_val(t, 'key', '') == 'tibor'
-    await asyncio.create_subprocess_exec('docker', 'exec', '-u', 'root', t_openclaw, 'sh', '-c', 'pkill -f gog 2>/dev/null || true')
+    t_openclaw = get_val(t, 'openclaw_container', os.environ.get("EA_DEFAULT_OPENCLAW_CONTAINER", "openclaw-gateway"))
+    is_admin = bool(get_val(t, 'is_admin', False)) or str(chat_id) == str(get_admin_chat_id() or "")
+    proc_kill = await asyncio.create_subprocess_exec(
+        'docker', 'exec', '-u', 'root', t_openclaw, 'pkill', '-f', 'gog',
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    await proc_kill.communicate()
     await asyncio.sleep(0.5)
     try:
-        await asyncio.create_subprocess_exec('docker', 'exec', '-u', 'root', t_openclaw, 'sh', '-c', f'gog auth remove {email} 2>/dev/null || true')
+        proc_remove = await asyncio.create_subprocess_exec(
+            'docker', 'exec', '-u', 'root', t_openclaw, 'gog', 'auth', 'remove', email,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        await proc_remove.communicate()
         await asyncio.sleep(0.5)
         scopes_arg = 'calendar' if 'cal' in scopes else 'gmail' if 'mail' in scopes else 'gmail,calendar,tasks'
-        cmd = ['docker', 'exec', '-u', 'root', '-e', f'GOG_KEYRING_PASSWORD={getattr(settings, 'gog_keyring_password', 'rangersofB5')}', t_openclaw, 'gog', 'auth', 'add', email, '--services', scopes_arg, '--remote', '--step', '1']
+        keyring_password = (
+            getattr(settings, 'gog_keyring_password', None)
+            or os.environ.get('GOG_KEYRING_PASSWORD')
+            or os.environ.get('EA_GOG_KEYRING_PASSWORD')
+        )
+        if not keyring_password:
+            raise RuntimeError('Missing GOG_KEYRING_PASSWORD')
+        cmd = ['docker', 'exec', '-u', 'root', '-e', f'GOG_KEYRING_PASSWORD={keyring_password}', t_openclaw, 'gog', 'auth', 'add', email, '--services', scopes_arg, '--remote', '--step', '1']
         proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=15.0)
         out_str = stdout.decode('utf-8', errors='ignore')
@@ -257,9 +747,13 @@ async def trigger_auth_flow(chat_id: int, email: str, t: dict, scopes: str=''):
             auth_msg = f"🔗 <b>Authorization Required</b>\n\n1. 👉 <b><a href='{m_url.group(1).replace('&amp;', '&').strip()}'>Click here to open Google Login</a></b> 👈\n2. Select <code>{email}</code>.\n3. Copy the broken '127.0.0.1' URL from your browser and paste it here.{admin_note}"
             await tg.edit_message_text(chat_id, res['message_id'], auth_msg, parse_mode='HTML', disable_web_page_preview=True)
         else:
-            await tg.edit_message_text(chat_id, res['message_id'], f'⚠️ <b>Auth Error:</b>\n<pre>{_safe_err(out_str[-1000:])}</pre>', parse_mode='HTML')
+            ref = _incident_ref("AUTH")
+            print(f'AUTH ERROR [{ref}] step1 output={out_str[-1200:]}', flush=True)
+            await tg.edit_message_text(chat_id, res['message_id'], f'⚠️ <b>Auth Error.</b>\nReference: <code>{ref}</code>', parse_mode='HTML')
     except Exception as e:
-        await tg.edit_message_text(chat_id, res['message_id'], f'⚠️ <b>Auth Error:</b> {_safe_err(e)}', parse_mode='HTML')
+        ref = _incident_ref("AUTH")
+        print(f'AUTH ERROR [{ref}] exception={traceback.format_exc()}', flush=True)
+        await tg.edit_message_text(chat_id, res['message_id'], f'⚠️ <b>Auth Error.</b>\nReference: <code>{ref}</code>', parse_mode='HTML')
 
 async def handle_callback(cb):
     chat_id = cb.get('message', {}).get('chat', {}).get('id')
@@ -318,14 +812,57 @@ async def handle_callback(cb):
             except:
                 pass
             from app.briefings import safe_gog
+            from app.calendar_store import create_import, commit_import
             t_openclaw = get_val(t, 'openclaw_container', '')
             t_account = get_val(t, 'google_account', '')
+            imported = 0
+            failed = 0
+            normalized_events = []
+            persisted = 0
+            persist_status = "not_attempted"
+            persist_err = ""
             for ev in cal_data['events']:
                 try:
                     await safe_gog(t_openclaw, ['calendar', 'events', 'add', str(ev.get('title', '')), '--start', str(ev.get('start', '')), '--end', str(ev.get('end', '')), '--location', str(ev.get('location', '')), '--calendar', 'Executive Assistant'], t_account, timeout=10.0)
-                except:
-                    pass
-            await tg.send_message(chat_id, '✅ <b>Calendar Events Imported.</b>', parse_mode='HTML')
+                    imported += 1
+                    normalized_events.append({
+                        "title": str(ev.get("title", "")),
+                        "start_ts": str(ev.get("start", "")),
+                        "end_ts": str(ev.get("end", "")),
+                        "location": str(ev.get("location", "")),
+                        "notes": "",
+                    })
+                except Exception:
+                    failed += 1
+            # Persist successful imports into local calendar store as a reliable fallback for briefing.
+            if normalized_events:
+                try:
+                    imp_id = create_import(
+                        tenant=tenant_name,
+                        source_type="telegram_image_import",
+                        source_id=f"exec_cal:{cid}",
+                        filename="open_loop_import",
+                        extracted={"normalized_events": normalized_events},
+                        preview="Imported via Open Loops execute",
+                    )
+                    persisted, persist_status = commit_import(tenant_name, imp_id)
+                except Exception as e:
+                    persist_status = "failed"
+                    persist_err = str(e)[:120]
+            total = len(cal_data.get('events') or [])
+            commit_ok = bool(normalized_events) and persist_status == "committed" and persisted > 0
+            if imported == total and total > 0 and commit_ok and persisted >= imported:
+                await tg.send_message(chat_id, f'✅ <b>Calendar Events Imported.</b>\nImported: <b>{imported}/{total}</b>\nPersisted: <b>{persisted}</b>', parse_mode='HTML')
+            elif imported > 0 and commit_ok:
+                note = ''
+                if persisted < imported:
+                    note = '\nℹ️ Some events were deduplicated or dropped during persistence.'
+                await tg.send_message(chat_id, f'⚠️ <b>Calendar Import Partial.</b>\nImported: <b>{imported}/{total}</b>\nPersisted: <b>{persisted}</b>\nFailed: <b>{failed}</b>{note}', parse_mode='HTML')
+            else:
+                reason = f'Local commit status: <b>{persist_status}</b>.'
+                if persist_err:
+                    reason += f'\n<code>{html.escape(persist_err, quote=False)}</code>'
+                await tg.send_message(chat_id, f'❌ <b>Calendar Import Failed.</b>\nImported remotely: <b>{imported}/{total}</b>\nPersisted locally: <b>{persisted}</b>\n{reason}\nPlease run <code>/auth</code> and retry.', parse_mode='HTML')
         return
     if cb['data'].startswith('drop_cal:'):
         cid = cb['data'].split(':')[1]
@@ -367,7 +904,7 @@ async def handle_callback(cb):
         try:
             report = await asyncio.wait_for(gog_scout(get_val(t, 'openclaw_container', ''), enhanced_prompt, get_val(t, 'google_account', ''), _ui_updater, task_name=f'Button: {clean_btn}'), timeout=240.0)
             kb_dict = build_dynamic_ui(report, enhanced_prompt)
-            clean_rep = clean_html_for_telegram(re.sub('\\[OPTIONS:.*?\\]', '', report).replace('[YES/NO]', ''))
+            clean_rep = clean_html_for_telegram(re.sub('\\[OPTIONS:.*?\\]', '', _humanize_agent_report(report)).replace('[YES/NO]', ''))
             if not clean_rep.strip() or clean_rep.strip() == '[]':
                 clean_rep = '✅ Task executed successfully!'
             try:
@@ -408,7 +945,14 @@ async def handle_intent(chat_id: int, msg: dict):
             try:
                 pasted_url = re.search('(http[^\\s]+)', text)
                 url_to_pass = pasted_url.group(1) if pasted_url else text.strip()
-                cmd = ['docker', 'exec', '-u', 'root', '-e', f'GOG_KEYRING_PASSWORD={getattr(settings, 'gog_keyring_password', 'rangersofB5')}', t_openclaw, 'gog', 'auth', 'add', email, '--services', services, '--remote', '--step', '2', '--auth-url', url_to_pass]
+                keyring_password = (
+                    getattr(settings, 'gog_keyring_password', None)
+                    or os.environ.get('GOG_KEYRING_PASSWORD')
+                    or os.environ.get('EA_GOG_KEYRING_PASSWORD')
+                )
+                if not keyring_password:
+                    raise RuntimeError('Missing GOG_KEYRING_PASSWORD')
+                cmd = ['docker', 'exec', '-u', 'root', '-e', f'GOG_KEYRING_PASSWORD={keyring_password}', t_openclaw, 'gog', 'auth', 'add', email, '--services', services, '--remote', '--step', '2', '--auth-url', url_to_pass]
                 proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
                 stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=20.0)
                 out_str = ''
@@ -417,7 +961,9 @@ async def handle_intent(chat_id: int, msg: dict):
                 if stderr:
                     out_str += '\n' + stderr.decode('utf-8', errors='ignore')
                 if 'error' in out_str.lower() or 'failed' in out_str.lower() or 'invalid' in out_str.lower():
-                    await tg.edit_message_text(chat_id, res['message_id'], f'⚠️ <b>Token Exchange Failed!</b>\n<pre>{_safe_err(out_str)}</pre>', parse_mode='HTML')
+                    ref = _incident_ref("AUTH")
+                    print(f'TOKEN EXCHANGE ERROR [{ref}] output={out_str[-1600:]}', flush=True)
+                    await tg.edit_message_text(chat_id, res['message_id'], f'⚠️ <b>Token Exchange Failed.</b>\nReference: <code>{ref}</code>', parse_mode='HTML')
                 else:
                     try:
                         with open('/attachments/dynamic_users.json', 'r') as f:
@@ -496,10 +1042,13 @@ async def handle_intent(chat_id: int, msg: dict):
                     pdf_text = '\n'.join([page.extract_text() for page in reader.pages[:3] if page.extract_text()])
                     sepa_json = await call_powerful_llm(f'{prompt_str}\n\nText:\n{pdf_text[:4000]}')
                 else:
+                    one_min_key = getattr(settings, 'one_min_ai_api_key', None) or os.environ.get('ONE_MIN_AI_API_KEY')
+                    if not one_min_key:
+                        raise RuntimeError('Missing ONE_MIN_AI_API_KEY')
                     b64_img = base64.b64encode(file_bytes).decode('utf-8')
                     payload = {'model': 'gpt-4o', 'messages': [{'role': 'user', 'content': [{'type': 'text', 'text': prompt_str}, {'type': 'image_url', 'image_url': {'url': f'data:image/jpeg;base64,{b64_img}'}}]}]}
                     async with httpx.AsyncClient(timeout=60.0) as client:
-                        resp = await client.post('https://api.1min.ai/v1/chat/completions', json=payload, headers={'Content-Type': 'application/json', 'Authorization': 'Bearer 3456b8bc60e3d10b45232b034b822a275b5b5e616eea93e3a3852e6283ac30b0*'})
+                        resp = await client.post('https://api.1min.ai/v1/chat/completions', json=payload, headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {one_min_key}'})
                         sepa_json = resp.json()['choices'][0]['message']['content']
                 m = re.search('\\{[\\s\\S]*\\}', sepa_json)
                 if m:
@@ -523,7 +1072,7 @@ async def handle_intent(chat_id: int, msg: dict):
                 pass
             return
         if text and (not is_invoice) and (not is_image_calendar) and (not text.startswith('/')) and (not ('localhost' in text_lower or '127.0.0.1' in text_lower or 'code=' in text_lower or ('state=' in text_lower))):
-            t_openclaw = get_val(t, 'openclaw_container', 'openclaw-gateway-tibor')
+            t_openclaw = get_val(t, 'openclaw_container', os.environ.get("EA_DEFAULT_OPENCLAW_CONTAINER", "openclaw-gateway"))
             active_res = await tg.send_message(chat_id, '▶️ <b>Analyzing request...</b>', parse_mode='HTML')
             urls = re.findall('(https?://[^\\s]+)', text)
             if urls and any((w in text_lower for w in ['read', 'scrape', 'summarize', 'check', 'extract', 'what'])):
@@ -545,7 +1094,7 @@ async def handle_intent(chat_id: int, msg: dict):
             try:
                 report = await asyncio.wait_for(gog_scout(t_openclaw, prompt, get_val(t, 'google_account', ''), _ui_updater, task_name='Intent: Free Text'), timeout=240.0)
                 kb_dict = build_dynamic_ui(report, prompt)
-                clean_rep = clean_html_for_telegram(re.sub('\\[OPTIONS:.*?\\]', '', report).replace('[YES/NO]', ''))
+                clean_rep = clean_html_for_telegram(re.sub('\\[OPTIONS:.*?\\]', '', _humanize_agent_report(report)).replace('[YES/NO]', ''))
                 if not clean_rep.strip() or clean_rep.strip() == '[]':
                     clean_rep = '✅ Task executed successfully!'
                 try:
@@ -571,12 +1120,24 @@ async def handle_command(chat_id: int, text: str, msg: dict):
         if not t:
             return
         parts = text.strip().split(' ', 1)
-        cmd = parts[0].lower().split('@')[0]
+        cmd = parts[0].lower().split('@')[0].rstrip(':')
+        cmd_aliases = {
+            '/vrief': '/brief',
+        }
+        cmd = cmd_aliases.get(cmd, cmd)
+        if cmd in ('/start', '/menu', '/help'):
+            return await tg.send_message(chat_id, _menu_text(), parse_mode='HTML')
         if cmd == '/auth':
             target_email = parts[1].strip() if len(parts) > 1 else ''
-            t_acc = get_val(t, 'google_account', 'tibor.girschele@gmail.com')
+            t_acc = get_val(t, 'google_account', '')
             if not target_email:
-                kb = [[{'text': f'🔑 All Features ({t_acc})', 'callback_data': f'auth_cb:{save_button_context(f'all|{t_acc}')}'}], [{'text': f'📅 Cal Only ({t_acc})', 'callback_data': f'auth_cb:{save_button_context(f'cal|{t_acc}')}'}], [{'text': '🔑 archon.megalon@gmail.com (All)', 'callback_data': f'auth_cb:{save_button_context('all|archon.megalon@gmail.com')}'}], [{'text': '✏️ Type a different email...', 'callback_data': 'cmd_auth_custom'}]]
+                kb = []
+                if t_acc:
+                    kb.extend([
+                        [{'text': f'🔑 All Features ({t_acc})', 'callback_data': f'auth_cb:{save_button_context(f'all|{t_acc}')}'}],
+                        [{'text': f'📅 Cal Only ({t_acc})', 'callback_data': f'auth_cb:{save_button_context(f'cal|{t_acc}')}'}],
+                    ])
+                kb.append([{'text': '✏️ Type a different email...', 'callback_data': 'cmd_auth_custom'}])
                 return await tg.send_message(chat_id, 'ℹ️ <b>Authentication</b>\nWhich Google Account do you want to authorize?', parse_mode='HTML', reply_markup={'inline_keyboard': kb})
             else:
                 kb = [[{'text': '🔑 All Features', 'callback_data': f'auth_cb:{save_button_context(f'all|{target_email}')}'}], [{'text': '📅 Calendar Only', 'callback_data': f'auth_cb:{save_button_context(f'cal|{target_email}')}'}], [{'text': '✉️ Gmail Only', 'callback_data': f'auth_cb:{save_button_context(f'mail|{target_email}')}'}], [{'text': '✏️ Type a different email...', 'callback_data': 'cmd_auth_custom'}], [{'text': '❌ Cancel', 'callback_data': f'auth_cb:{save_button_context('cancel|none')}'}]]
@@ -710,7 +1271,12 @@ async def handle_command(chat_id: int, text: str, msg: dict):
                         from app.outbox import enqueue_outbox
                         payload = {'type': 'photo', 'artifact_id': art_id, 'caption': safe_txt[:1000] + ('...' if len(safe_txt) > 1000 else ''), 'parse_mode': 'HTML'}
                         await asyncio.to_thread(enqueue_outbox, tenant_name, chat_id, payload)
-                        asyncio.create_task(safe_task('Articles PDF', _send_browseract_articles_pdf(chat_id, tenant_name, t)))
+                        await safe_task('Briefing PDF', _send_briefing_newspaper_pdf(chat_id, tenant_name, t, txt))
+                        asyncio.create_task(safe_task('Briefing Survey', plan_briefing_feedback_survey(
+                            tenant=(get_val(t, 'google_account', '') or tenant_name),
+                            principal=str(chat_id),
+                            briefing_excerpt=safe_txt,
+                        )))
                         try:
                             await tg.delete_message(chat_id, res['message_id'])
                         except:
@@ -743,6 +1309,12 @@ async def handle_command(chat_id: int, text: str, msg: dict):
                                 f.write(img_bytes)
                             payload = {'type': 'photo', 'artifact_id': art_id, 'caption': safe_txt[:1000] + ('...' if len(safe_txt) > 1000 else ''), 'parse_mode': 'HTML'}
                             await asyncio.to_thread(enqueue_outbox, tenant_name, chat_id, payload)
+                            await safe_task('Briefing PDF', _send_briefing_newspaper_pdf(chat_id, tenant_name, t, txt))
+                            asyncio.create_task(safe_task('Briefing Survey', plan_briefing_feedback_survey(
+                                tenant=(get_val(t, 'google_account', '') or tenant_name),
+                                principal=str(chat_id),
+                                briefing_excerpt=safe_txt,
+                            )))
                             try:
                                 await tg.delete_message(chat_id, res['message_id'])
                             except:
@@ -764,7 +1336,12 @@ async def handle_command(chat_id: int, text: str, msg: dict):
                         safe_txt += '\n\n📝 <i>Visual template unavailable, switched to safe text mode.</i>'
                 try:
                     await tg.edit_message_text(chat_id, res['message_id'], safe_txt, parse_mode='HTML', reply_markup=markup, disable_web_page_preview=True)
-                    asyncio.create_task(safe_task('Articles PDF', _send_browseract_articles_pdf(chat_id, tenant_name, t)))
+                    await safe_task('Briefing PDF', _send_briefing_newspaper_pdf(chat_id, tenant_name, t, txt))
+                    asyncio.create_task(safe_task('Briefing Survey', plan_briefing_feedback_survey(
+                        tenant=(get_val(t, 'google_account', '') or tenant_name),
+                        principal=str(chat_id),
+                        briefing_excerpt=safe_txt,
+                    )))
                 except Exception as tg_err:
                     print(f'Telegram HTML Parse Error: {tg_err}', flush=True)
                     import html as pyhtml
@@ -776,8 +1353,9 @@ async def handle_command(chat_id: int, text: str, msg: dict):
                     except Exception:
                         await tg.edit_message_text(chat_id, res['message_id'], '⚠️ Fatal error rendering briefing.', parse_mode=None)
             except Exception as e:
-                err_str = traceback.format_exc()
-                await tg.edit_message_text(chat_id, res['message_id'], f'⚠️ <b>Briefing Failed:</b>\n<pre>{_safe_err(err_str)[:1500]}</pre>', parse_mode='HTML')
+                ref = _incident_ref("BRIEF")
+                print(f'BRIEFING FAILED [{ref}] {traceback.format_exc()}', flush=True)
+                await tg.edit_message_text(chat_id, res['message_id'], f'⚠️ <b>Briefing Failed.</b>\nReference: <code>{ref}</code>', parse_mode='HTML')
             return
     except Exception as e:
         print(f'COMMAND CRASH: {traceback.format_exc()}', flush=True)
@@ -792,6 +1370,7 @@ async def poll_loop():
     print('🤖 Telegram Bot Poller: ACTIVE (V170 God-Mode Omni-Brain)', flush=True)
     if not settings.telegram_bot_token:
         return
+    await _ensure_bot_command_menu()
     asyncio.create_task(heartbeat_pinger())
     offset = 0
     try:

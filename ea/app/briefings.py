@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from app.gog import gog_cli
 from app.settings import settings
 from app.open_loops import OpenLoops
+from app.calendar_store import list_events_range
 
 def _sanitize_telegram_html(text: str) -> str:
     return str(text).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
@@ -51,12 +52,19 @@ async def safe_gog(container, cmd, account, timeout=20.0):
     try:
         return await asyncio.wait_for(gog_cli(container, cmd, account), timeout=timeout)
     except asyncio.TimeoutError:
-        await asyncio.create_subprocess_exec('docker', 'exec', '-u', 'root', container, 'sh', '-c', 'pkill -f gog 2>/dev/null || true')
+        proc_kill = await asyncio.create_subprocess_exec(
+            'docker', 'exec', '-u', 'root', container, 'pkill', '-f', 'gog',
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        await proc_kill.communicate()
         raise TimeoutError(f'CLI hung on command: {' '.join(cmd[:3])}')
 
 async def call_powerful_llm(prompt: str, temp=0.1) -> str:
-    url = 'https://beta.aimagicx.com/api/v1/chat'
-    api_key = 'mgx-sk-BbJ663CtW0nfnIlMrSRf8Wj8PSPK9oADqBtwCcKJjWk'
+    url = (getattr(settings, 'magixx_base_url', None) or 'https://beta.aimagicx.com').rstrip('/') + '/api/v1/chat'
+    api_key = getattr(settings, 'magixx_api_key', None)
+    if not api_key:
+        return '{"error":"Missing MAGIXX_API_KEY"}'
     headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
     payload = {'model': '4o-mini', 'message': prompt, 'temperature': temp}
     import httpx
@@ -105,7 +113,7 @@ async def call_llm(prompt: str, temp=0.1) -> str:
 async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
     t_openclaw = get_val(tenant, 'openclaw_container', '')
     t_account = get_val(tenant, 'google_account', '')
-    t_key = get_val(tenant, 'key', 'tibor')
+    t_key = get_val(tenant, 'key', os.environ.get('EA_DEFAULT_ADMIN_KEY', 'admin'))
     ui_history = []
     diag_logs = []
 
@@ -192,14 +200,32 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
         try:
             flags_to_try = [['--timeMin', today_start], ['--time-min', today_start], ['--start', today_start], []]
             events = []
-            for flags in flags_to_try:
-                cmd = ['calendar', 'events', '--max', '50', '--json'] + flags
-                raw_cal = await safe_gog(t_openclaw, cmd, acc, timeout=12.0)
-                events = _safe_extract_array(raw_cal)
+            # Try common gog list syntaxes and explicit calendar selection.
+            cmd_variants = [
+                ['calendar', 'events', '--max', '50', '--json', '--calendar', cid],
+                ['calendar', 'events', 'list', '--max', '50', '--json', '--calendar', cid],
+                ['calendar', 'events', '--calendar', cid, '--max', '50', '--json'],
+                ['calendar', 'events', '--max', '50', '--json'],
+            ]
+            last_err = None
+            for base_cmd in cmd_variants:
+                for flags in flags_to_try:
+                    cmd = base_cmd + flags
+                    try:
+                        raw_cal = await safe_gog(t_openclaw, cmd, acc, timeout=12.0)
+                        events = _safe_extract_array(raw_cal)
+                        if events:
+                            break
+                    except Exception as e:
+                        last_err = e
+                        continue
                 if events:
                     break
             if not events:
-                diag_logs.append(f"ℹ️ Cal '{cname}' ({acc_lbl}): 0 events.")
+                if last_err is not None:
+                    diag_logs.append(f"ℹ️ Cal '{cname}' ({acc_lbl}): 0 events (last err: {str(last_err)[:60]})")
+                else:
+                    diag_logs.append(f"ℹ️ Cal '{cname}' ({acc_lbl}): 0 events.")
                 continue
             added = 0
             for ev in events:
@@ -238,6 +264,25 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
             if 'not found' not in err_str and '404' not in err_str:
                 diag_logs.append(f"⚠️ Cal '{cname}' ({acc_lbl}) Err: {str(e)[:30]}")
     await _log('Synthesizing Executive Action Report...')
+    # Fallback: if remote calendar fetch produced no events, use locally persisted imports.
+    if not clean_cal:
+        try:
+            now_utc = datetime.now(timezone.utc)
+            end_utc = now_utc + timedelta(days=2)
+            local_rows = list_events_range(t_key, now_utc - timedelta(hours=12), end_utc) or []
+            for r in local_rows:
+                clean_cal.append({
+                    "summary": str(r.get("title") or ""),
+                    "title": str(r.get("title") or ""),
+                    "start": {"dateTime": str(r.get("start_ts") or "")},
+                    "end": {"dateTime": str(r.get("end_ts") or "")},
+                    "_calendar": "EA Local",
+                })
+            if local_rows:
+                diag_logs.append(f"✅ Local calendar fallback ({t_key}): {len(local_rows)} events.")
+        except Exception as e:
+            diag_logs.append(f"⚠️ Local calendar fallback error: {str(e)[:40]}")
+
     prompt = f'You are an elite, ruthless Executive Assistant. I demand extreme noise reduction. NO BULLSHIT.\nCRITICAL CULLING RULES:\n1. THE PURGE: You MUST completely delete ALL package delivery updates, shipping notices, order confirmations, and standard payment receipts from the JSON. ERASE THEM ENTIRELY.\n2. EXCEPTION: You MAY include a package/delivery alert ONLY IF it is a FAILURE or requires manual pickup.\n3. CHURCHILL TONE: For the critical emails that remain, state brutally and concisely WHY it requires action in 1 sentence.\n4. CALENDARS: Format ALL events provided into a clean schedule. Group them cleanly by Day/Date. YOU MUST INCLUDE EVENTS FROM THIS MORNING.\n\nDATA:\nMails: {json.dumps(clean_mails, ensure_ascii=False)}\nCalendars: {json.dumps(clean_cal, ensure_ascii=False)}\n\nReturn ONLY valid JSON matching this schema:\n{{\n  "emails": [{{"sender": "Sender", "subject": "Subject", "churchill_action": "1 sentence: What must I do?", "action_button": "Short Command"}}],\n  "calendar_summary": "Clean, bulleted timeline of the schedule across all calendars, grouped by date."\n}}'
     out = await call_llm(prompt)
     try:
@@ -394,60 +439,6 @@ async def call_llm_async(prompt, *args, **kwargs):
         hb_task.cancel()
 call_llm = call_llm_async
 call_powerful_llm = call_llm_async
-_orig_urlopen = urllib.request.urlopen
-
-def _monkey_urlopen(req, *args, **kwargs):
-    url = req.full_url if hasattr(req, 'full_url') else str(req)
-    if 'generativelanguage.googleapis.com' in url:
-        in_ask_llm = False
-        try:
-            f = inspect.currentframe()
-            while f:
-                if f.f_code.co_name == 'ask_llm':
-                    in_ask_llm = True
-                    break
-                f = f.f_back
-        except Exception:
-            pass
-        if not in_ask_llm:
-
-            class DummyResp:
-
-                def read(self):
-                    try:
-                        body = json.loads(req.data.decode('utf-8'))
-                        prompt = body['contents'][0]['parts'][0]['text']
-                        if prompt.strip().lower() == 'ping':
-                            return b'{"candidates": [{"content": {"parts": [{"text": "pong"}]}}]}'
-                        ans = ask_llm(prompt)
-                        return json.dumps({'candidates': [{'content': {'parts': [{'text': ans}]}}]}).encode('utf-8')
-                    except Exception as e:
-                        return json.dumps({'candidates': [{'content': {'parts': [{'text': f'❌ Crash: {e}'}]}}]}).encode('utf-8')
-            return DummyResp()
-    return _orig_urlopen(req, *args, **kwargs)
-urllib.request.urlopen = _monkey_urlopen
-import asyncio
-import re
-if '_orig_build_v19' not in globals():
-    _orig_build_v19 = build_briefing_for_tenant
-
-async def v19_meta_ai_wrapper(*args, **kwargs):
-    tenant_id = kwargs.get('tenant') or (args[0] if len(args) > 0 else 'unknown')
-    res = await _orig_build_v19(*args, **kwargs)
-    if isinstance(res, str):
-        if isinstance(res, str) and ('MarkupGo' in res or 'FST_ERR_VALIDATION' in res or 'statusCode' in res):
-            try:
-                from app.supervisor import trigger_mum_brain
-                from app.telegram.safety import sanitize_for_telegram
-                import builtins
-                db = getattr(builtins, '_ooda_global_db', None)
-                mode = 'status-first' if len(res) < 300 else 'simplified-first'
-                cid = trigger_mum_brain(db, res, fallback_mode=mode, failure_class='markup_api_400', intent='render_visuals')
-                res = sanitize_for_telegram(res, correlation_id=cid, mode=mode)
-            except Exception as e:
-                res = '⏳ *Preparing your briefing in safe mode...*\n_(Formatting repair running in background.)_'
-    return res
-build_briefing_for_tenant = v19_meta_ai_wrapper
 import builtins
 import io
 import sys

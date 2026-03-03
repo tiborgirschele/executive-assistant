@@ -46,9 +46,14 @@ def load_places() -> List[Place]:
         suggs: List[Suggestion] = []
         for sd in (pd.get("suggestions") or []):
             if not isinstance(sd, dict): continue
+            default_notify_tenant = str(
+                os.environ.get("EA_DEFAULT_NOTIFY_TENANT")
+                or os.environ.get("EA_DEFAULT_ADMIN_KEY")
+                or "admin"
+            )
             suggs.append(Suggestion(
                 key=str(sd.get("key") or "suggest"),
-                notify_tenant=str(sd.get("notify_tenant") or "tibor"),
+                notify_tenant=str(sd.get("notify_tenant") or default_notify_tenant),
                 message=str(sd.get("message") or ""),
                 match_shopping_keywords=[str(x).lower() for x in (sd.get("match_shopping_keywords") or [])],
                 cooldown_minutes=int(sd.get("cooldown_minutes") or settings.default_location_cooldown_min),

@@ -1,3 +1,6 @@
 #!/bin/bash
-export GOG_KEYRING_PASSWORD="rangersofB5"
+set -euo pipefail
+if [[ -z "${GOG_KEYRING_PASSWORD:-}" && -n "${EA_GOG_KEYRING_PASSWORD:-}" ]]; then
+  export GOG_KEYRING_PASSWORD="${EA_GOG_KEYRING_PASSWORD}"
+fi
 exec /usr/local/bin/gog-real "$@"
