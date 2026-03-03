@@ -399,10 +399,6 @@ class AvoMapService:
         if not spec_id:
             return {"status": "spec_insert_failed", "mode": mode, "date_key": day}
 
-        payload = build_browseract_payload(spec, settings.avomap_browseract_workflow)
-        payload["data"]["spec_id"] = spec_id
-        payload["data"]["cache_key"] = cache_key
-
         job = self.db.fetchone(
             """
             INSERT INTO avomap_jobs (spec_id, tenant, workflow_name, status, dedupe_key, updated_at)
@@ -414,12 +410,19 @@ class AvoMapService:
             (spec_id, tenant, settings.avomap_browseract_workflow, f"{tenant}:{person_id}:{day}:{cache_key}"),
         )
         job_id = str((job or {}).get("job_id") or "")
-        payload["data"]["job_id"] = job_id
-        payload["data"]["job_token"] = issue_job_token(
+        job_token = issue_job_token(
             settings.avomap_webhook_secret,
             tenant=tenant,
             job_id=job_id,
             spec_id=spec_id,
+        )
+        payload = build_browseract_payload(
+            spec,
+            settings.avomap_browseract_workflow,
+            spec_id=spec_id,
+            cache_key=cache_key,
+            job_id=job_id,
+            job_token=job_token,
         )
 
         self.db.execute(

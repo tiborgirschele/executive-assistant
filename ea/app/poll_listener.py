@@ -6,7 +6,7 @@ import httpx, asyncio, os, sys, traceback, re, json, io, base64, urllib.parse, t
 from datetime import datetime, timezone
 import urllib.request
 from app.config import get_tenant, get_admin_chat_id, load_tenants, tenant_by_chat_id
-from app.gog import gog_scout, gog_cli
+from app.gog import gog_scout, gog_cli, docker_exec
 from app.settings import settings
 from app.telegram import TelegramClient
 from app.vision import extract_calendar_from_image
@@ -713,20 +713,10 @@ async def trigger_auth_flow(chat_id: int, email: str, t: dict, scopes: str=''):
     res = await tg.send_message(chat_id, f'🔄 Generating secure OAuth link for <b>{email}</b>...', parse_mode='HTML')
     t_openclaw = get_val(t, 'openclaw_container', os.environ.get("EA_DEFAULT_OPENCLAW_CONTAINER", "openclaw-gateway"))
     is_admin = bool(get_val(t, 'is_admin', False)) or str(chat_id) == str(get_admin_chat_id() or "")
-    proc_kill = await asyncio.create_subprocess_exec(
-        'docker', 'exec', '-u', 'root', t_openclaw, 'pkill', '-f', 'gog',
-        stdout=asyncio.subprocess.DEVNULL,
-        stderr=asyncio.subprocess.DEVNULL,
-    )
-    await proc_kill.communicate()
-    await asyncio.sleep(0.5)
     try:
-        proc_remove = await asyncio.create_subprocess_exec(
-            'docker', 'exec', '-u', 'root', t_openclaw, 'gog', 'auth', 'remove', email,
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
-        await proc_remove.communicate()
+        await docker_exec(t_openclaw, ['pkill', '-f', 'gog'], user='root', timeout_s=8.0)
+        await asyncio.sleep(0.5)
+        await docker_exec(t_openclaw, ['gog', 'auth', 'remove', email], user='root', timeout_s=10.0)
         await asyncio.sleep(0.5)
         scopes_arg = 'calendar' if 'cal' in scopes else 'gmail' if 'mail' in scopes else 'gmail,calendar,tasks'
         keyring_password = (
@@ -736,10 +726,13 @@ async def trigger_auth_flow(chat_id: int, email: str, t: dict, scopes: str=''):
         )
         if not keyring_password:
             raise RuntimeError('Missing GOG_KEYRING_PASSWORD')
-        cmd = ['docker', 'exec', '-u', 'root', '-e', f'GOG_KEYRING_PASSWORD={keyring_password}', t_openclaw, 'gog', 'auth', 'add', email, '--services', scopes_arg, '--remote', '--step', '1']
-        proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=15.0)
-        out_str = stdout.decode('utf-8', errors='ignore')
+        out_str = await docker_exec(
+            t_openclaw,
+            ['gog', 'auth', 'add', email, '--services', scopes_arg, '--remote', '--step', '1'],
+            user='root',
+            extra_env={'GOG_KEYRING_PASSWORD': keyring_password},
+            timeout_s=18.0,
+        )
         m_url = re.search('(https://accounts\\.google\\.com/[^\\s"\\\'><]+)', out_str)
         if m_url:
             AUTH_SESSIONS.set(chat_id, {'email': email, 'openclaw': t_openclaw, 'services': scopes_arg, 'ts': time.time()})
@@ -952,14 +945,13 @@ async def handle_intent(chat_id: int, msg: dict):
                 )
                 if not keyring_password:
                     raise RuntimeError('Missing GOG_KEYRING_PASSWORD')
-                cmd = ['docker', 'exec', '-u', 'root', '-e', f'GOG_KEYRING_PASSWORD={keyring_password}', t_openclaw, 'gog', 'auth', 'add', email, '--services', services, '--remote', '--step', '2', '--auth-url', url_to_pass]
-                proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
-                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=20.0)
-                out_str = ''
-                if stdout:
-                    out_str += stdout.decode('utf-8', errors='ignore')
-                if stderr:
-                    out_str += '\n' + stderr.decode('utf-8', errors='ignore')
+                out_str = await docker_exec(
+                    t_openclaw,
+                    ['gog', 'auth', 'add', email, '--services', services, '--remote', '--step', '2', '--auth-url', url_to_pass],
+                    user='root',
+                    extra_env={'GOG_KEYRING_PASSWORD': keyring_password},
+                    timeout_s=24.0,
+                )
                 if 'error' in out_str.lower() or 'failed' in out_str.lower() or 'invalid' in out_str.lower():
                     ref = _incident_ref("AUTH")
                     print(f'TOKEN EXCHANGE ERROR [{ref}] output={out_str[-1600:]}', flush=True)

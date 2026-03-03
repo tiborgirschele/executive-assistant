@@ -198,14 +198,45 @@ class OnboardingService:
         principal_id = int(principal["principal_id"])
         binding = self.db.fetchone(
             """
-            INSERT INTO channel_bindings (tenant_key, principal_id, channel_type, channel_user_id, chat_id, quiet_hours_json, is_primary)
-            VALUES (%s, %s, %s, %s, %s, %s::jsonb, TRUE)
-            ON CONFLICT (channel_type, channel_user_id)
-            DO UPDATE SET principal_id = EXCLUDED.principal_id, chat_id = EXCLUDED.chat_id
-            RETURNING binding_id
+            SELECT binding_id
+            FROM channel_bindings
+            WHERE channel_type = %s
+              AND (channel_user_id = %s OR chat_id = %s)
+            ORDER BY created_at DESC
+            LIMIT 1
             """,
-            (tenant_key, principal_id, channel_type, channel_user_id, chat_id, '{"start":"22:00","end":"07:00"}'),
+            (channel_type, channel_user_id, chat_id),
         )
+        if binding and binding.get("binding_id"):
+            self.db.execute(
+                """
+                UPDATE channel_bindings
+                SET tenant_key = %s,
+                    principal_id = %s,
+                    channel_user_id = %s,
+                    chat_id = %s,
+                    quiet_hours_json = %s::jsonb,
+                    is_primary = TRUE
+                WHERE binding_id = %s
+                """,
+                (
+                    tenant_key,
+                    principal_id,
+                    channel_user_id,
+                    chat_id,
+                    '{"start":"22:00","end":"07:00"}',
+                    int(binding["binding_id"]),
+                ),
+            )
+        else:
+            binding = self.db.fetchone(
+                """
+                INSERT INTO channel_bindings (tenant_key, principal_id, channel_type, channel_user_id, chat_id, quiet_hours_json, is_primary)
+                VALUES (%s, %s, %s, %s, %s, %s::jsonb, TRUE)
+                RETURNING binding_id
+                """,
+                (tenant_key, principal_id, channel_type, channel_user_id, chat_id, '{"start":"22:00","end":"07:00"}'),
+            )
         self.db.execute(
             """
             UPDATE onboarding_sessions
@@ -326,4 +357,3 @@ class OnboardingService:
             (row.get("principal_id"), session_id),
         )
         return row
-

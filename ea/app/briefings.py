@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 import re, json, httpx, asyncio, traceback, time, html, random
 from datetime import datetime, timezone, timedelta
-from app.gog import gog_cli
+from app.gog import gog_cli, docker_exec
 from app.settings import settings
 from app.open_loops import OpenLoops
 from app.calendar_store import list_events_range
@@ -60,23 +60,16 @@ async def _avomap_prepare_card(
         return "", None
     try:
         from app.db import get_db
-        from app.integrations.avomap.service import AvoMapService, build_day_context
+        from app.integrations.avomap.service import AvoMapService
 
         svc = AvoMapService(get_db())
-        day_ctx = build_day_context(calendar_events=calendar_events, travel_emails=travel_emails)
-        decision = await asyncio.to_thread(
-            svc.plan_for_briefing,
-            tenant=str(tenant_key),
-            person_id=str(person_id),
-            day_context=day_ctx,
-        )
         ready = await asyncio.to_thread(
             svc.get_ready_asset,
             tenant=str(tenant_key),
             person_id=str(person_id),
         )
         if not ready:
-            return "", decision if isinstance(decision, dict) else None
+            return "", {"status": "not_ready"}
 
         mode = str((ready or {}).get("mode") or "").replace("_", " ").strip().title() or "Travel"
         object_ref = str((ready or {}).get("object_ref") or "").strip()
@@ -87,7 +80,7 @@ async def _avomap_prepare_card(
         else:
             link = ""
         card = f"\n\n<b>Travel Video ({mode}):</b>{link}"
-        return card, decision if isinstance(decision, dict) else None
+        return card, {"status": "ready"}
     except Exception as e:
         return "", {"status": "error", "error": str(e)[:120]}
 
@@ -96,12 +89,7 @@ async def safe_gog(container, cmd, account, timeout=20.0):
     try:
         return await asyncio.wait_for(gog_cli(container, cmd, account), timeout=timeout)
     except asyncio.TimeoutError:
-        proc_kill = await asyncio.create_subprocess_exec(
-            'docker', 'exec', '-u', 'root', container, 'pkill', '-f', 'gog',
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
-        await proc_kill.communicate()
+        await docker_exec(container, ["pkill", "-f", "gog"], user="root", timeout_s=8.0)
         raise TimeoutError(f'CLI hung on command: {' '.join(cmd[:3])}')
 
 async def call_powerful_llm(prompt: str, temp=0.1) -> str:

@@ -3,13 +3,92 @@ import contextlib
 import httpx
 import os
 import traceback
+from datetime import datetime, timedelta, timezone
 from typing import Awaitable
+from zoneinfo import ZoneInfo
 
 from app.poll_listener import tg, handle_callback, handle_photo, handle_command
+from app.settings import settings
+
+_LAST_AVOMAP_PREWARM_DAY: str = ""
+
+
+def _collect_prewarm_tenants() -> list[str]:
+    keys: set[str] = set()
+    try:
+        from app.tenants import load_tenants
+        all_tenants = load_tenants(settings.tenants_yaml)
+        for t in all_tenants.values():
+            keys.add(str(t.name))
+            for cid in list(getattr(t, "allow_chat_ids", []) or []):
+                keys.add(f"chat_{int(cid)}")
+    except Exception:
+        pass
+    return sorted(k for k in keys if str(k).strip())
+
+
+def _run_avomap_prewarm_sync() -> int:
+    if not settings.avomap_enabled:
+        return 0
+    from app.db import get_db
+    from app.calendar_store import list_events_range
+    from app.integrations.avomap.service import AvoMapService, build_day_context
+
+    db = get_db()
+    svc = AvoMapService(db, enabled=True)
+    now_utc = datetime.now(timezone.utc)
+    target_day = (now_utc + timedelta(days=1)).date().isoformat()
+    window_start = datetime.fromisoformat(f"{target_day}T00:00:00+00:00")
+    window_end = window_start + timedelta(days=1)
+
+    warmed = 0
+    for tenant_key in _collect_prewarm_tenants():
+        try:
+            rows = list_events_range(tenant_key, window_start, window_end) or []
+            calendar_events = [
+                {
+                    "title": str(r.get("title") or ""),
+                    "summary": str(r.get("title") or ""),
+                    "location": str(r.get("location") or ""),
+                }
+                for r in rows
+                if isinstance(r, dict)
+            ]
+            day_ctx = build_day_context(calendar_events=calendar_events, travel_emails=[])
+            decision = svc.plan_for_briefing(
+                tenant=tenant_key,
+                person_id=tenant_key,
+                day_context=day_ctx,
+                date_key=target_day,
+            )
+            if str((decision or {}).get("status") or "") in {"dispatched", "existing_spec", "cache_hit"}:
+                warmed += 1
+        except Exception:
+            continue
+    return warmed
+
+
+async def _maybe_avomap_prewarm() -> None:
+    global _LAST_AVOMAP_PREWARM_DAY
+    if not settings.avomap_enabled:
+        return
+    prewarm_hour = int(os.environ.get("EA_AVOMAP_PREWARM_HOUR", "20"))
+    now_local = datetime.now(ZoneInfo(settings.tz))
+    today_key = now_local.date().isoformat()
+    if now_local.hour != prewarm_hour:
+        return
+    if _LAST_AVOMAP_PREWARM_DAY == today_key:
+        return
+    await asyncio.to_thread(_run_avomap_prewarm_sync)
+    _LAST_AVOMAP_PREWARM_DAY = today_key
 
 async def scheduler_loop():
     """Background loop for scheduled tasks."""
     while True:
+        try:
+            await _maybe_avomap_prewarm()
+        except Exception:
+            pass
         await asyncio.sleep(60)
 
 

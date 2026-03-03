@@ -3,6 +3,72 @@ from app.db import get_db
 from app.integrations.avomap.finalize import finalize_avomap_render_event
 from app.settings import settings
 
+
+def _parse_chat_id_from_tenant(tenant: str) -> int | None:
+    raw = str(tenant or "")
+    if not raw.startswith("chat_"):
+        return None
+    try:
+        return int(raw.split("_", 1)[1])
+    except Exception:
+        return None
+
+
+def _maybe_enqueue_late_attach_followup(db, *, tenant: str, spec_id: str) -> None:
+    chat_id = _parse_chat_id_from_tenant(tenant)
+    if not chat_id:
+        return
+    claimed = db.fetchone(
+        """
+        UPDATE avomap_jobs
+        SET status='delivered', updated_at=NOW()
+        WHERE job_id = (
+            SELECT job_id
+            FROM avomap_jobs
+            WHERE spec_id=%s
+              AND status='completed'
+              AND updated_at >= NOW() - (%s * INTERVAL '1 second')
+            ORDER BY updated_at DESC
+            LIMIT 1
+            FOR UPDATE SKIP LOCKED
+        )
+        RETURNING job_id::text AS job_id
+        """,
+        (spec_id, int(settings.avomap_late_attach_window_sec)),
+    )
+    if not claimed:
+        return
+
+    asset = db.fetchone(
+        """
+        SELECT object_ref
+        FROM avomap_assets
+        WHERE spec_id=%s
+          AND status='ready'
+        ORDER BY updated_at DESC
+        LIMIT 1
+        """,
+        (spec_id,),
+    ) or {}
+    object_ref = str((asset or {}).get("object_ref") or "").strip()
+    if not object_ref:
+        return
+
+    payload = {
+        "text": f"🎬 <b>Travel video ready</b>\n<a href=\"{object_ref}\">▶ Open video</a>",
+        "parse_mode": "HTML",
+    }
+    idem = f"avomap_late_attach:{spec_id}:{str((claimed or {}).get('job_id') or '')}"
+    db.execute(
+        """
+        INSERT INTO tg_outbox (tenant, chat_id, payload_json, status, idempotency_key)
+        VALUES (%s, %s, %s::jsonb, 'queued', %s)
+        ON CONFLICT (tenant, idempotency_key) DO NOTHING
+        """,
+        (tenant, int(chat_id), json.dumps(payload), idem),
+    )
+
+
 async def process_browseract_event(event_id: str):
     db = get_db()
     try:
@@ -46,6 +112,12 @@ async def process_browseract_event(event_id: str):
                 """,
                 (ext_status, ext_status, str(result)[:500], str(event_id)),
             )
+            if ext_status == "processed" and str(result.get("status") or "") == "completed":
+                _maybe_enqueue_late_attach_followup(
+                    db,
+                    tenant=str(tenant),
+                    spec_id=str(result.get("spec_id") or ""),
+                )
             if hasattr(db, 'commit'): db.commit()
             return
 

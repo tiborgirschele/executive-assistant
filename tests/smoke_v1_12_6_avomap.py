@@ -12,6 +12,7 @@ MAIN = APP / "main.py"
 BROWSERACT = APP / "intake/browseract.py"
 EVENT_WORKER = APP / "workers/event_worker.py"
 BRIEFINGS = APP / "briefings.py"
+SCHEDULER = APP / "scheduler.py"
 DB = APP / "db.py"
 ROUTING = APP / "integrations/routing/service.py"
 SANITIZER = APP / "integrations/avomap/sanitizer.py"
@@ -34,7 +35,7 @@ AVOMAP_FILES = [
     APP / "telegram/media.py",
 ]
 
-for path in [SETTINGS, MAIN, BROWSERACT, EVENT_WORKER, BRIEFINGS, DB, ROUTING, SANITIZER, AVOMAP_SECURITY, TG_MEDIA, E2E_SCRIPT, *AVOMAP_FILES]:
+for path in [SETTINGS, MAIN, BROWSERACT, EVENT_WORKER, BRIEFINGS, SCHEDULER, DB, ROUTING, SANITIZER, AVOMAP_SECURITY, TG_MEDIA, E2E_SCRIPT, *AVOMAP_FILES]:
     ast.parse(path.read_text(encoding="utf-8"))
 print("[SMOKE][HOST][PASS] v1.12.6 modules parse")
 
@@ -92,7 +93,14 @@ print("[SMOKE][HOST][PASS] avomap webhook signature gate wired")
 brief_src = BRIEFINGS.read_text(encoding="utf-8")
 assert "_avomap_prepare_card" in brief_src
 assert "AvoMapService" in brief_src
+assert "svc.get_ready_asset" in brief_src
+assert "svc.plan_for_briefing" not in brief_src
 print("[SMOKE][HOST][PASS] briefing integration wired")
+
+scheduler_src = SCHEDULER.read_text(encoding="utf-8")
+assert "_maybe_avomap_prewarm" in scheduler_src
+assert "plan_for_briefing" in scheduler_src
+print("[SMOKE][HOST][PASS] scheduler prewarm wiring")
 
 design_script = DESIGN_E2E_SCRIPT.read_text(encoding="utf-8")
 assert "v1_12_6_avomap.sql" in design_script

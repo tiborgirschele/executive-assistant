@@ -178,7 +178,7 @@ def finalize_avomap_render_event(
             INSERT INTO avomap_assets (
                 spec_id, tenant, cache_key, object_ref, mime_type, duration_sec, external_id, status, updated_at
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, 'ready', NOW())
-            ON CONFLICT (external_id)
+            ON CONFLICT (tenant, cache_key)
             DO UPDATE SET
                 spec_id = EXCLUDED.spec_id,
                 tenant = EXCLUDED.tenant,
@@ -186,6 +186,18 @@ def finalize_avomap_render_event(
                 object_ref = EXCLUDED.object_ref,
                 mime_type = EXCLUDED.mime_type,
                 duration_sec = EXCLUDED.duration_sec,
+                external_id = CASE
+                    WHEN avomap_assets.external_id IS NULL
+                         OR avomap_assets.external_id = EXCLUDED.external_id
+                         OR NOT EXISTS (
+                             SELECT 1
+                             FROM avomap_assets x
+                             WHERE x.external_id = EXCLUDED.external_id
+                               AND x.asset_id <> avomap_assets.asset_id
+                         )
+                    THEN EXCLUDED.external_id
+                    ELSE avomap_assets.external_id
+                END,
                 status = 'ready',
                 updated_at = NOW()
             """,
