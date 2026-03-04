@@ -53,6 +53,7 @@ For next-wave architecture, see `docs/EA_OS_Design_v1_13_Profile_Intelligence_Co
 
 7. v1.13 future-intelligence gate hardening
 - Added `tests/smoke_v1_13_future_intelligence_pack.py` to mirror the external v1.13 future-intelligence contract pack in repo-native smoke format.
+- Added `tests/run_incoming_v113_pack.py` so the dropped-in `tests/_incoming_v113` contract files are executed directly (without pytest) in host smoke flows.
 - `scripts/run_v113_smoke.sh` now executes both `tests/smoke_v1_13.py` and `tests/smoke_v1_13_future_intelligence_pack.py`.
 - `scripts/docker_e2e_design_workflows.sh` now runs `tests/real_milestone_suite.py` inside the API container.
 - `scripts/docker_e2e.sh` now includes full milestone host smokes (`v1.12.7` through `v1.18`) including `smoke_v1_13_future_intelligence_pack`, plus the real milestone functional suite.

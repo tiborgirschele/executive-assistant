@@ -122,7 +122,16 @@ def test_release_scaffold() -> None:
     _pass("v1.13 release scaffold")
 
 
+def test_incoming_pack_contracts() -> None:
+    from tests.run_incoming_v113_pack import run_pack
+
+    summary = run_pack()
+    assert int(summary.get("failed", 1)) == 0, summary
+    _pass("v1.13 incoming test-pack contracts")
+
+
 if __name__ == "__main__":
     test_future_intelligence_modules()
     test_regression_contracts()
     test_release_scaffold()
+    test_incoming_pack_contracts()
