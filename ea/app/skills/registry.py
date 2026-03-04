@@ -63,7 +63,7 @@ SKILL_REGISTRY: dict[str, SkillContract] = {
         handler=build_generic_skill_handler(
             "guided_intake",
             ("involve_me", "metasurvey", "apix_drive"),
-            planning_task_type="guided_intake",
+            planning_task_type="collect_structured_intake",
         ),
         capabilities=("involve_me", "metasurvey", "apix_drive"),
     ),

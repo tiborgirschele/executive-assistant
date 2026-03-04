@@ -14,6 +14,8 @@ def build_generic_skill_handler(
     key = str(skill_key or "").strip().lower()
     caps = tuple(str(x or "").strip().lower() for x in capabilities if str(x or "").strip())
     task_type = str(planning_task_type or key).strip().lower()
+    planning_ops = {"plan", "build", "compile"}
+    staging_ops = {"stage", "dispatch", "polish", "generate"}
 
     def _run_operation(
         *,
@@ -24,18 +26,28 @@ def build_generic_skill_handler(
     ) -> dict[str, Any]:
         preferred = str((payload or {}).get("preferred_capability") or "").strip().lower() or None
         plan = build_capability_plan(task_type, preferred=preferred)
+        op = str(operation or "").strip().lower()
+        status = "planned" if op in planning_ops else "staged" if op in staging_ops else "not_implemented"
+        ok = bool(plan.get("ok")) and status in {"planned", "staged"}
+        message = (
+            "Skill orchestration plan generated."
+            if status == "planned"
+            else "Skill orchestration request staged."
+            if status == "staged"
+            else "Skill contract exists but implementation is pending."
+        )
         return {
-            "ok": False,
-            "status": "not_implemented",
+            "ok": ok,
+            "status": status,
             "skill": key,
             "task_type": task_type,
-            "operation": str(operation or "").strip().lower(),
+            "operation": op,
             "tenant": str(tenant or ""),
             "chat_id": int(chat_id),
             "payload": dict(payload or {}),
             "capabilities": list(caps),
             "plan": plan,
-            "message": "Skill contract exists but implementation is pending.",
+            "message": message,
         }
 
     return _run_operation

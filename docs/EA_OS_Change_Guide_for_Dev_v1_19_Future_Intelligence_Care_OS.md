@@ -604,6 +604,26 @@ optional design direction.
   - `scripts/docker_e2e.sh`
   - `.github/workflows/release-gates.yml`
 
+49. v1.19.4 sidecar/skill orchestration outcomes
+- Updated `ea/app/skills/generic.py`:
+  - generic handlers now emit deterministic orchestration statuses:
+    - `planned` for `plan/build/compile`
+    - `staged` for `stage/dispatch/polish/generate`
+  - `ok` now reflects plan-availability for these operation classes.
+- Updated `ea/app/skills/runtime_action_exec.py`:
+  - typed skill result rendering now surfaces:
+    - plan/stage state
+    - primary capability
+    - fallback capabilities
+- Added `tests/smoke_v1_19_4_sidecar_skill_orchestration.py`:
+  - asserts orchestration outcomes across `travel_rescue`, `guided_intake`,
+    `draft_and_polish`.
+  - asserts typed `skill:*` action execution uses capability plan selection.
+- Wired this smoke into:
+  - `scripts/run_v119_smoke.sh`
+  - `scripts/docker_e2e.sh`
+  - `.github/workflows/release-gates.yml`
+
 ## Rollout checklist
 
 1. Host gate:

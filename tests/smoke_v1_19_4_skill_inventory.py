@@ -45,8 +45,8 @@ def test_generic_skill_dispatch_contract() -> None:
         chat_id=123,
         payload={"trip_id": "demo"},
     )
-    assert out.get("ok") is False
-    assert out.get("status") == "not_implemented"
+    assert out.get("ok") is True
+    assert out.get("status") == "planned"
     assert out.get("skill") == "travel_rescue"
     assert "oneair" in list(out.get("capabilities") or [])
     plan = out.get("plan") if isinstance(out.get("plan"), dict) else {}

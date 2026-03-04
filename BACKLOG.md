@@ -19,11 +19,15 @@ Branch: `main`
 - [DONE] Runtime skill-dispatch path:
   - `/skill` command stages typed actions with plan preview.
   - `act:` callback consumes typed actions and routes `skill:*` + payments actions.
+- [DONE] Behavioral sidecar/skill orchestration coverage:
+  - generic skills now emit deterministic orchestration outcomes (`planned`/`staged`)
+    with capability plan metadata.
+  - typed skill action rendering now surfaces selected primary/fallback capabilities.
+  - `smoke_v1_19_4_sidecar_skill_orchestration.py` added and wired into all gates.
 - [DONE] Full Docker E2E gate pass after each slice.
 
 ## Blocked
 - None.
 
 ## Next Queue (on new feedback)
-- Expand behavioral E2E coverage for sidecar/skill orchestration outcomes.
 - Optional convergence of LLM gateway package/export paths while preserving existing contract smokes.

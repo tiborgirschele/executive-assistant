@@ -35,11 +35,19 @@ def typed_action_text(action_type: str, result: dict[str, Any]) -> str:
         headline = f"🧩 <b>Skill result:</b> <code>{html.escape(skill_key)}</code>"
         if operation:
             headline += f" / <code>{html.escape(operation)}</code>"
+        plan = (result or {}).get("plan") if isinstance((result or {}).get("plan"), dict) else {}
+        primary = str((plan or {}).get("primary") or "").strip()
+        fallbacks = list((plan or {}).get("fallbacks") or [])
         if status == "not_implemented":
-            plan = (result or {}).get("plan") if isinstance((result or {}).get("plan"), dict) else {}
-            primary = str((plan or {}).get("primary") or "").strip()
-            fallbacks = list((plan or {}).get("fallbacks") or [])
             lines = [headline, "", "<i>Execution contract exists; implementation is pending.</i>"]
+            if primary:
+                lines.append(f"Primary capability: <code>{html.escape(primary)}</code>")
+            if fallbacks:
+                lines.append(f"Fallbacks: <code>{html.escape(', '.join(str(x) for x in fallbacks))}</code>")
+            return "\n".join(lines)
+        if status in {"planned", "staged"} and bool((result or {}).get("ok")):
+            lines = [headline, ""]
+            lines.append("✅ <b>Skill plan ready.</b>" if status == "planned" else "✅ <b>Skill action staged.</b>")
             if primary:
                 lines.append(f"Primary capability: <code>{html.escape(primary)}</code>")
             if fallbacks:
