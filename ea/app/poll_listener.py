@@ -47,6 +47,7 @@ from app.offset_store import atomic_write_offset, read_offset
 from app.watchdog import heartbeat_pinger, mark_heartbeat, start_watchdog_thread
 from app.update_router import route_update
 from app.callback_commands import handle_callback_command as _handle_callback_command
+from app.intent_runtime import handle_free_text_intent as _handle_free_text_intent
 
 
 start_watchdog_thread(
@@ -437,45 +438,13 @@ async def handle_intent(chat_id: int, msg: dict):
                 pass
             return
         if text and (not is_invoice) and (not is_image_calendar) and (not text.startswith('/')) and (not ('localhost' in text_lower or '127.0.0.1' in text_lower or 'code=' in text_lower or ('state=' in text_lower))):
-            t_openclaw = get_val(t, 'openclaw_container', os.environ.get("EA_DEFAULT_OPENCLAW_CONTAINER", "openclaw-gateway"))
-            active_res = await tg.send_message(chat_id, '▶️ <b>Analyzing request...</b>', parse_mode='HTML')
-            urls = re.findall('(https?://[^\\s]+)', text)
-            if urls and any((w in text_lower for w in ['read', 'scrape', 'summarize', 'check', 'extract', 'what'])):
-                from app.tools.browseract import scrape_url
-                try:
-                    await tg.edit_message_text(chat_id, active_res['message_id'], '🌐 <b>Scraping website with BrowserAct...</b>', parse_mode='HTML')
-                except:
-                    pass
-                scraped_data = await scrape_url(urls[0])
-                prompt = f"EXECUTE: The user sent a link. I scraped it for you using BrowserAct. Here is the website content:\n\n{str(scraped_data)[:3000]}\n\nUser request: '{text}'. Be concise."
-            else:
-                prompt = f"EXECUTE: Answer or execute the user request: '{text}'. Be concise."
-
-            async def _ui_updater(m):
-                try:
-                    await tg.edit_message_text(chat_id, active_res['message_id'], f'▶️ <b>{m[:80]}...</b>', parse_mode='HTML')
-                except:
-                    pass
-            try:
-                report = await asyncio.wait_for(gog_scout(t_openclaw, prompt, get_val(t, 'google_account', ''), _ui_updater, task_name='Intent: Free Text'), timeout=240.0)
-                kb_dict = build_dynamic_ui(report, prompt, save_ctx=save_button_context)
-                clean_rep = clean_html_for_telegram(re.sub('\\[OPTIONS:.*?\\]', '', _humanize_agent_report(report)).replace('[YES/NO]', ''))
-                if not clean_rep.strip() or clean_rep.strip() == '[]':
-                    clean_rep = '✅ Task executed successfully!'
-                try:
-                    await tg.edit_message_text(chat_id, active_res['message_id'], f'🎯 <b>Result:</b>\n\n{clean_rep[:3500]}', parse_mode='HTML', reply_markup=kb_dict)
-                except Exception as tg_err:
-                    import html as pyhtml
-                    plain_txt = re.sub('<[^>]+>', '', clean_rep).replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
-                    if len(plain_txt) > 4000:
-                        plain_txt = plain_txt[:4000] + '\n...[truncated]'
-                    try:
-                        await tg.edit_message_text(chat_id, active_res['message_id'], f'🎯 <b>Result:</b>\n\n{plain_txt}', parse_mode=None, reply_markup=kb_dict)
-                    except:
-                        pass
-            except Exception as task_err:
-                await tg.edit_message_text(chat_id, active_res['message_id'], f'❌ Agent Failed: {_safe_err(task_err)}', parse_mode='HTML')
-            return
+            return await _handle_free_text_intent(
+                tg=tg,
+                chat_id=chat_id,
+                text=text,
+                tenant_cfg=t,
+                safe_err=_safe_err,
+            )
     except Exception as e:
         print(f'INTENT CRASH: {traceback.format_exc()}', flush=True)
 

@@ -51,6 +51,7 @@ def test_mumbrain_hidden_from_user_menu_by_default() -> None:
     poll_src = (ROOT / "ea/app/poll_listener.py").read_text(encoding="utf-8")
     brief_runtime_src = (ROOT / "ea/app/brief_runtime.py").read_text(encoding="utf-8")
     callback_src = (ROOT / "ea/app/callback_commands.py").read_text(encoding="utf-8")
+    intent_runtime_src = (ROOT / "ea/app/intent_runtime.py").read_text(encoding="utf-8")
     menu_src = (ROOT / "ea/app/telegram_menu.py").read_text(encoding="utf-8")
     auth_src = (ROOT / "ea/app/auth_sessions.py").read_text(encoding="utf-8")
     assist_src = (ROOT / "ea/app/chat_assist.py").read_text(encoding="utf-8")
@@ -73,7 +74,9 @@ def test_mumbrain_hidden_from_user_menu_by_default() -> None:
     assert "from app.message_security import check_security, household_confidence_for_message as _household_confidence_for_message, message_document_ref as _message_document_ref" in poll_src
     assert "from app.brief_runtime import run_brief_command as _run_brief_command" in poll_src
     assert "from app.callback_commands import handle_callback_command as _handle_callback_command" in poll_src
+    assert "from app.intent_runtime import handle_free_text_intent as _handle_free_text_intent" in poll_src
     assert "async def handle_callback_command(" in callback_src
+    assert "async def handle_free_text_intent(" in intent_runtime_src
     assert "from app.briefing_delivery_sessions import (" in brief_runtime_src
     assert "from app.contracts.repair import open_repair_incident" in brief_runtime_src
     assert "from app.newspaper.preferences import build_preference_snapshot" in poll_src
