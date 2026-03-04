@@ -27,6 +27,10 @@ def test_briefing_uses_multi_dossier_compose() -> None:
     assert "Runtime confidence is reduced; urgent status may be incomplete." in src
     assert "Standard scan found no urgent items, but runtime confidence is reduced." not in src
     assert "No critical items require your immediate attention." not in src
+    assert "Exposure/Decision score:" not in src
+    assert "Risk urgency:" in src
+    assert "Decision window:" in src
+    assert " | salience " not in src
     _pass("v1.19.2 multi-dossier compose wiring")
 
 

@@ -125,6 +125,24 @@ def _runtime_confidence_note() -> str | None:
     )
 
 
+def _score_band(score: int | float) -> str:
+    value = int(score or 0)
+    if value >= 75:
+        return "high"
+    if value >= 45:
+        return "medium"
+    return "low"
+
+
+def _decision_label(score: int | float) -> str:
+    value = int(score or 0)
+    if value >= 75:
+        return "act now"
+    if value >= 45:
+        return "soon"
+    return "monitor"
+
+
 async def _avomap_prepare_card(
     *,
     tenant_key: str,
@@ -444,8 +462,8 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
                 html_out += f'• {_sanitize_telegram_html(a)}\n'
             if critical.exposure_score or critical.decision_window_score:
                 html_out += (
-                    f"<i>Exposure/Decision score:</i> "
-                    f"{int(critical.exposure_score)}/{int(critical.decision_window_score)}\n"
+                    f"<i>Risk urgency:</i> {_sanitize_telegram_html(_score_band(critical.exposure_score).title())} | "
+                    f"<i>Decision window:</i> {_sanitize_telegram_html(_decision_label(critical.decision_window_score).title())}\n"
                 )
             ev = [str(x) for x in critical.evidence if str(x).strip()]
             if ev:
@@ -463,9 +481,14 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
                 title = _sanitize_telegram_html(str(epic.title or "Epic"))
                 status = _sanitize_telegram_html(str(epic.status or "watch"))
                 summary = _sanitize_telegram_html(str(epic.summary or ""))
+                unresolved = int(epic.unresolved_count or 0)
+                if unresolved > 0:
+                    follow_up = f"{unresolved} open item(s) need follow-up"
+                else:
+                    follow_up = "on track"
                 html_out += (
                     f"• <b>{title}</b> ({status})"
-                    f" | salience {int(epic.salience)} | open {int(epic.unresolved_count)}\n"
+                    f" | {_sanitize_telegram_html(follow_up)}\n"
                 )
                 if summary:
                     html_out += f"  └ <i>{summary}</i>\n"
