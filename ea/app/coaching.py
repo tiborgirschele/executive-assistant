@@ -27,6 +27,8 @@ async def resolve_person_role(tenant: str, name: str) -> dict:
             task_type="operator_only",
             purpose="coaching_role_resolver",
             data_class="derived_summary",
+            tenant=str(tenant or ""),
+            person_id=str(name or ""),
             allow_json=True,
         )
         res = res.replace("```json", "").replace("```", "").strip()
@@ -52,6 +54,7 @@ async def generate_coach_annex(tenant: str, event: dict) -> str:
         task_type="profile_summary",
         purpose="coaching_name_extract",
         data_class="derived_summary",
+        tenant=str(tenant or ""),
     )
     name = name.replace("```", "").strip()
     if not name or len(name) > 50: name = "Counterpart"
@@ -78,4 +81,6 @@ Format in Telegram Markdown:
         task_type="profile_summary",
         purpose="coaching_annex_compose",
         data_class="derived_summary",
+        tenant=str(tenant or ""),
+        person_id=str(name or ""),
     )

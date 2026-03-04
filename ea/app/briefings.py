@@ -187,17 +187,19 @@ async def safe_gog(container, cmd, account, timeout=20.0):
         await docker_exec(container, ["pkill", "-f", "gog"], user="root", timeout_s=8.0)
         raise TimeoutError(f'CLI hung on command: {' '.join(cmd[:3])}')
 
-async def call_powerful_llm(prompt: str, temp=0.1) -> str:
+async def call_powerful_llm(prompt: str, temp=0.1, tenant: str = "", person_id: str = "") -> str:
     return await asyncio.to_thread(
         gateway_ask_text,
         str(prompt),
         task_type="briefing_compose",
         purpose="briefing_compose",
         data_class="derived_summary",
+        tenant=str(tenant or ""),
+        person_id=str(person_id or ""),
     )
 
-async def call_llm(prompt: str, temp=0.1) -> str:
-    return await call_powerful_llm(prompt, temp=temp)
+async def call_llm(prompt: str, temp=0.1, tenant: str = "", person_id: str = "") -> str:
+    return await call_powerful_llm(prompt, temp=temp, tenant=tenant, person_id=person_id)
 
 async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
     t_openclaw = get_val(tenant, 'openclaw_container', '')
@@ -472,7 +474,7 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
         '  "calendar_summary":"Clean bulleted timeline grouped by date."\n'
         "}"
     )
-    out = await call_llm(prompt)
+    out = await call_llm(prompt, tenant=str(t_key), person_id=str(t_account or t_key))
     try:
         obj = _safe_extract_obj(out)
         if 'error' in obj:
@@ -659,6 +661,8 @@ build_briefing_for_tenant = build_wrapper
 
 async def call_llm_async(prompt, *args, **kwargs):
     status_cb = current_status_cb.get()
+    tenant = str(kwargs.get("tenant") or "")
+    person_id = str(kwargs.get("person_id") or "")
 
     async def _heartbeat():
         if not status_cb:
@@ -699,6 +703,8 @@ async def call_llm_async(prompt, *args, **kwargs):
             task_type="briefing_compose",
             purpose="briefing_compose",
             data_class="derived_summary",
+            tenant=tenant,
+            person_id=person_id,
         )
     finally:
         hb_task.cancel()

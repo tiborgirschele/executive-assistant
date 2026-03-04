@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass
 
 from app.llm import ask_llm
+from app.llm_gateway.policy import is_egress_denied
 from app.llm_gateway.trust_boundary import validate_model_output
 
 
@@ -121,6 +122,8 @@ def _audit_egress(
     system_chars: int,
     redaction_applied: bool,
     verdict: str,
+    tenant: str = "",
+    person_id: str = "",
 ) -> None:
     path = os.getenv("EA_LLM_GATEWAY_AUDIT_PATH", "/attachments/llm_egress_audit.jsonl")
     db_audit_enabled = str(os.getenv("EA_LLM_GATEWAY_DB_AUDIT_ENABLED", "1")).strip().lower() not in (
@@ -135,6 +138,8 @@ def _audit_egress(
         "task_type": str(task_type or "briefing_compose"),
         "correlation_id": str(correlation_id or "")[:120],
         "data_class": str(data_class or "derived_summary"),
+        "tenant": str(tenant or "")[:120],
+        "person_id": str(person_id or "")[:120],
         "prompt_chars": int(prompt_chars),
         "system_chars": int(system_chars),
         "redaction_applied": bool(redaction_applied),
@@ -169,6 +174,8 @@ def ask_text(
     purpose: str = "user_assist",
     correlation_id: str = "",
     data_class: str = "derived_summary",
+    tenant: str = "",
+    person_id: str = "",
     allow_json: bool | None = None,
 ) -> str:
     """
@@ -190,10 +197,31 @@ def ask_text(
     safe_prompt = _sanitize_prompt(str(prompt or ""), max_chars=max_prompt)
     safe_system = _sanitize_prompt(str(system_prompt or DEFAULT_SYSTEM_PROMPT), max_chars=max_system)
     redaction_applied = safe_prompt != str(prompt or "") or safe_system != str(system_prompt or DEFAULT_SYSTEM_PROMPT)
+    tenant_key = str(tenant or "").strip()
+    person_key = str(person_id or "").strip()
     if not safe_system:
         safe_system = DEFAULT_SYSTEM_PROMPT
     if not safe_prompt:
         safe_prompt = "Provide a concise, user-safe summary."
+    if is_egress_denied(
+        tenant=tenant_key or "*",
+        person_id=person_key,
+        task_type=policy.task_type,
+        data_class=str(data_class or "derived_summary"),
+    ):
+        _audit_egress(
+            purpose=purpose,
+            task_type=policy.task_type,
+            correlation_id=correlation_id,
+            data_class=data_class,
+            prompt_chars=len(safe_prompt),
+            system_chars=len(safe_system),
+            redaction_applied=redaction_applied,
+            verdict="blocked_policy",
+            tenant=tenant_key,
+            person_id=person_key,
+        )
+        return _BLOCKED_COPY
     if (not policy.allow_raw_docs) and _contains_raw_document_payload(safe_prompt):
         _audit_egress(
             purpose=purpose,
@@ -204,6 +232,8 @@ def ask_text(
             system_chars=len(safe_system),
             redaction_applied=redaction_applied,
             verdict="blocked_raw_document_payload",
+            tenant=tenant_key,
+            person_id=person_key,
         )
         return _RAW_DOC_BLOCKED_COPY
 
@@ -219,6 +249,8 @@ def ask_text(
             system_chars=len(safe_system),
             redaction_applied=redaction_applied,
             verdict="provider_error",
+            tenant=tenant_key,
+            person_id=person_key,
         )
         return _FALLBACK_COPY
 
@@ -233,6 +265,8 @@ def ask_text(
             system_chars=len(safe_system),
             redaction_applied=redaction_applied,
             verdict="empty_output",
+            tenant=tenant_key,
+            person_id=person_key,
         )
         return _FALLBACK_COPY
     if len(text) > max_output:
@@ -254,6 +288,8 @@ def ask_text(
         system_chars=len(safe_system),
         redaction_applied=redaction_applied,
         verdict=verdict,
+        tenant=tenant_key,
+        person_id=person_key,
     )
     if verdict != "ok":
         return _BLOCKED_COPY

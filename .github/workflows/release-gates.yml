@@ -35,6 +35,7 @@ jobs:
           python3 tests/smoke_v1_19_2_health_dossier.py
           python3 tests/smoke_v1_19_2_household_dossier.py
           python3 tests/smoke_v1_19_2_snapshot_persistence.py
+          python3 tests/smoke_v1_19_2_llm_egress_policy.py
           python3 tests/smoke_v1_19_2_missingness.py
           python3 tests/smoke_v1_18_1_runtime_alignment.py
           python3 tests/smoke_newspaper_issue_pipeline.py

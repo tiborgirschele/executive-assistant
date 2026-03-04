@@ -21,6 +21,7 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_19_2_health_dossier.py" \
   "$ROOT/tests/smoke_v1_19_2_household_dossier.py" \
   "$ROOT/tests/smoke_v1_19_2_snapshot_persistence.py" \
+  "$ROOT/tests/smoke_v1_19_2_llm_egress_policy.py" \
   "$ROOT/tests/smoke_v1_19_2_missingness.py"
 
 echo "[SMOKE][v1.19] Incoming contract-pack smoke"
@@ -32,6 +33,7 @@ python3 "$ROOT/tests/smoke_v1_19_2_human_assistant_mode.py"
 python3 "$ROOT/tests/smoke_v1_19_2_health_dossier.py"
 python3 "$ROOT/tests/smoke_v1_19_2_household_dossier.py"
 python3 "$ROOT/tests/smoke_v1_19_2_snapshot_persistence.py"
+python3 "$ROOT/tests/smoke_v1_19_2_llm_egress_policy.py"
 python3 "$ROOT/tests/smoke_v1_19_2_missingness.py"
 
 if [[ "${EA_SKIP_FULL_GATES:-0}" != "1" ]]; then

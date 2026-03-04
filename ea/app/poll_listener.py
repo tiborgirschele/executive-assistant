@@ -105,13 +105,15 @@ def _incident_ref(prefix: str = "EA") -> str:
     return f"{prefix}-{int(time.time())}"
 
 
-async def _ask_llm_text(prompt: str) -> str:
+async def _ask_llm_text(prompt: str, *, tenant: str = "", person_id: str = "") -> str:
     return await asyncio.to_thread(
         gateway_ask_text,
         str(prompt),
         task_type="profile_summary",
         purpose="chat_assist",
         data_class="derived_summary",
+        tenant=str(tenant or ""),
+        person_id=str(person_id or ""),
     )
 
 
@@ -1058,7 +1060,11 @@ async def handle_intent(chat_id: int, msg: dict):
                     import pypdf
                     reader = pypdf.PdfReader(io.BytesIO(file_bytes))
                     pdf_text = '\n'.join([page.extract_text() for page in reader.pages[:3] if page.extract_text()])
-                    sepa_json = await _ask_llm_text(f'{prompt_str}\n\nText:\n{pdf_text[:4000]}')
+                    sepa_json = await _ask_llm_text(
+                        f'{prompt_str}\n\nText:\n{pdf_text[:4000]}',
+                        tenant=str(tenant_name or ""),
+                        person_id=str(chat_id),
+                    )
                 else:
                     one_min_key = getattr(settings, 'one_min_ai_api_key', None) or os.environ.get('ONE_MIN_AI_API_KEY')
                     if not one_min_key:
@@ -1221,7 +1227,11 @@ async def handle_command(chat_id: int, text: str, msg: dict):
             try:
                 import json
                 prompt = f'Extract a short 3-5 word title and the core fact from this text. Return STRICT JSON: {{"title": "...", "fact": "..."}}. Text: {rem_text}'
-                out = await _ask_llm_text(prompt)
+                out = await _ask_llm_text(
+                    prompt,
+                    tenant=str(tenant_name or ""),
+                    person_id=str(chat_id),
+                )
                 match = re.search('\\{[\\s\\S]*\\}', out)
                 if match:
                     data = json.loads(match.group(0))

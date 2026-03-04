@@ -120,6 +120,7 @@ run_step "smoke_v1_19_2_human_assistant_mode" python3 tests/smoke_v1_19_2_human_
 run_step "smoke_v1_19_2_health_dossier" python3 tests/smoke_v1_19_2_health_dossier.py
 run_step "smoke_v1_19_2_household_dossier" python3 tests/smoke_v1_19_2_household_dossier.py
 run_step "smoke_v1_19_2_snapshot_persistence" python3 tests/smoke_v1_19_2_snapshot_persistence.py
+run_step "smoke_v1_19_2_llm_egress_policy" python3 tests/smoke_v1_19_2_llm_egress_policy.py
 run_step "smoke_v1_19_2_missingness" python3 tests/smoke_v1_19_2_missingness.py
 
 echo "== Docker E2E: newspaper integration smokes =="
