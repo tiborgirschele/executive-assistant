@@ -71,6 +71,10 @@ def main() -> None:
     assert "bad" in cleaned
     assert "&" in cleaned
 
+    outbox_src = (ROOT / "app/roles/outbox.py").read_text(encoding="utf-8")
+    assert 'payload.get("type") == "video"' in outbox_src
+    assert "/sendVideo" in outbox_src
+
     print("PASS: outbox entity-fallback helpers")
 
 

@@ -1,4 +1,4 @@
-import json, logging
+import json, logging, os
 from app.db import get_db
 from app.integrations.avomap.finalize import finalize_avomap_render_event
 from app.settings import settings
@@ -80,10 +80,19 @@ def _maybe_enqueue_late_attach_followup(db, *, tenant: str, spec_id: str) -> Non
     if not claimed:
         return
 
-    payload = {
-        "text": f"🎬 <b>Travel video ready</b>\n<a href=\"{object_ref}\">▶ Open video</a>",
-        "parse_mode": "HTML",
-    }
+    delivery_mode = str(os.getenv("EA_AVOMAP_LATE_ATTACH_MODE", "link")).strip().lower()
+    if delivery_mode in {"video", "sendvideo", "native"}:
+        payload = {
+            "type": "video",
+            "video_url": object_ref,
+            "caption": "🎬 <b>Travel video ready</b>",
+            "parse_mode": "HTML",
+        }
+    else:
+        payload = {
+            "text": f"🎬 <b>Travel video ready</b>\n<a href=\"{object_ref}\">▶ Open video</a>",
+            "parse_mode": "HTML",
+        }
     idem = f"avomap_late_attach:{spec_id}:{str((claimed or {}).get('job_id') or '')}"
     db.execute(
         """

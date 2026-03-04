@@ -75,6 +75,24 @@ async def run_outbox():
                                 if "reply_markup" in payload:
                                     retry_data["reply_markup"] = json.dumps(payload["reply_markup"])
                                 res = await client.post(f"{api_url}/sendPhoto", data=retry_data, files={"photo": f})
+                    elif payload.get("type") == "video":
+                        video_ref = str(payload.get("video_url") or payload.get("video") or "").strip()
+                        if not video_ref:
+                            raise Exception("video payload missing video_url/video")
+                        parse_mode = payload.get("parse_mode", "HTML")
+                        data = {"chat_id": chat_id, "video": video_ref, "parse_mode": parse_mode}
+                        if "caption" in payload:
+                            data["caption"] = payload.get("caption", "")
+                        if "reply_markup" in payload:
+                            data["reply_markup"] = json.dumps(payload["reply_markup"])
+                        res = await client.post(f"{api_url}/sendVideo", data=data)
+                        if _is_telegram_entity_parse_error(res.status_code, res.text):
+                            retry_data = {"chat_id": chat_id, "video": video_ref}
+                            if "caption" in payload:
+                                retry_data["caption"] = _strip_telegram_html(payload.get("caption", ""))
+                            if "reply_markup" in payload:
+                                retry_data["reply_markup"] = json.dumps(payload["reply_markup"])
+                            res = await client.post(f"{api_url}/sendVideo", data=retry_data)
                     else:
                         parse_mode = payload.get("parse_mode", "HTML")
                         tg_payload = {"chat_id": chat_id, "text": payload.get("text", "Empty msg"), "parse_mode": parse_mode}
