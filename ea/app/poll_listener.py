@@ -36,6 +36,7 @@ from app.contracts.repair import open_repair_incident
 from app.chat_assist import ask_llm_text as _ask_llm_text, humanize_agent_report as _humanize_agent_report
 from app.brain_commands import remember_fact as _remember_fact, show_brain as _show_brain
 from app.auth_commands import handle_auth_command as _handle_auth_command
+from app.reading_commands import handle_articles_pdf_command as _handle_articles_pdf_command
 from app.newspaper.preferences import build_preference_snapshot
 from app.poll_ui import build_dynamic_ui, clean_html_for_telegram
 from app.telegram_menu import bot_commands as _bot_commands, menu_text as _menu_text, mumbrain_user_visible as _mumbrain_user_visible
@@ -663,16 +664,13 @@ async def handle_command(chat_id: int, text: str, msg: dict):
                 admin_chat_id=str(get_admin_chat_id() or ""),
             )
         if cmd in ('/briefpdf', '/articlespdf'):
-            wait_msg = await tg.send_message(chat_id, '🗞️ <i>Building reading PDF from BrowserAct...</i>', parse_mode='HTML')
-            sent = await _send_browseract_articles_pdf(chat_id, tenant_name, t, force=True)
-            if sent:
-                try:
-                    await tg.delete_message(chat_id, wait_msg.get('message_id'))
-                except Exception:
-                    pass
-            else:
-                await tg.edit_message_text(chat_id, wait_msg['message_id'], '🗞️ No qualifying Economist/Atlantic/NYT BrowserAct articles in the last 7 days.', parse_mode='HTML')
-            return
+            return await _handle_articles_pdf_command(
+                tg=tg,
+                chat_id=chat_id,
+                tenant_name=tenant_name,
+                tenant_cfg=t,
+                send_pdf_func=_send_browseract_articles_pdf,
+            )
         if cmd == '/remember':
             return await _remember_fact(
                 tg=tg,

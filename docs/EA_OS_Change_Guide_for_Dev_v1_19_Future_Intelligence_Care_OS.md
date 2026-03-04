@@ -425,6 +425,17 @@ optional design direction.
   - verifies `operator_commands` ownership and absence of inline Mum Brain
     status render strings in `poll_listener.py`.
 
+35. v1.19.3 poll-listener reading command extraction
+- Added `ea/app/reading_commands.py`:
+  - `handle_articles_pdf_command(...)`
+- `ea/app/poll_listener.py` now delegates `/briefpdf` and `/articlespdf`
+  handling to `reading_commands` instead of keeping wait/success/fallback
+  response flow inline.
+- Updated decomposition smoke contract:
+  - `tests/smoke_v1_19_2_human_assistant_mode.py`
+  - verifies `reading_commands` ownership and absence of inline reading command
+    user-copy strings in `poll_listener.py`.
+
 ## Rollout checklist
 
 1. Host gate:
