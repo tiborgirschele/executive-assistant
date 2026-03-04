@@ -13,7 +13,11 @@ def test_sentinel_user_message_contract() -> None:
     # Throttling contract: persist across restarts and honor configured interval.
     assert "def _sentinel_alert_throttled()" in src
     assert "EA_SENTINEL_ALERT_MIN_INTERVAL_SEC" in src
+    assert "EA_SENTINEL_HEARTBEAT_TIMEOUT_SEC" in src
+    assert "EA_SENTINEL_STARTUP_GRACE_SEC" in src
+    assert "EA_SENTINEL_EXIT_ON_STALL" in src
     assert ".sentinel_last_alert.json" in src
+    assert "time.monotonic()" in src
 
     # User-facing copy should be concise and reassuring, not internal diagnostics.
     assert "⚠️ <b>Temporary interruption</b>" in src
@@ -34,4 +38,3 @@ def test_sentinel_user_message_contract() -> None:
 
 if __name__ == "__main__":
     test_sentinel_user_message_contract()
-

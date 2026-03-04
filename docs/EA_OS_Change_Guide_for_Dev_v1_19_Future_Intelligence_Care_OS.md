@@ -51,6 +51,16 @@ optional design direction.
 - Updated roadmap: `docs/ea_os_design_roadmap_v2026.md` now includes Phase 7 v1.19.
 - Updated root README smoke/release/doc references for v1.19.
 
+7. Sentinel watchdog resilience hardening
+- `ea/app/poll_listener.py` watchdog now uses monotonic heartbeat timing.
+- Added startup grace window (`EA_SENTINEL_STARTUP_GRACE_SEC`) to avoid false
+  deadlock detection during boot churn.
+- Added configurable heartbeat timeout (`EA_SENTINEL_HEARTBEAT_TIMEOUT_SEC`).
+- Added diagnostics mode toggle (`EA_SENTINEL_EXIT_ON_STALL=false`) for
+  observing stalls without forced process exit.
+- Preserved throttled user-facing interruption copy contract and no-leak
+  internal phrasing invariant.
+
 ## Rollout checklist
 
 1. Host gate:

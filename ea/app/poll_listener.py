@@ -25,7 +25,8 @@ from app.intake.calendar_import_result import build_calendar_import_response
 from app.intake.calendar_events import normalize_extracted_calendar_events
 from app.contracts.llm_gateway import ask_text as gateway_ask_text
 from app.contracts.repair import open_repair_incident
-LAST_HEARTBEAT = time.time()
+LAST_HEARTBEAT = time.monotonic()
+WATCHDOG_BOOT_TS = time.monotonic()
 
 
 def _sentinel_enabled_for_role() -> bool:
@@ -35,6 +36,27 @@ def _sentinel_enabled_for_role() -> bool:
         return str(override).strip().lower() in ("1", "true", "yes", "on")
     # Default watchdog only where heartbeat_pinger is expected to run.
     return role in ("", "monolith", "poller")
+
+
+def _sentinel_heartbeat_timeout_sec() -> int:
+    try:
+        value = int(os.getenv("EA_SENTINEL_HEARTBEAT_TIMEOUT_SEC", "300"))
+    except Exception:
+        value = 300
+    return max(60, value)
+
+
+def _sentinel_startup_grace_sec() -> int:
+    try:
+        value = int(os.getenv("EA_SENTINEL_STARTUP_GRACE_SEC", "180"))
+    except Exception:
+        value = 180
+    return max(0, value)
+
+
+def _sentinel_exit_on_stall() -> bool:
+    val = str(os.getenv("EA_SENTINEL_EXIT_ON_STALL", "true")).strip().lower()
+    return val in ("1", "true", "yes", "on")
 
 
 def _sentinel_alert_throttled() -> bool:
@@ -67,24 +89,37 @@ def _sentinel_alert_throttled() -> bool:
 
 
 def _watchdog_loop():
+    global LAST_HEARTBEAT
     while True:
         time.sleep(15)
-        if time.time() - LAST_HEARTBEAT > 300:
-            print('🚨 SENTINEL: System Deadlock Detected! Restarting...', flush=True)
-            try:
-                tok = getattr(settings, 'telegram_bot_token', None)
-                admin = get_admin_chat_id()
-                if tok and admin and not _sentinel_alert_throttled():
-                    msg = (
-                        "⚠️ <b>Temporary interruption</b>\n"
-                        "I ran into an internal issue and I am restarting automatically now.\n"
-                        "No action is needed from you. If a request was interrupted, please resend it in about a minute."
-                    )
-                    req = urllib.request.Request(f'https://api.telegram.org/bot{tok}/sendMessage', data=json.dumps({'chat_id': admin, 'text': msg, 'parse_mode': 'HTML'}).encode('utf-8'), headers={'Content-Type': 'application/json'})
-                    urllib.request.urlopen(req, timeout=5)
-            except:
-                pass
+        now = time.monotonic()
+        if (now - WATCHDOG_BOOT_TS) < _sentinel_startup_grace_sec():
+            continue
+        stalled_for = now - LAST_HEARTBEAT
+        if stalled_for <= _sentinel_heartbeat_timeout_sec():
+            continue
+        print(f"🚨 SENTINEL: Heartbeat stalled for {int(stalled_for)}s.", flush=True)
+        try:
+            tok = getattr(settings, 'telegram_bot_token', None)
+            admin = get_admin_chat_id()
+            if tok and admin and not _sentinel_alert_throttled():
+                msg = (
+                    "⚠️ <b>Temporary interruption</b>\n"
+                    "I ran into an internal issue and I am restarting automatically now.\n"
+                    "No action is needed from you. If a request was interrupted, please resend it in about a minute."
+                )
+                req = urllib.request.Request(
+                    f'https://api.telegram.org/bot{tok}/sendMessage',
+                    data=json.dumps({'chat_id': admin, 'text': msg, 'parse_mode': 'HTML'}).encode('utf-8'),
+                    headers={'Content-Type': 'application/json'},
+                )
+                urllib.request.urlopen(req, timeout=5)
+        except Exception:
+            pass
+        if _sentinel_exit_on_stall():
             os._exit(1)
+        # Diagnostics mode: keep the process alive and avoid tight-loop alerts.
+        LAST_HEARTBEAT = now
 
 
 if _sentinel_enabled_for_role():
@@ -93,7 +128,7 @@ if _sentinel_enabled_for_role():
 async def heartbeat_pinger():
     global LAST_HEARTBEAT
     while True:
-        LAST_HEARTBEAT = time.time()
+        LAST_HEARTBEAT = time.monotonic()
         await asyncio.sleep(10)
 tg = TelegramClient(settings.telegram_bot_token)
 MENU_REGISTERED = False
@@ -1572,7 +1607,7 @@ async def poll_loop():
         try:
             updates = await tg.get_updates(offset, timeout_s=30)
             global LAST_HEARTBEAT
-            LAST_HEARTBEAT = time.time()
+            LAST_HEARTBEAT = time.monotonic()
             for u in updates:
                 offset = u['update_id'] + 1
                 await asyncio.to_thread(_atomic_write_offset, offset)
