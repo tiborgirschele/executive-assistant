@@ -68,7 +68,7 @@ def compose_briefing_html(
             )
         evidence = _iter_actions(getattr(critical, "evidence", ()), limit=2)
         if evidence:
-            html_out += f"<i>Signal source:</i> {_sanitize_telegram_html(' | '.join(evidence))}\n"
+            html_out += f"<i>Why now:</i> {_sanitize_telegram_html(' | '.join(evidence))}\n"
         html_out += "\n"
 
     blockers = _iter_actions(getattr(readiness, "blockers", ()), limit=2)
@@ -102,10 +102,11 @@ def compose_briefing_html(
 
     readiness_status = str(getattr(readiness, "status", "") or "watch").title()
     readiness_score = int(getattr(readiness, "score", 0) or 0)
-    html_out += f"<b>Readiness:</b> {_sanitize_telegram_html(readiness_status)} (score {readiness_score}/100)\n"
+    readiness_band = _score_band(readiness_score).title()
+    html_out += f"<b>Readiness:</b> {_sanitize_telegram_html(readiness_status)} ({_sanitize_telegram_html(readiness_band)})\n"
     watch_items = _iter_actions(getattr(readiness, "watch_items", ()), limit=2)
     if watch_items:
-        html_out += "<i>Watch:</i> " + _sanitize_telegram_html(" | ".join(watch_items)) + "\n"
+        html_out += "<i>Watch for:</i> " + _sanitize_telegram_html(" | ".join(watch_items)) + "\n"
 
     prep_actions = _iter_actions(getattr(prep_plan, "actions", ()), limit=4)
     if prep_actions:
