@@ -1,10 +1,20 @@
 from __future__ import annotations
-import os
 import asyncio
-import os
-import httpx, asyncio, os, sys, traceback, re, json, io, base64, urllib.parse, time, threading, html
+import base64
 import contextlib
-from datetime import datetime, timezone, timedelta
+import html
+import io
+import json
+import os
+import re
+import sys
+import threading
+import time
+import traceback
+import urllib.parse
+from datetime import datetime, timedelta, timezone
+
+import httpx
 from app.config import get_tenant, get_admin_chat_id, load_tenants, tenant_by_chat_id
 from app.gog import gog_scout, gog_cli, docker_exec
 from app.settings import settings
