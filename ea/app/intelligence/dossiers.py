@@ -21,7 +21,7 @@ def _extract_amounts(raw: str) -> list[float]:
     vals: list[float] = []
     if not raw:
         return vals
-    pat = re.compile(r"(?i)(?:€|eur|usd|\\$|chf|gbp)\\s*([0-9][0-9\\.,\\s]{1,})")
+    pat = re.compile(r"(?i)(?:€|eur|usd|\$|chf|gbp)\s*([0-9][0-9\.,\s]{1,})")
     for m in pat.finditer(str(raw)):
         token = str(m.group(1) or "").strip().replace(" ", "")
         if not token:
@@ -101,6 +101,9 @@ def build_trip_dossier(
     default_risk = [
         "iran",
         "israel",
+        "tel aviv",
+        "tel-aviv",
+        "tehran",
         "gaza",
         "lebanon",
         "ukraine",
@@ -168,4 +171,3 @@ def build_trip_dossier(
         near_term=bool(near_term),
         evidence=tuple(evidence),
     )
-

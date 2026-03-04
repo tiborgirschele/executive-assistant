@@ -111,6 +111,7 @@ run_step "smoke_v1_15" python3 tests/smoke_v1_15.py
 run_step "smoke_v1_16" python3 tests/smoke_v1_16.py
 run_step "smoke_v1_17" python3 tests/smoke_v1_17.py
 run_step "smoke_v1_18" python3 tests/smoke_v1_18.py
+run_step "smoke_v1_19_future_intelligence_pack" python3 tests/smoke_v1_19_future_intelligence_pack.py
 
 echo "== Docker E2E: newspaper integration smokes =="
 run_step "smoke_newspaper_issue_pipeline" python3 tests/smoke_newspaper_issue_pipeline.py

@@ -50,7 +50,7 @@ def build_future_situations(
     for dossier in dossiers or []:
         if dossier.kind != "trip" or dossier.signal_count <= 0:
             continue
-        if dossier.near_term:
+        if dossier.near_term or dossier.exposure_eur >= 2500 or bool(dossier.risk_hits):
             out.append(
                 FutureSituation(
                     kind="travel_window",

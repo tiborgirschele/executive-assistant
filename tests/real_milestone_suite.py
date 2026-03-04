@@ -20,7 +20,7 @@ from app.intake.browseract import process_browseract_event
 from app.integrations.avomap.service import AvoMapService
 from app.integrations.avomap.security import issue_job_token
 from app.intelligence.critical_lane import build_critical_actions
-from app.intelligence.dossiers import Dossier
+from app.intelligence.dossiers import Dossier, build_trip_dossier
 from app.intelligence.epics import build_epics_from_dossiers, rank_epics
 from app.intelligence.future_situations import build_future_situations
 from app.intelligence.modes import select_briefing_mode
@@ -306,6 +306,64 @@ def test_v118() -> None:
     p("[REAL][PASS] v1.18 planner prefilter/budget/dedupe functional")
 
 
+def test_v119_future_intelligence_care() -> None:
+    future_start = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+    profile = build_profile_context(
+        tenant=f"real_v119_{uuid4().hex[:8]}",
+        person_id="p1",
+        timezone_name="Europe/Vienna",
+        runtime_confidence_note="Runtime auto-recovered recently.",
+        mode="standard_morning_briefing",
+        location_hint="Vienna",
+    )
+    mails = [
+        {
+            "subject": "Holiday booking confirmation - EUR 15,000",
+            "from": "travel@example.com",
+            "snippet": "Flight booking with layover in Tel Aviv. Rebooking terms attached.",
+        }
+    ]
+    calendar_events = [
+        {
+            "summary": "Flight to Zurich",
+            "location": "Vienna Airport; Tel Aviv Airport; Zurich, Switzerland",
+            "start": {"dateTime": future_start},
+            "end": {"dateTime": future_start},
+            "_calendar": "primary",
+        }
+    ]
+    dossier = build_trip_dossier(mails=mails, calendar_events=calendar_events)
+    future = build_future_situations(
+        profile=profile,
+        dossiers=[dossier],
+        calendar_events=calendar_events,
+        horizon_hours=96,
+    )
+    readiness = build_readiness_dossier(
+        profile=profile,
+        dossiers=[dossier],
+        future_situations=future,
+    )
+    critical = build_critical_actions(profile, [dossier])
+    mode = select_briefing_mode(profile, [dossier], critical)
+    prep = build_preparation_plan(profile=profile, readiness=readiness, epics=tuple())
+    kinds = {str(s.kind) for s in future}
+
+    assert dossier.exposure_eur >= 15000, dossier
+    assert dossier.risk_hits, dossier
+    assert "travel_window" in kinds, kinds
+    assert "risk_intersection" in kinds, kinds
+    assert readiness.status in {"critical", "watch"}, readiness
+    assert len(critical.actions) >= 1, critical
+    assert critical.exposure_score > 0, critical
+    assert critical.decision_window_score > 0, critical
+    assert mode in {"low_confidence", "risk_mode", "travel_mode"}, mode
+    prep_txt = str(prep).lower()
+    assert "pay " not in prep_txt
+    assert "wire transfer" not in prep_txt
+    p("[REAL][PASS] v1.19 future intelligence care contracts functional")
+
+
 def test_mum_brain() -> None:
     db = get_db()
     cid_render = trigger_mum_brain(db, 'MarkupGo API HTTP 400 invalid template id', fallback_mode='simplified-first', failure_class='renderer_fault', intent='brief_render', chat_id='real_suite')
@@ -435,6 +493,7 @@ if __name__ == "__main__":
     test_v116()
     test_v117()
     test_v118()
+    test_v119_future_intelligence_care()
     test_v126_travel_video()
     test_mum_brain()
     p("[REAL][PASS] all milestone functional tests completed")

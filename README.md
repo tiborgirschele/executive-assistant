@@ -32,10 +32,11 @@ bash scripts/runbook.sh
 bash scripts/docker_e2e.sh
 bash scripts/docker_e2e_design_workflows.sh
 bash scripts/run_v113_smoke.sh
+bash scripts/run_v119_smoke.sh
 ```
 
 Milestone release scripts (`scripts/release_v113_onboarding.sh` through
-`scripts/release_v118_1_runtime_alignment.sh`) run full docker gates by default
+`scripts/release_v119_future_intelligence_care_os.sh`) run full docker gates by default
 after their milestone-specific checks. Set `EA_SKIP_FULL_GATES=1` to skip the
 final full-gate step.
 
@@ -47,6 +48,7 @@ Gate reports are written to `logs/gates/*.json` and uploaded by CI.
 - Contract stabilization baseline: `docs/v1_12_7_contract_freeze.md`
 - v1.13 profile intelligence core: `docs/EA_OS_Design_v1_13_Profile_Intelligence_Core.md`
 - v1.14 epics and trust: `docs/EA_OS_Design_v1_14_Epics_and_Trust.md`
+- v1.19 future intelligence care OS: `docs/EA_OS_Design_v1_19_Future_Intelligence_Care_OS.md`
 - Product roadmap: `docs/ea_os_design_roadmap_v2026.md`
 - Change guide (this rollout state): `docs/EA_OS_Change_Guide_for_Dev_v1_12_7.md`
 
