@@ -640,6 +640,19 @@ optional design direction.
   - `scripts/docker_e2e.sh`
   - `.github/workflows/release-gates.yml`
 
+51. v1.19.4 briefing diagnostics log gate
+- Updated `ea/app/briefings.py`:
+  - `_emit_internal_diagnostics(...)` now short-circuits unless
+    `EA_BRIEFING_DIAGNOSTICS_LOG_ENABLED=1`.
+  - default behavior is calm/no diagnostic logging for normal runtime paths.
+- Added `tests/smoke_v1_19_4_briefing_diagnostics_log_gate.py`:
+  - asserts diagnostics are suppressed by default.
+  - asserts diagnostics emit only when explicit log flag is enabled.
+- Wired this smoke into:
+  - `scripts/run_v119_smoke.sh`
+  - `scripts/docker_e2e.sh`
+  - `.github/workflows/release-gates.yml`
+
 ## Rollout checklist
 
 1. Host gate:

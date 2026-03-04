@@ -30,6 +30,11 @@ Branch: `main`
   - `app.llm_gateway` exports `ask_text` and `DEFAULT_SYSTEM_PROMPT` from the
     hardened contract boundary.
   - `smoke_v1_19_4_llm_gateway_convergence.py` added and wired into all gates.
+- [DONE] Briefing diagnostics log hard-gate:
+  - internal diagnostics logs are disabled by default and only emitted when
+    `EA_BRIEFING_DIAGNOSTICS_LOG_ENABLED=1`.
+  - `smoke_v1_19_4_briefing_diagnostics_log_gate.py` added and wired into
+    all gates.
 - [DONE] Full Docker E2E gate pass after each slice.
 
 ## Blocked

@@ -63,6 +63,8 @@ def _emit_internal_diagnostics(diag_logs: list[str]) -> None:
     """
     if not diag_logs:
         return
+    if not _env_flag("EA_BRIEFING_DIAGNOSTICS_LOG_ENABLED", default=False):
+        return
     try:
         joined = "\n".join(str(x) for x in diag_logs if str(x).strip())
         if joined:
