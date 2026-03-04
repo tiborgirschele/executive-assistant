@@ -348,6 +348,18 @@ optional design direction.
   - verifies extracted ownership and absence of inline
     `_preference_snapshot(...)` in `poll_listener.py`.
 
+29. v1.19.3 runtime behavioral briefing smoke
+- Added `tests/smoke_v1_19_3_briefing_runtime_behavior.py` to validate runtime
+  compose behavior (not only source-string structure checks):
+  - executes `_raw_build_briefing_for_tenant(...)` with controlled inputs and
+    asserts deterministic `Immediate Action` promotion + no diagnostics leakage.
+  - executes `build_briefing_for_tenant(...)` with toxic payload simulation and
+    asserts Telegram-safe sanitization before user-surface output.
+- Wired into v1.19 gates:
+  - `scripts/run_v119_smoke.sh`
+  - `scripts/docker_e2e.sh`
+  - `.github/workflows/release-gates.yml`
+
 ## Rollout checklist
 
 1. Host gate:

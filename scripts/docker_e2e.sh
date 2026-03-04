@@ -124,6 +124,7 @@ run_step "smoke_v1_19_2_llm_egress_policy" python3 tests/smoke_v1_19_2_llm_egres
 run_step "smoke_v1_19_2_missingness" python3 tests/smoke_v1_19_2_missingness.py
 run_step "smoke_v1_19_3_human_compose_behavior" python3 tests/smoke_v1_19_3_human_compose_behavior.py
 run_step "smoke_v1_19_3_source_acquisition_split" python3 tests/smoke_v1_19_3_source_acquisition_split.py
+run_step "smoke_v1_19_3_briefing_runtime_behavior" python3 tests/smoke_v1_19_3_briefing_runtime_behavior.py
 
 echo "== Docker E2E: newspaper integration smokes =="
 run_step "smoke_newspaper_issue_pipeline" python3 tests/smoke_newspaper_issue_pipeline.py

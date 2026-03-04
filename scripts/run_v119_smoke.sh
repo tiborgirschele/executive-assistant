@@ -24,7 +24,8 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_19_2_llm_egress_policy.py" \
   "$ROOT/tests/smoke_v1_19_2_missingness.py" \
   "$ROOT/tests/smoke_v1_19_3_human_compose_behavior.py" \
-  "$ROOT/tests/smoke_v1_19_3_source_acquisition_split.py"
+  "$ROOT/tests/smoke_v1_19_3_source_acquisition_split.py" \
+  "$ROOT/tests/smoke_v1_19_3_briefing_runtime_behavior.py"
 
 echo "[SMOKE][v1.19] Incoming contract-pack smoke"
 python3 "$ROOT/tests/smoke_v1_19_future_intelligence_pack.py"
@@ -39,6 +40,7 @@ python3 "$ROOT/tests/smoke_v1_19_2_llm_egress_policy.py"
 python3 "$ROOT/tests/smoke_v1_19_2_missingness.py"
 python3 "$ROOT/tests/smoke_v1_19_3_human_compose_behavior.py"
 python3 "$ROOT/tests/smoke_v1_19_3_source_acquisition_split.py"
+python3 "$ROOT/tests/smoke_v1_19_3_briefing_runtime_behavior.py"
 
 if [[ "${EA_SKIP_FULL_GATES:-0}" != "1" ]]; then
   echo "[SMOKE][v1.19] Running full docker gate suite"
