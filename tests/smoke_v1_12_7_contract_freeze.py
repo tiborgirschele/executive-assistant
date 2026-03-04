@@ -10,6 +10,7 @@ DOCS = ROOT / "docs"
 
 BRIEFINGS = APP / "briefings.py"
 POLL_LISTENER = APP / "poll_listener.py"
+BRIEF_RUNTIME = APP / "brief_runtime.py"
 COACHING = APP / "coaching.py"
 VISION = APP / "vision.py"
 CHAT_ASSIST = APP / "chat_assist.py"
@@ -28,6 +29,7 @@ ROADMAP_DOC = DOCS / "ea_os_design_roadmap_v2026.md"
 for path in (
     BRIEFINGS,
     POLL_LISTENER,
+    BRIEF_RUNTIME,
     COACHING,
     VISION,
     CHAT_ASSIST,
@@ -63,13 +65,15 @@ assert "generativelanguage.googleapis.com" not in brief_src
 print("[SMOKE][HOST][PASS] briefings uses frozen contracts")
 
 poll_src = POLL_LISTENER.read_text(encoding="utf-8")
+brief_runtime_src = BRIEF_RUNTIME.read_text(encoding="utf-8")
 assist_src = CHAT_ASSIST.read_text(encoding="utf-8")
 delivery_src = BRIEFING_DELIVERY.read_text(encoding="utf-8")
 human_compose_src = HUMAN_COMPOSE.read_text(encoding="utf-8")
 source_acq_src = SOURCE_ACQ.read_text(encoding="utf-8")
 security_src = MESSAGE_SECURITY.read_text(encoding="utf-8")
 assert "from app.chat_assist import ask_llm_text as _ask_llm_text" in poll_src
-assert "from app.briefing_delivery_sessions import create_briefing_delivery_session, activate_briefing_delivery_session" in poll_src
+assert "from app.brief_runtime import run_brief_command as _run_brief_command" in poll_src
+assert "from app.briefing_delivery_sessions import (" in brief_runtime_src
 assert "from app.message_security import check_security, household_confidence_for_message as _household_confidence_for_message, message_document_ref as _message_document_ref" in poll_src
 assert "from app.contracts.llm_gateway import ask_text as gateway_ask_text" in assist_src
 assert "def create_briefing_delivery_session(" in delivery_src
@@ -78,10 +82,10 @@ assert "from app.intelligence.source_acquisition import collect_briefing_sources
 assert "def compose_briefing_html(" in human_compose_src
 assert "def collect_briefing_sources(" in source_acq_src
 assert "async def check_security(" in security_src
-assert "from app.contracts.repair import open_repair_incident" in poll_src
+assert "from app.contracts.repair import open_repair_incident" in brief_runtime_src
 assert "from app.briefings import build_briefing_for_tenant, get_val, call_llm, call_powerful_llm" not in poll_src
 assert "trigger_mum_brain(" not in poll_src
-print("[SMOKE][HOST][PASS] poll_listener uses llm+repair contracts")
+print("[SMOKE][HOST][PASS] poll/runtime uses llm+repair contracts")
 
 coach_src = COACHING.read_text(encoding="utf-8")
 assert "from app.contracts.llm_gateway import ask_text as gateway_ask_text" in coach_src

@@ -8,13 +8,19 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 POLL = ROOT / "ea/app/poll_listener.py"
+BRIEF_RUNTIME = ROOT / "ea/app/brief_runtime.py"
 REPAIR = ROOT / "ea/app/renderer_repair.py"
 
 poll_src = POLL.read_text(encoding="utf-8")
-assert "log_render_guard(" in poll_src
-assert "renderer_text_only" in poll_src
-assert ("open_repair_incident(" in poll_src) or ("trigger_mum_brain(" in poll_src)
-print("[SMOKE][HOST][PASS] poll_listener renderer guard wiring")
+brief_runtime_src = BRIEF_RUNTIME.read_text(encoding="utf-8")
+assert ("log_render_guard(" in poll_src) or ("log_render_guard(" in brief_runtime_src)
+assert ("renderer_text_only" in poll_src) or ("renderer_text_only" in brief_runtime_src)
+assert (
+    ("open_repair_incident(" in poll_src)
+    or ("open_repair_incident(" in brief_runtime_src)
+    or ("trigger_mum_brain(" in poll_src)
+)
+print("[SMOKE][HOST][PASS] poll/runtime renderer guard wiring")
 
 spec = importlib.util.spec_from_file_location("ea_renderer_repair_host", REPAIR)
 rr = importlib.util.module_from_spec(spec)

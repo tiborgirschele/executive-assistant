@@ -49,6 +49,7 @@ def test_briefing_diagnostics_not_appended_to_chat() -> None:
 
 def test_mumbrain_hidden_from_user_menu_by_default() -> None:
     poll_src = (ROOT / "ea/app/poll_listener.py").read_text(encoding="utf-8")
+    brief_runtime_src = (ROOT / "ea/app/brief_runtime.py").read_text(encoding="utf-8")
     menu_src = (ROOT / "ea/app/telegram_menu.py").read_text(encoding="utf-8")
     auth_src = (ROOT / "ea/app/auth_sessions.py").read_text(encoding="utf-8")
     assist_src = (ROOT / "ea/app/chat_assist.py").read_text(encoding="utf-8")
@@ -69,7 +70,9 @@ def test_mumbrain_hidden_from_user_menu_by_default() -> None:
     assert "from app.brain_commands import remember_fact as _remember_fact, show_brain as _show_brain" in poll_src
     assert "from app.poll_ui import build_dynamic_ui, clean_html_for_telegram" in poll_src
     assert "from app.message_security import check_security, household_confidence_for_message as _household_confidence_for_message, message_document_ref as _message_document_ref" in poll_src
-    assert "from app.briefing_delivery_sessions import create_briefing_delivery_session, activate_briefing_delivery_session" in poll_src
+    assert "from app.brief_runtime import run_brief_command as _run_brief_command" in poll_src
+    assert "from app.briefing_delivery_sessions import (" in brief_runtime_src
+    assert "from app.contracts.repair import open_repair_incident" in brief_runtime_src
     assert "from app.newspaper.preferences import build_preference_snapshot" in poll_src
     assert "def _create_briefing_delivery_session(" not in poll_src
     assert "def _activate_delivery_session(" not in poll_src
