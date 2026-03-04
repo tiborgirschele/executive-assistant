@@ -35,6 +35,7 @@ from app.intake.calendar_events import normalize_extracted_calendar_events
 from app.contracts.repair import open_repair_incident
 from app.chat_assist import ask_llm_text as _ask_llm_text, humanize_agent_report as _humanize_agent_report
 from app.brain_commands import remember_fact as _remember_fact, show_brain as _show_brain
+from app.auth_commands import handle_auth_command as _handle_auth_command
 from app.newspaper.preferences import build_preference_snapshot
 from app.poll_ui import build_dynamic_ui, clean_html_for_telegram
 from app.telegram_menu import bot_commands as _bot_commands, menu_text as _menu_text, mumbrain_user_visible as _mumbrain_user_visible
@@ -645,20 +646,13 @@ async def handle_command(chat_id: int, text: str, msg: dict):
         if cmd in ('/start', '/menu', '/help'):
             return await tg.send_message(chat_id, _menu_text(), parse_mode='HTML')
         if cmd == '/auth':
-            target_email = parts[1].strip() if len(parts) > 1 else ''
-            t_acc = get_val(t, 'google_account', '')
-            if not target_email:
-                kb = []
-                if t_acc:
-                    kb.extend([
-                        [{'text': f'🔑 All Features ({t_acc})', 'callback_data': f'auth_cb:{save_button_context(f'all|{t_acc}')}'}],
-                        [{'text': f'📅 Cal Only ({t_acc})', 'callback_data': f'auth_cb:{save_button_context(f'cal|{t_acc}')}'}],
-                    ])
-                kb.append([{'text': '✏️ Type a different email...', 'callback_data': 'cmd_auth_custom'}])
-                return await tg.send_message(chat_id, 'ℹ️ <b>Authentication</b>\nWhich Google Account do you want to authorize?', parse_mode='HTML', reply_markup={'inline_keyboard': kb})
-            else:
-                kb = [[{'text': '🔑 All Features', 'callback_data': f'auth_cb:{save_button_context(f'all|{target_email}')}'}], [{'text': '📅 Calendar Only', 'callback_data': f'auth_cb:{save_button_context(f'cal|{target_email}')}'}], [{'text': '✉️ Gmail Only', 'callback_data': f'auth_cb:{save_button_context(f'mail|{target_email}')}'}], [{'text': '✏️ Type a different email...', 'callback_data': 'cmd_auth_custom'}], [{'text': '❌ Cancel', 'callback_data': f'auth_cb:{save_button_context('cancel|none')}'}]]
-                return await tg.send_message(chat_id, f'ℹ️ <b>Features for {target_email}</b>\nWhich features do you want to enable?', parse_mode='HTML', reply_markup={'inline_keyboard': kb})
+            return await _handle_auth_command(
+                tg=tg,
+                chat_id=chat_id,
+                command_text=text,
+                primary_account=str(get_val(t, 'google_account', '') or ''),
+                save_ctx=save_button_context,
+            )
         if cmd == '/brain':
             return await _show_brain(tg=tg, chat_id=chat_id)
         if cmd == '/mumbrain':

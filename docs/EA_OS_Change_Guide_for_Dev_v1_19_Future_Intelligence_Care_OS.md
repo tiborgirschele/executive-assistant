@@ -405,6 +405,16 @@ optional design direction.
   - verifies `poll_ui` ownership and absence of inline `clean_html_for_telegram`
     and `build_dynamic_ui` definitions in `poll_listener.py`.
 
+33. v1.19.3 poll-listener auth command extraction
+- Added `ea/app/auth_commands.py`:
+  - `handle_auth_command(...)`
+- `ea/app/poll_listener.py` now delegates `/auth` command UX flow to
+  `auth_commands` instead of building auth keyboard branches inline.
+- Updated decomposition smoke contract:
+  - `tests/smoke_v1_19_2_human_assistant_mode.py`
+  - verifies `auth_commands` ownership and absence of inline auth prompt copy
+    in `poll_listener.py`.
+
 ## Rollout checklist
 
 1. Host gate:
