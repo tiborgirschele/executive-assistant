@@ -255,6 +255,27 @@ Behavior:
   `(tenant, person_id, created_at desc)` plus source/time.
 - compose path now records snapshots without blocking user delivery.
 
+### L. Household-ops dossier expansion (v1.19.2)
+
+Files:
+- `ea/app/intelligence/dossiers.py`
+- `ea/app/intelligence/future_situations.py`
+- `ea/app/intelligence/readiness.py`
+- `ea/app/intelligence/critical_lane.py`
+- `ea/app/briefings.py`
+- `tests/smoke_v1_19_2_household_dossier.py`
+- `scripts/run_v119_smoke.sh`
+- `scripts/docker_e2e.sh`
+- `.github/workflows/release-gates.yml`
+
+Behavior:
+- adds first-pass `household_ops` dossier detection (mail + calendar).
+- introduces `household_ops_window` future situation type.
+- readiness and critical lane now elevate household payment/service continuity
+  risk and near-term household operations windows.
+- briefing compose now includes household-ops dossier alongside trip/project/
+  finance/health.
+
 ## SQL additions landed in this patch
 
 Migration file: `ea/schema/20260304_v1_19_1_profile_core.sql`
@@ -318,7 +339,7 @@ Table:
 ## Remaining gaps after v1.19.2
 
 1. De-minify core control-plane files (`main.py`, `supervisor.py`, `briefings.py`, `scheduler.py`, `poll_listener.py`).
-2. Expand dossier set with household ops/evidence-first dossier types.
+2. Expand dossier set with evidence-first dossier types.
 3. Deepen trust-boundary policy schema (tenant/person/domain-specific egress policies).
 
 ## Release checklist
@@ -331,6 +352,7 @@ Table:
 6. `python3 tests/smoke_v1_19_2_missingness.py`
 7. `python3 tests/smoke_v1_19_2_health_dossier.py`
 8. `python3 tests/smoke_v1_19_2_snapshot_persistence.py`
-9. `python3 tests/smoke_v1_18_1_runtime_alignment.py`
-10. `bash scripts/run_v119_smoke.sh /docker/EA`
-11. `bash scripts/docker_e2e.sh`
+9. `python3 tests/smoke_v1_19_2_household_dossier.py`
+10. `python3 tests/smoke_v1_18_1_runtime_alignment.py`
+11. `bash scripts/run_v119_smoke.sh /docker/EA`
+12. `bash scripts/docker_e2e.sh`

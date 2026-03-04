@@ -223,6 +223,18 @@ optional design direction.
   - `scripts/docker_e2e_design_workflows.sh`
   - `.github/workflows/release-gates.yml`
 
+19. v1.19.2 household-ops dossier expansion
+- Added `build_household_ops_dossier(...)` in `ea/app/intelligence/dossiers.py`.
+- Briefing compose now includes household-ops dossier in the multi-dossier set.
+- Future situations now include `household_ops_window`.
+- Readiness + critical lane now promote household payment/service continuity risk
+  and near-term household operations follow-up windows.
+- Added host smoke: `tests/smoke_v1_19_2_household_dossier.py`.
+- Wired smoke/gates:
+  - `scripts/run_v119_smoke.sh`
+  - `scripts/docker_e2e.sh`
+  - `.github/workflows/release-gates.yml`
+
 ## Rollout checklist
 
 1. Host gate:
