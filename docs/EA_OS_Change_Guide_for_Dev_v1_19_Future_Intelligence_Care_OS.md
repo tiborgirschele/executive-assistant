@@ -164,6 +164,8 @@ optional design direction.
   - in-flight command lock/guard
 - Extracted shared Telegram update routing into `ea/app/update_router.py` and
   reused it in both poller and worker paths.
+- Extracted Telegram update offset persistence into `ea/app/offset_store.py`
+  and reused it in poller + poll_listener paths.
 - `ea/app/poll_listener.py` now imports these modules instead of owning the
   command-menu/auth-session/watchdog/brief-guard/update-routing
   implementations inline.

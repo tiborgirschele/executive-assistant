@@ -13,6 +13,7 @@ RUNNER = APP / "runner.py"
 DB = APP / "db.py"
 SERVER = APP / "server.py"
 OUTBOX_ROLE = APP / "roles/outbox.py"
+POLLER_ROLE = APP / "roles/poller.py"
 QUEUE = APP / "queue.py"
 EVENT_WORKER = APP / "workers/event_worker.py"
 BROWSERACT = APP / "intake/browseract.py"
@@ -21,10 +22,11 @@ POLL_LISTENER = APP / "poll_listener.py"
 WATCHDOG = APP / "watchdog.py"
 BRIEF_COMMANDS = APP / "brief_commands.py"
 UPDATE_ROUTER = APP / "update_router.py"
+OFFSET_STORE = APP / "offset_store.py"
 TG_SAFETY = APP / "telegram/safety.py"
 SCHEMA = ROOT / "ea/schema/20260303_v1_18_1_runtime_alignment.sql"
 
-for path in (SETTINGS, MAIN, RUNNER, DB, SERVER, OUTBOX_ROLE, QUEUE, EVENT_WORKER, BROWSERACT, NORMALIZER, POLL_LISTENER, WATCHDOG, BRIEF_COMMANDS, UPDATE_ROUTER, TG_SAFETY):
+for path in (SETTINGS, MAIN, RUNNER, DB, SERVER, OUTBOX_ROLE, POLLER_ROLE, QUEUE, EVENT_WORKER, BROWSERACT, NORMALIZER, POLL_LISTENER, WATCHDOG, BRIEF_COMMANDS, UPDATE_ROUTER, OFFSET_STORE, TG_SAFETY):
     ast.parse(path.read_text(encoding="utf-8"))
 print("[SMOKE][HOST][PASS] v1.18.1 patched modules parse")
 
@@ -142,6 +144,7 @@ assert "Calendar extraction timed out" in poll_src
 assert "Extracting schedule via 1min.ai gpt-4o" not in poll_src
 assert "from app.watchdog import heartbeat_pinger, mark_heartbeat, start_watchdog_thread" in poll_src
 assert "from app.update_router import route_update" in poll_src
+assert "from app.offset_store import atomic_write_offset, read_offset" in poll_src
 assert "start_watchdog_thread(" in poll_src
 assert "mark_heartbeat()" in poll_src
 assert "from app.brief_commands import brief_command_throttled as _brief_command_throttled, brief_enter as _brief_enter, brief_exit as _brief_exit" in poll_src
@@ -170,6 +173,15 @@ assert "async def route_update(" in update_router_src
 assert "if \"callback_query\" in u_data" in update_router_src
 assert "if cmd_text.startswith(\"/\")" in update_router_src
 print("[SMOKE][HOST][PASS] update router module wiring")
+
+offset_store_src = OFFSET_STORE.read_text(encoding="utf-8")
+assert "def atomic_write_offset(" in offset_store_src
+assert "def read_offset(" in offset_store_src
+assert "tg_offset.json" in offset_store_src
+poller_src = POLLER_ROLE.read_text(encoding="utf-8")
+assert "from app.offset_store import atomic_write_offset, read_offset" in poller_src
+assert "offset = read_offset()" in poller_src
+print("[SMOKE][HOST][PASS] offset store module wiring")
 
 briefings_src = (APP / "briefings.py").read_text(encoding="utf-8")
 assert "urllib.request.urlopen = _monkey_urlopen" not in briefings_src

@@ -1,20 +1,9 @@
-import asyncio, json, traceback, time, os
+import asyncio
 from app.telegram import TelegramClient
 from app.settings import settings
 from app.queue import ingest_update
+from app.offset_store import atomic_write_offset, read_offset
 import app.poll_listener as pl
-
-def _atomic_write_offset(offset: int):
-    path = "/attachments/tg_offset.json"
-    tmp = path + ".tmp"
-    try:
-        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"offset": offset}, f)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, path)
-    except Exception: pass
 
 async def run_poller():
     print("==================================================", flush=True)
@@ -26,10 +15,7 @@ async def run_poller():
     # Keeps the watchdog thread from killing us
     asyncio.create_task(pl.heartbeat_pinger())
     
-    offset = 0
-    try:
-        with open("/attachments/tg_offset.json", "r") as f: offset = json.load(f).get("offset", 0)
-    except: pass
+    offset = read_offset()
     
     while True:
         try:
@@ -37,7 +23,7 @@ async def run_poller():
             for u in updates:
                 update_id = u['update_id']
                 offset = max(offset, update_id + 1)
-                await asyncio.to_thread(_atomic_write_offset, offset)
+                await asyncio.to_thread(atomic_write_offset, offset)
                 
                 tenant = "ea_bot"
                 chat_id = None

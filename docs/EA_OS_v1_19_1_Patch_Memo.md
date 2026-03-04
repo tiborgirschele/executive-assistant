@@ -184,8 +184,10 @@ Files:
 - `ea/app/watchdog.py`
 - `ea/app/brief_commands.py`
 - `ea/app/update_router.py`
+- `ea/app/offset_store.py`
 - `ea/app/poll_listener.py`
 - `ea/app/roles/worker.py`
+- `ea/app/roles/poller.py`
 - `tests/smoke_v1_19_2_human_assistant_mode.py`
  - `tests/smoke_sentinel_user_message.py`
  - `tests/smoke_v1_18_1_runtime_alignment.py`
@@ -198,6 +200,8 @@ Behavior:
 - `/brief` dedupe/in-flight guards moved into `brief_commands.py`.
 - shared update routing moved into `update_router.py` and reused by poller and
   worker to avoid duplicated command/callback/intent dispatch logic.
+- Telegram update offset read/write moved into `offset_store.py` so both poller
+  paths use one atomic persistence implementation.
 - `poll_listener.py` now consumes these modules instead of carrying that logic
   inline, reducing control-plane coupling without changing command semantics.
 

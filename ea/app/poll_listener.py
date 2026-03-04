@@ -27,6 +27,7 @@ from app.contracts.repair import open_repair_incident
 from app.telegram_menu import bot_commands as _bot_commands, menu_text as _menu_text, mumbrain_user_visible as _mumbrain_user_visible
 from app.auth_sessions import AuthSessionStore
 from app.brief_commands import brief_command_throttled as _brief_command_throttled, brief_enter as _brief_enter, brief_exit as _brief_exit
+from app.offset_store import atomic_write_offset, read_offset
 from app.watchdog import heartbeat_pinger, mark_heartbeat, start_watchdog_thread
 from app.update_router import route_update
 
@@ -49,21 +50,6 @@ async def _ensure_bot_command_menu():
         pass
 
 AUTH_SESSIONS = AuthSessionStore(path='/attachments/auth_sessions.json', ttl_sec=900)
-
-def _atomic_write_json(path: str, data: dict):
-    tmp = path + '.tmp'
-    try:
-        __import__('os').makedirs(__import__('os').path.dirname(path) or '.', exist_ok=True)
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(data, f)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, path)
-    except Exception as e:
-        print(f'Atomic Write Error: {e}', flush=True)
-
-def _atomic_write_offset(offset: int):
-    _atomic_write_json('/attachments/tg_offset.json', {'offset': offset})
 
 def clean_html_for_telegram(text: str) -> str:
     if not text:
@@ -1458,12 +1444,7 @@ async def poll_loop():
         return
     await _ensure_bot_command_menu()
     asyncio.create_task(heartbeat_pinger())
-    offset = 0
-    try:
-        with open('/attachments/tg_offset.json', 'r') as f:
-            offset = json.load(f).get('offset', 0)
-    except:
-        pass
+    offset = read_offset()
     sem = asyncio.Semaphore(15)
     while True:
         try:
@@ -1471,7 +1452,7 @@ async def poll_loop():
             mark_heartbeat()
             for u in updates:
                 offset = u['update_id'] + 1
-                await asyncio.to_thread(_atomic_write_offset, offset)
+                await asyncio.to_thread(atomic_write_offset, offset)
 
                 async def _run_with_guard(u_data):
                     async with sem:
