@@ -442,6 +442,7 @@ async def handle_intent(chat_id: int, msg: dict):
             return await _handle_free_text_intent(
                 tg=tg,
                 chat_id=chat_id,
+                tenant_name=tenant_name,
                 text=text,
                 tenant_cfg=t,
                 safe_err=_safe_err,

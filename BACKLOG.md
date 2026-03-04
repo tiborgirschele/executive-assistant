@@ -9,7 +9,7 @@ Branch: `main`
 - Working tree is clean (`git status --short` has no changes).
 - Local commits are present (no push required).
 
-## Current Milestone: v1.19.4 Consolidation
+## Current Milestone: v1.20 Commitment OS Foundations
 - [DONE] Capability registry baseline (`capability_registry.py` + smoke + gates).
 - [DONE] Generic skill inventory baseline (`generic.py`, `registry.py`, `skill_inventory` smoke).
 - [DONE] Capability planning router (`capability_router.py` + smoke + gates).
@@ -50,9 +50,19 @@ Branch: `main`
   - `roles/event_worker.py` reduced to canonical shim over `workers/event_worker`.
   - `smoke_v1_19_4_event_worker_role_alignment.py` added and wired into all gates.
 - [DONE] Full Docker E2E gate pass after each slice.
+- [DONE] Execution-session runtime seed:
+  - new `execution_sessions`, `execution_steps`, and `execution_events` tables.
+  - `ea/app/execution/session_store.py` added for intent compile + step/session lifecycle logging.
+  - free-text intent path now writes session + step progress (compile/evidence/execute/render/finalize).
+  - `smoke_v1_20_execution_sessions.py` added and wired into host/docker/CI gates.
+- [DONE] v1.20 docs and smoke entrypoint:
+  - `docs/EA_OS_Change_Guide_for_Dev_v1_20_Commitment_OS.md` added.
+  - `scripts/run_v120_smoke.sh` added.
+  - `smoke_v1_20_doc_alignment.py` added and wired into host/docker/CI gates.
 
 ## Blocked
 - None.
 
 ## Next Queue (on new feedback)
-- None.
+- [TODO] Evolve execution-session seed from free-text path into shared planner/session runtime
+  for slash commands, skill actions, and webhook-driven long-running workflows.

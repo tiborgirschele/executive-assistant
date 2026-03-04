@@ -5,7 +5,7 @@ EA OS is a Telegram-first assistant runtime with:
 - secured ingest/debug boundaries (`EA_INGEST_TOKEN`, `EA_OPERATOR_TOKEN`)
 - BrowserAct/MetaSurvey/AvoMap intake and sidecar wiring
 - capability + skill registries for controlled sidecar/tool routing
-- milestone-gated smoke + Docker E2E release checks from v1.12.x through v1.19.x
+- milestone-gated smoke + Docker E2E release checks from v1.12.x through v1.20.x
 
 This repo started as a patched deployment bundle, but current `main` is maintained as a staged assistant-OS codebase with explicit contract gates.
 
@@ -31,6 +31,7 @@ bash scripts/docker_e2e.sh
 bash scripts/docker_e2e_design_workflows.sh
 bash scripts/run_v113_smoke.sh
 bash scripts/run_v119_smoke.sh
+bash scripts/run_v120_smoke.sh
 ```
 
 Milestone release scripts (`scripts/release_v113_onboarding.sh` through
@@ -48,6 +49,7 @@ Gate reports are written to `logs/gates/*.json` and uploaded by CI.
 - v1.14 epics and trust: `docs/EA_OS_Design_v1_14_Epics_and_Trust.md`
 - v1.19 future intelligence care OS: `docs/EA_OS_Design_v1_19_Future_Intelligence_Care_OS.md`
 - v1.19.1 patch memo: `docs/EA_OS_v1_19_1_Patch_Memo.md`
+- v1.20 commitment OS foundations: `docs/EA_OS_Change_Guide_for_Dev_v1_20_Commitment_OS.md`
 - Product roadmap: `docs/ea_os_design_roadmap_v2026.md`
 - Change guide (this rollout state): `docs/EA_OS_Change_Guide_for_Dev_v1_12_7.md`
 - v1.19 change guide: `docs/EA_OS_Change_Guide_for_Dev_v1_19_Future_Intelligence_Care_OS.md`

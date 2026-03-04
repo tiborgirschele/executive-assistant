@@ -2,7 +2,10 @@
 set -euo pipefail
 
 EA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCHEMA_FILE="${EA_ROOT}/ea/schema/20260303_v1_18_1_runtime_alignment.sql"
+SCHEMA_FILES=(
+  "${EA_ROOT}/ea/schema/20260303_v1_18_1_runtime_alignment.sql"
+  "${EA_ROOT}/ea/schema/20260304_v1_20_execution_sessions.sql"
+)
 HOST_PORT="$(grep -E '^EA_HOST_PORT=' "${EA_ROOT}/.env" | tail -n1 | cut -d= -f2- || true)"
 HOST_PORT="${HOST_PORT:-8090}"
 REPORT_DIR="${EA_ROOT}/logs/gates"
@@ -73,7 +76,9 @@ run_step "compose_up" docker compose up -d --build ea-db ea-api ea-poller ea-wor
 
 echo "== Docker E2E: apply runtime alignment schema =="
 start_ms="$(date +%s%3N)"
-docker exec -i ea-db psql -U postgres -d ea -v ON_ERROR_STOP=1 < "${SCHEMA_FILE}"
+for schema_file in "${SCHEMA_FILES[@]}"; do
+  docker exec -i ea-db psql -U postgres -d ea -v ON_ERROR_STOP=1 < "${schema_file}"
+done
 end_ms="$(date +%s%3N)"
 record_step "apply_schema" "pass" "$((end_ms - start_ms))"
 
@@ -135,6 +140,8 @@ run_step "smoke_v1_19_4_llm_gateway_convergence" python3 tests/smoke_v1_19_4_llm
 run_step "smoke_v1_19_4_briefing_diagnostics_log_gate" python3 tests/smoke_v1_19_4_briefing_diagnostics_log_gate.py
 run_step "smoke_v1_19_4_ltd_inventory_doc" python3 tests/smoke_v1_19_4_ltd_inventory_doc.py
 run_step "smoke_v1_19_4_event_worker_role_alignment" python3 tests/smoke_v1_19_4_event_worker_role_alignment.py
+run_step "smoke_v1_20_execution_sessions" python3 tests/smoke_v1_20_execution_sessions.py
+run_step "smoke_v1_20_doc_alignment" python3 tests/smoke_v1_20_doc_alignment.py
 run_step "smoke_v1_19_3_control_plane_decomposition" python3 tests/smoke_v1_19_3_control_plane_decomposition.py
 run_step "smoke_v1_19_3_source_acquisition_split" python3 tests/smoke_v1_19_3_source_acquisition_split.py
 run_step "smoke_v1_19_3_briefing_runtime_behavior" python3 tests/smoke_v1_19_3_briefing_runtime_behavior.py

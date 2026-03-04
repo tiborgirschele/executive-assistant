@@ -1,0 +1,67 @@
+# EA OS Change Guide for Dev v1.20 (Commitment OS Foundations)
+
+## Goal
+Bridge the intent-to-execution gap by introducing a persistent execution-session runtime seed.
+
+This slice does not replace existing contracts. It adds auditable session state under the
+free-text path so intent compilation, evidence gathering, execution, and reply rendering can
+be tracked as deterministic steps.
+
+## What changed
+
+1. New execution-session module:
+   - `ea/app/execution/session_store.py`
+   - Exposes:
+     - `compile_intent_spec(...)`
+     - `build_plan_steps(...)`
+     - `create_execution_session(...)`
+     - `mark_execution_session_running(...)`
+     - `mark_execution_step_status(...)`
+     - `append_execution_event(...)`
+     - `finalize_execution_session(...)`
+
+2. New persistent tables:
+   - `execution_sessions`
+   - `execution_steps`
+   - `execution_events`
+   - Added in:
+     - `ea/app/db.py` bootstrap path
+     - `ea/schema/20260304_v1_20_execution_sessions.sql`
+
+3. Free-text intent runtime wiring:
+   - `ea/app/intent_runtime.py` now:
+     - compiles `IntentSpec`
+     - builds deterministic plan steps
+     - creates and runs an execution session
+     - records step states for:
+       - `compile_intent`
+       - `gather_evidence` (when URL scrape is used)
+       - `safety_gate` (passive marker for approval-required intents)
+       - `execute_intent`
+       - `render_reply`
+     - finalizes session with `completed` / `failed` outcome
+
+4. Poller callsite alignment:
+   - `ea/app/poll_listener.py` passes `tenant_name` into free-text handler for session attribution.
+
+5. Gate coverage:
+   - `tests/smoke_v1_20_execution_sessions.py`
+   - wired into:
+     - `scripts/run_v119_smoke.sh`
+     - `scripts/docker_e2e.sh`
+     - `.github/workflows/release-gates.yml`
+   - plus dedicated runner:
+     - `scripts/run_v120_smoke.sh`
+
+## Why this matters
+
+Before this patch, free-text execution was mostly prompt-forwarding with no persistent step ledger.
+Now each request gets a durable execution session with auditable lifecycle transitions. This is the
+foundation for broader v1.20 planner/session unification across slash commands, skills, and webhook flows.
+
+## Next suggested expansion
+
+1. Reuse execution sessions for typed skill actions and webhook workflows.
+2. Add explicit approval-step objects for irreversible actions.
+3. Persist per-step budgets, deadlines, and retry policies.
+4. Add session replay tooling for operator audit.
