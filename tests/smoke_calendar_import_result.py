@@ -57,9 +57,30 @@ def test_calendar_import_response_contract() -> None:
     assert "⚠️ <b>Calendar Import Partial.</b>" in partial.text
     assert "Remote failures: <b>2</b>" in partial.text
 
+    empty = build_calendar_import_response(
+        imported=0,
+        total=0,
+        persisted=0,
+        persist_status="not_attempted",
+        failed=0,
+    )
+    assert empty.is_error is False
+    assert "No calendar events to import" in empty.text
+    assert "/auth" not in empty.text
+
+    escaped = build_calendar_import_response(
+        imported=0,
+        total=1,
+        persisted=0,
+        persist_status="failed",
+        failed=1,
+        persist_err="<db-error>",
+    )
+    assert "<db-error>" not in escaped.text
+    assert "&lt;db-error&gt;" in escaped.text
+
     print("[SMOKE][HOST][PASS] calendar import result contract", flush=True)
 
 
 if __name__ == "__main__":
     test_calendar_import_response_contract()
-

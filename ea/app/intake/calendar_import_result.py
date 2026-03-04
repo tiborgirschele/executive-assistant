@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import html
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,15 @@ def build_calendar_import_response(
     failed_i = max(0, int(failed))
     status = str(persist_status or "").strip().lower()
     commit_ok = bool(total_i > 0 and status == "committed")
+
+    if total_i == 0:
+        return CalendarImportResponse(
+            text=(
+                "ℹ️ <b>No calendar events to import.</b>\n"
+                "The import request did not contain any events."
+            ),
+            is_error=False,
+        )
 
     if imported_i == total_i and total_i > 0 and commit_ok:
         if persisted_i >= imported_i:
@@ -72,8 +82,8 @@ def build_calendar_import_response(
 
     reason = f"Local commit status: <b>{status or 'unknown'}</b>."
     if persist_err:
-        reason += f"\n<code>{str(persist_err)[:240]}</code>"
-    auth_hint = "\nPlease run <code>/auth</code> and retry." if imported_i == 0 else ""
+        reason += f"\n<code>{html.escape(str(persist_err)[:240], quote=False)}</code>"
+    auth_hint = "\nPlease run <code>/auth</code> and retry." if (imported_i == 0 and total_i > 0) else ""
     return CalendarImportResponse(
         text=(
             "❌ <b>Calendar Import Failed.</b>\n"
@@ -83,4 +93,3 @@ def build_calendar_import_response(
         ),
         is_error=True,
     )
-
