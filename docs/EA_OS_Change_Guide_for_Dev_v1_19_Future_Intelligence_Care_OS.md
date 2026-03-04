@@ -127,6 +127,8 @@ optional design direction.
   instead of a trip-only list.
 - User-facing fallback wording changed from hard "no critical items" phrasing to:
   - `No immediate action blocks detected right now.`
+- Low-confidence fallback wording now avoids "no urgent items" reassurance:
+  - `Runtime confidence is reduced; urgent status may be incomplete. Please verify high-impact commitments.`
 - Briefing diagnostics are now log-only; Telegram output no longer appends a
   diagnostics block.
 - Bot command menu hides `/mumbrain` by default and supports optional exposure via:

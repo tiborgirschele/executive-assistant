@@ -23,6 +23,8 @@ def test_briefing_uses_multi_dossier_compose() -> None:
     assert "build_future_situations(" in src and "dossiers=dossiers" in src
     assert "build_readiness_dossier(" in src and "dossiers=dossiers" in src
     assert "No immediate action blocks detected right now." in src
+    assert "Runtime confidence is reduced; urgent status may be incomplete." in src
+    assert "Standard scan found no urgent items, but runtime confidence is reduced." not in src
     assert "No critical items require your immediate attention." not in src
     _pass("v1.19.2 multi-dossier compose wiring")
 

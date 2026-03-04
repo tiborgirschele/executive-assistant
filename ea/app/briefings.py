@@ -500,7 +500,7 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
             if critical.actions:
                 html_out += '<i>No additional inbox-critical items after deterministic critical scan.</i>\n\n'
             elif confidence_note:
-                html_out += '<i>Standard scan found no urgent items, but runtime confidence is reduced.</i>\n\n'
+                html_out += '<i>Runtime confidence is reduced; urgent status may be incomplete. Please verify high-impact commitments.</i>\n\n'
             else:
                 html_out += '<i>No immediate action blocks detected right now.</i>\n\n'
         html_out += f'<b>Calendars:</b>\n{_sanitize_telegram_html(obj.get('calendar_summary', 'No upcoming events.'))}'
