@@ -169,6 +169,8 @@ Files:
 Behavior:
 - new first-pass missingness signals for expected-but-missing support artifacts.
 - readiness synthesis now includes missingness-derived blockers/watch items/actions.
+- critical lane now consumes missingness signals and promotes critical gaps to
+  deterministic immediate actions with upgraded decision-window scoring.
 
 ## SQL additions landed in this patch
 

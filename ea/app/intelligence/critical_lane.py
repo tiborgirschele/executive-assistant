@@ -4,6 +4,8 @@ import os
 from dataclasses import dataclass, field
 
 from app.intelligence.dossiers import Dossier
+from app.intelligence.future_situations import FutureSituation
+from app.intelligence.missingness import build_missingness_signals
 from app.intelligence.profile import PersonProfileContext
 
 
@@ -35,7 +37,11 @@ def _score_trip_dossier(d: Dossier, *, threshold: float) -> tuple[int, int]:
     return min(100, exposure), min(100, window)
 
 
-def build_critical_actions(profile: PersonProfileContext, dossiers: list[Dossier]) -> CriticalLaneResult:
+def build_critical_actions(
+    profile: PersonProfileContext,
+    dossiers: list[Dossier],
+    future_situations: tuple[FutureSituation, ...] | list[FutureSituation] = (),
+) -> CriticalLaneResult:
     threshold = max(500.0, float(os.getenv("EA_CRITICAL_TRAVEL_EUR_THRESHOLD", "5000")))
     actions: list[str] = []
     evidence: list[str] = []
@@ -81,6 +87,30 @@ def build_critical_actions(profile: PersonProfileContext, dossiers: list[Dossier
                     "Project blockers detected in a near-term window. Prepare decisions and unblock critical tasks now."
                 )
         for ev in d.evidence:
+            if ev and ev not in evidence and len(evidence) < 3:
+                evidence.append(ev)
+
+    missing = build_missingness_signals(
+        dossiers=dossiers,
+        future_situations=future_situations,
+    )
+    for sig in missing:
+        if str(getattr(sig, "severity", "")).lower() != "critical":
+            continue
+        title = str(getattr(sig, "title", "") or "").strip()
+        kind = str(getattr(sig, "kind", "") or "").strip().lower()
+        if kind == "decision_owner_missing":
+            decision_window_score = max(decision_window_score, 85)
+            exposure_score = max(exposure_score, 60)
+            actions.append("Finance decision owner missing in a near-term deadline window. Assign owner and due-time now.")
+        elif kind == "travel_support_gap":
+            decision_window_score = max(decision_window_score, 75)
+            exposure_score = max(exposure_score, 65)
+            actions.append("Near-term travel support gap detected. Confirm accommodation, insurance, and refundability now.")
+        elif title:
+            decision_window_score = max(decision_window_score, 70)
+            actions.append(f"Critical dependency gap detected: {title}")
+        for ev in tuple(getattr(sig, "evidence", ())):
             if ev and ev not in evidence and len(evidence) < 3:
                 evidence.append(ev)
 

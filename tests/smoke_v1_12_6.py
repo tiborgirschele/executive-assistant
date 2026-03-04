@@ -235,7 +235,7 @@ def test_critical_commitment_lane_wiring() -> None:
     assert "ensure_profile_isolation(household)" in brief_src
     assert "select_briefing_mode(profile_ctx, dossiers, critical)" in brief_src
     assert "<i>Mode:</i>" in brief_src
-    assert "build_critical_actions(profile_ctx, dossiers)" in brief_src
+    assert "build_critical_actions(profile_ctx, dossiers, future_situations=future_situations)" in brief_src
     assert "<b>Immediate Action:</b>" in brief_src
     assert "No additional inbox-critical items after deterministic critical scan." in brief_src
     assert "No immediate action blocks detected right now." in brief_src

@@ -365,7 +365,13 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
         calendar_events=list(clean_cal),
     )
     dossiers = [d for d in (trip_dossier, project_dossier, finance_dossier) if int(getattr(d, "signal_count", 0)) > 0]
-    critical = build_critical_actions(profile_ctx, dossiers)
+    future_situations = build_future_situations(
+        profile=profile_ctx,
+        dossiers=dossiers,
+        calendar_events=list(clean_cal),
+        horizon_hours=max(24, int(os.getenv("EA_FUTURE_SITUATION_HORIZON_HOURS", "72"))),
+    )
+    critical = build_critical_actions(profile_ctx, dossiers, future_situations=future_situations)
     compose_mode = select_briefing_mode(profile_ctx, dossiers, critical)
     epics = build_epics_from_dossiers(profile_ctx, dossiers)
     safe_tenant = re.sub(r"[^a-zA-Z0-9_.-]", "_", str(t_key or "tenant"))
@@ -376,12 +382,6 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
     previous_epics = load_epic_snapshot(epic_snapshot_path)
     epic_deltas = summarize_epic_deltas(previous_epics, epics)
     save_epic_snapshot(epic_snapshot_path, epics)
-    future_situations = build_future_situations(
-        profile=profile_ctx,
-        dossiers=dossiers,
-        calendar_events=list(clean_cal),
-        horizon_hours=max(24, int(os.getenv("EA_FUTURE_SITUATION_HORIZON_HOURS", "72"))),
-    )
     readiness = build_readiness_dossier(
         profile=profile_ctx,
         dossiers=dossiers,

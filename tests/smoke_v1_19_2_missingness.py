@@ -23,6 +23,7 @@ def test_missingness_module_presence() -> None:
 
 
 def test_missingness_behavior_and_readiness_wiring() -> None:
+    from app.intelligence.critical_lane import build_critical_actions
     from app.intelligence.dossiers import Dossier
     from app.intelligence.future_situations import FutureSituation
     from app.intelligence.missingness import build_missingness_signals
@@ -92,6 +93,14 @@ def test_missingness_behavior_and_readiness_wiring() -> None:
     actions_text = " ".join(readiness.suggested_actions).lower()
     assert "decision owner" in blockers_text
     assert "travel support" in actions_text or "hotel" in actions_text
+    critical = build_critical_actions(
+        profile,
+        [trip, finance, project],
+        future_situations=future,
+    )
+    critical_actions = " ".join(critical.actions).lower()
+    assert "decision owner missing" in critical_actions
+    assert critical.decision_window_score >= 80
     _pass("v1.19.2 missingness behavior + readiness wiring")
 
 

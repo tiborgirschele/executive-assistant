@@ -137,6 +137,9 @@ optional design direction.
 - Wired missingness signals into readiness synthesis:
   - missing critical gaps become blockers + suggested actions
   - missing watch gaps become watch items + suggested actions
+- Wired missingness signals into critical lane:
+  - critical gaps now promote deterministic `Immediate Action` items
+  - critical gap types can raise decision-window and exposure scoring
 - Added host smoke: `tests/smoke_v1_19_2_missingness.py`.
 
 ## Rollout checklist
