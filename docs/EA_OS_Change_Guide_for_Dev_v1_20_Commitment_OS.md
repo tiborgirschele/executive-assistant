@@ -82,12 +82,15 @@ be tracked as deterministic steps.
    - `tests/smoke_v1_20_external_event_sessions.py`
    - `tests/smoke_v1_20_slash_command_sessions.py`
    - `tests/smoke_v1_20_teable_memory_boundary.py`
+   - `tests/smoke_v1_20_slash_command_behavior.py`
+   - `tests/smoke_v1_20_typed_action_behavior.py`
    - wired into:
      - `scripts/run_v119_smoke.sh`
+     - `scripts/run_v120_smoke.sh`
      - `scripts/docker_e2e.sh`
      - `.github/workflows/release-gates.yml`
-   - plus dedicated runner:
-     - `scripts/run_v120_smoke.sh`
+   - behavior-level contract checks now validate session finalization and
+     planning-task consistency in runtime paths (not only source markers).
 
 ## Why this matters
 

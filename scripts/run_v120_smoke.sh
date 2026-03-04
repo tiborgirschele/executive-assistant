@@ -13,7 +13,9 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_20_browseract_event_sessions.py" \
   "$ROOT/tests/smoke_v1_20_external_event_sessions.py" \
   "$ROOT/tests/smoke_v1_20_slash_command_sessions.py" \
-  "$ROOT/tests/smoke_v1_20_teable_memory_boundary.py"
+  "$ROOT/tests/smoke_v1_20_teable_memory_boundary.py" \
+  "$ROOT/tests/smoke_v1_20_slash_command_behavior.py" \
+  "$ROOT/tests/smoke_v1_20_typed_action_behavior.py"
 
 echo "[SMOKE][v1.20] Host smoke"
 python3 "$ROOT/tests/smoke_v1_20_execution_sessions.py"
@@ -23,6 +25,8 @@ python3 "$ROOT/tests/smoke_v1_20_browseract_event_sessions.py"
 python3 "$ROOT/tests/smoke_v1_20_external_event_sessions.py"
 python3 "$ROOT/tests/smoke_v1_20_slash_command_sessions.py"
 python3 "$ROOT/tests/smoke_v1_20_teable_memory_boundary.py"
+python3 "$ROOT/tests/smoke_v1_20_slash_command_behavior.py"
+python3 "$ROOT/tests/smoke_v1_20_typed_action_behavior.py"
 
 if [[ "${EA_SKIP_FULL_GATES:-0}" != "1" ]]; then
   echo "[SMOKE][v1.20] Running full docker gate suite"

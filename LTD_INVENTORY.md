@@ -1,15 +1,15 @@
 # EA LTD Inventory (Auditor Reference)
 
 Last updated: 2026-03-04  
-Scope: Operator-declared lifetime deals (LTDs) and plan tiers currently tracked for EA OS.
+Scope: Operator-declared lifetime deals (LTDs) and tier/plan values currently tracked for EA OS.
 
 ## Notes
-- This file is the single auditor-facing inventory for external LTD tooling.
-- Tiers are recorded exactly as provided by the operator in project feedback.
-- If a tier is unknown/unverified, it is explicitly marked.
+- This is the single auditor-facing LTD/tier inventory for external tooling.
+- Tier values are recorded from operator declarations and are not independently verified by runtime.
 - Capability keys map to `ea/app/skills/capability_registry.py`.
+- Where product naming is uncertain, the assumption is explicitly marked.
 
-## Inventory
+## Capability-Backed LTD Inventory
 
 | Product | Tier / Plan | Capability key(s) | EA OS role | Tier status |
 |---|---|---|---|---|
@@ -29,7 +29,20 @@ Scope: Operator-declared lifetime deals (LTDs) and plan tiers currently tracked 
 | Magix AI / AI Magicx | Highest tier | `ai_magicx` | Secondary AI workbench / multimodal support | Declared |
 | 1minAI | Highest tier | `one_min_ai` | Multimodal burst support | Declared |
 
+## Runtime Dependencies (Not LTD Tiered)
+
+These are runtime-side dependencies referenced by code/deployment and intentionally tracked separate from LTD tiers.
+
+| Dependency | Type | Tier tracked here |
+|---|---|---|
+| OpenClaw container runtime | Execution/runtime dependency | No |
+| LiteLLM route/provider gateway | Execution/runtime dependency | No |
+| Paperless connector | Connector dependency | No |
+| Immich connector | Connector dependency | No |
+| OneDrive Folder connector | Connector dependency | No |
+
 ## Auditor checks
-- Verify every capability key above exists in `CAPABILITY_REGISTRY`.
-- Verify skill routing uses capability keys only (vendor access through skills/contracts).
-- Verify unknown/assumed entries are resolved before production-critical usage.
+- Verify every listed capability key exists in `CAPABILITY_REGISTRY`.
+- Verify skill routing uses capability keys (provider names stay behind contracts).
+- Verify assumed or unspecified tiers are resolved before production-critical usage.
+- Verify runtime dependencies are not misclassified as LTD-tier contracts.

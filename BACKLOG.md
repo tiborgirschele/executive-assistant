@@ -78,6 +78,13 @@ Branch: `main`
   - provenance fields + runtime-dump filtering added for sync payload safety.
   - `ea-teable-sync` now mounts `./attachments` in compose for local-first state files.
   - `smoke_v1_20_teable_memory_boundary.py` added and wired into host/docker/CI gates.
+- [DONE] v1.20 runtime behavior smoke expansion:
+  - added behavior tests for `/skill` command runtime flow and typed-action callback finalization.
+  - validates planning-task consistency (`planning_task_type`) and session outcome logging at runtime.
+  - `smoke_v1_20_slash_command_behavior.py` + `smoke_v1_20_typed_action_behavior.py` wired into host/docker/CI gates.
+- [DONE] Auditor LTD inventory hardening:
+  - `LTD_INVENTORY.md` now explicitly separates capability-backed LTD tier declarations
+    from non-tiered runtime dependencies.
 
 ## Blocked
 - None.
