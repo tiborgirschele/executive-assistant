@@ -2,7 +2,7 @@ import json
 import logging
 import asyncio
 from app.db import get_db
-from app.llm import ask_llm
+from app.contracts.llm_gateway import ask_text as gateway_ask_text
 
 def is_qualifying_coach_event(event: dict, cfg: dict) -> bool:
     title = (event.get("summary") or "").lower()
@@ -21,7 +21,7 @@ async def resolve_person_role(tenant: str, name: str) -> dict:
     
     prompt = f"SYSTEM RULE: You are a role resolver. Who is '{name}' in the context of Austrian business/Industriellenvereinigung (IV)? Return STRICT JSON: {{\"role\": \"...\", \"org\": \"...\"}}. If unknown, return nulls."
     try:
-        res = await asyncio.to_thread(ask_llm, prompt)
+        res = await asyncio.to_thread(gateway_ask_text, prompt)
         res = res.replace("```json", "").replace("```", "").strip()
         data = json.loads(res)
         
@@ -39,7 +39,7 @@ async def generate_coach_annex(tenant: str, event: dict) -> str:
     title = event.get("summary", "")
     desc = event.get("description", "")
     
-    name = await asyncio.to_thread(ask_llm, f"Extract ONLY the full name of the coaching counterpart from this event. Event: {title} {desc}")
+    name = await asyncio.to_thread(gateway_ask_text, f"Extract ONLY the full name of the coaching counterpart from this event. Event: {title} {desc}")
     name = name.replace("```", "").strip()
     if not name or len(name) > 50: name = "Counterpart"
         
@@ -59,4 +59,4 @@ Format in Telegram Markdown:
 - ❓ 3 Coaching-Fragen: (Open useful angles)
 - ⚠️ Watch-out: (Tone guidance)
 """
-    return await asyncio.to_thread(ask_llm, brief_prompt)
+    return await asyncio.to_thread(gateway_ask_text, brief_prompt)

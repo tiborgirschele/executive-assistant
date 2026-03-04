@@ -13,13 +13,15 @@ from app.vision import extract_calendar_from_image
 from app.sepa_qr import generate_epc_qr
 from app.sepa_xml import generate_pain001_xml
 from app.open_loops import OpenLoops
-from app.briefings import build_briefing_for_tenant, get_val, call_llm, call_powerful_llm
+from app.briefings import build_briefing_for_tenant, get_val
 from app.articles_digest import fetch_browseract_articles, select_interesting, render_articles_pdf, collect_user_signal_terms, enrich_full_articles
 from app.memory import get_button_context, save_button_context
 from app.render_guard import classify_markupgo_error, log_render_guard, markupgo_breaker_open, open_markupgo_breaker, promote_known_good_template_if_needed
 from app.repair.healer import system_health_snapshot
 from app.policy.household import gate_household_document_action
 from app.intake.survey_planner import plan_article_preference_survey, plan_briefing_feedback_survey
+from app.contracts.llm_gateway import ask_text as gateway_ask_text
+from app.contracts.repair import open_repair_incident
 LAST_HEARTBEAT = time.time()
 
 
@@ -202,6 +204,10 @@ def _safe_err(e) -> str:
 
 def _incident_ref(prefix: str = "EA") -> str:
     return f"{prefix}-{int(time.time())}"
+
+
+async def _ask_llm_text(prompt: str) -> str:
+    return await asyncio.to_thread(gateway_ask_text, str(prompt))
 
 
 def _create_briefing_delivery_session(chat_id: int, *, status: str = "pending") -> int | None:
@@ -1100,7 +1106,7 @@ async def handle_intent(chat_id: int, msg: dict):
                     import pypdf
                     reader = pypdf.PdfReader(io.BytesIO(file_bytes))
                     pdf_text = '\n'.join([page.extract_text() for page in reader.pages[:3] if page.extract_text()])
-                    sepa_json = await call_powerful_llm(f'{prompt_str}\n\nText:\n{pdf_text[:4000]}')
+                    sepa_json = await _ask_llm_text(f'{prompt_str}\n\nText:\n{pdf_text[:4000]}')
                 else:
                     one_min_key = getattr(settings, 'one_min_ai_api_key', None) or os.environ.get('ONE_MIN_AI_API_KEY')
                     if not one_min_key:
@@ -1254,10 +1260,9 @@ async def handle_command(chat_id: int, text: str, msg: dict):
                 return await tg.send_message(chat_id, 'Usage: /remember <fact to remember>')
             res = await tg.send_message(chat_id, '🧠 <i>Normalizing memory...</i>', parse_mode='HTML')
             try:
-                from app.briefings import call_llm
                 import json
                 prompt = f'Extract a short 3-5 word title and the core fact from this text. Return STRICT JSON: {{"title": "...", "fact": "..."}}. Text: {rem_text}'
-                out = await call_llm(prompt)
+                out = await _ask_llm_text(prompt)
                 match = re.search('\\{[\\s\\S]*\\}', out)
                 if match:
                     data = json.loads(match.group(0))
@@ -1408,7 +1413,6 @@ async def handle_command(chat_id: int, text: str, msg: dict):
                     except Exception as html_fb_err:
                         log_render_guard('renderer_html_fallback_failed', str(html_fb_err)[:120], skill='markupgo', location='poll_listener')
                     try:
-                        from app.contracts.repair import open_repair_incident
                         open_repair_incident(
                             db_conn=None,
                             error_message=str(mg_err),

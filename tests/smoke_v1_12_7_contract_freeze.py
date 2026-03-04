@@ -10,6 +10,7 @@ DOCS = ROOT / "docs"
 
 BRIEFINGS = APP / "briefings.py"
 POLL_LISTENER = APP / "poll_listener.py"
+COACHING = APP / "coaching.py"
 LLM_CONTRACT = CONTRACTS / "llm_gateway.py"
 REPAIR_CONTRACT = CONTRACTS / "repair.py"
 TELEGRAM_CONTRACT = CONTRACTS / "telegram.py"
@@ -17,7 +18,7 @@ FREEZE_DOC = DOCS / "v1_12_7_contract_freeze.md"
 ROADMAP_DOC = DOCS / "ea_os_design_roadmap_v2026.md"
 
 
-for path in (BRIEFINGS, POLL_LISTENER, LLM_CONTRACT, REPAIR_CONTRACT, TELEGRAM_CONTRACT):
+for path in (BRIEFINGS, POLL_LISTENER, COACHING, LLM_CONTRACT, REPAIR_CONTRACT, TELEGRAM_CONTRACT):
     ast.parse(path.read_text(encoding="utf-8"))
 print("[SMOKE][HOST][PASS] v1.12.7 contract modules parse")
 
@@ -35,14 +36,21 @@ assert "from app.contracts.repair import open_repair_incident" in brief_src
 assert "from app.contracts.telegram import sanitize_incident_copy" in brief_src
 assert "from app.llm import ask_llm" not in brief_src
 assert "from app.supervisor import trigger_mum_brain" not in brief_src
+assert "generativelanguage.googleapis.com" not in brief_src
 print("[SMOKE][HOST][PASS] briefings uses frozen contracts")
 
 poll_src = POLL_LISTENER.read_text(encoding="utf-8")
+assert "from app.contracts.llm_gateway import ask_text as gateway_ask_text" in poll_src
 assert "from app.contracts.repair import open_repair_incident" in poll_src
+assert "from app.briefings import build_briefing_for_tenant, get_val, call_llm, call_powerful_llm" not in poll_src
 assert "trigger_mum_brain(" not in poll_src
-print("[SMOKE][HOST][PASS] poll_listener uses repair contract")
+print("[SMOKE][HOST][PASS] poll_listener uses llm+repair contracts")
+
+coach_src = COACHING.read_text(encoding="utf-8")
+assert "from app.contracts.llm_gateway import ask_text as gateway_ask_text" in coach_src
+assert "from app.llm import ask_llm" not in coach_src
+print("[SMOKE][HOST][PASS] coaching uses llm contract")
 
 assert FREEZE_DOC.exists(), FREEZE_DOC
 assert ROADMAP_DOC.exists(), ROADMAP_DOC
 print("[SMOKE][HOST][PASS] roadmap and contract-freeze docs present")
-

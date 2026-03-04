@@ -14,7 +14,7 @@ owning provider-specific and repair-specific internals.
 - Module: `app/contracts/llm_gateway.py`
 - Function: `ask_text(prompt: str, *, system_prompt: str = ...) -> str`
 - Rule: feature modules call this adapter, never provider HTTP endpoints directly.
-- Current adopters: `app/briefings.py`
+- Current adopters: `app/briefings.py`, `app/poll_listener.py`, `app/coaching.py`
 
 ### 2) Mum Brain Repair Contract
 - Module: `app/contracts/repair.py`
@@ -48,4 +48,3 @@ owning provider-specific and repair-specific internals.
 1. Feature modules use only contracts for LLM, repair, and fallback copy.
 2. Contract-level smoke tests enforce these invariants.
 3. README references this contract freeze as the stabilization baseline.
-
