@@ -69,10 +69,18 @@ Branch: `main`
 - [DONE] MetaSurvey + ApproveThis event sessionization:
   - durable MetaSurvey and ApproveThis event processors now write execution sessions.
   - `smoke_v1_20_external_event_sessions.py` added and wired into host/docker/CI gates.
+- [DONE] Slash-command (`/skill`) sessionization:
+  - slash command intake, validation, and action staging now write execution sessions.
+  - `smoke_v1_20_slash_command_sessions.py` added and wired into host/docker/CI gates.
+- [DONE] Teable curated-memory boundary hardening:
+  - teable sync rewritten as curated-memory projection (operator-editable semantic memory).
+  - default API base normalized to `https://app.teable.ai/api` (legacy `.io` normalized).
+  - provenance fields + runtime-dump filtering added for sync payload safety.
+  - `ea-teable-sync` now mounts `./attachments` in compose for local-first state files.
+  - `smoke_v1_20_teable_memory_boundary.py` added and wired into host/docker/CI gates.
 
 ## Blocked
 - None.
 
 ## Next Queue (on new feedback)
-- [TODO] Evolve execution-session seed from free-text path into shared planner/session runtime
-  for slash-command execution paths.
+- None.

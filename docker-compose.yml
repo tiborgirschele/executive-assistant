@@ -103,6 +103,7 @@ services:
     - app.integrations.teable.sync_worker
     volumes:
     - ./config:/config:ro
+    - ./attachments:/attachments:rw
     - ./logs:/logs:rw
     depends_on:
       ea-db:

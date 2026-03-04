@@ -60,11 +60,28 @@ be tracked as deterministic steps.
      - `external_event_metasurvey`
      - `external_event_approvethis`
 
-8. Gate coverage:
+8. Slash-command sessionization (`/skill`):
+   - `ea/app/skill_commands.py` now wraps `/skill` intake + validation + staging in execution sessions.
+   - Session source: `slash_command_skill`.
+   - This closes the command-side gap between slash intake and typed-action execution telemetry.
+
+9. Teable memory boundary hardening:
+   - `ea/app/integrations/teable/sync_worker.py` was rewritten as a curated-memory projector:
+     - default API base normalized to `https://app.teable.ai/api`
+     - legacy `app.teable.io` auto-normalized
+     - runtime-dump filtering for unsafe memory payloads
+     - provenance fields (`Source`, `Confidence`, `Last Verified`, `Sensitivity`, `Sharing Policy`, `Reviewer`)
+     - local-first state persistence in attachments (`teable_sync_state.json`)
+   - `docker-compose.yml` now mounts `./attachments` for `ea-teable-sync`.
+   - Added model doc: `docs/EA_OS_Teable_Memory_Model.md`.
+
+10. Gate coverage:
    - `tests/smoke_v1_20_execution_sessions.py`
    - `tests/smoke_v1_20_typed_action_sessions.py`
    - `tests/smoke_v1_20_browseract_event_sessions.py`
    - `tests/smoke_v1_20_external_event_sessions.py`
+   - `tests/smoke_v1_20_slash_command_sessions.py`
+   - `tests/smoke_v1_20_teable_memory_boundary.py`
    - wired into:
      - `scripts/run_v119_smoke.sh`
      - `scripts/docker_e2e.sh`
