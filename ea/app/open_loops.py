@@ -1,20 +1,22 @@
-import json, os, uuid
+import json, os, uuid, threading
 
 LOOPS_FILE = "/attachments/open_loops.json"
 
 class OpenLoops:
+    _LOCK = threading.RLock()
+
     @classmethod
     def _load(cls):
         if not os.path.exists(LOOPS_FILE): return {}
         try:
-            with open(LOOPS_FILE, "r") as f: return json.load(f)
+            with open(LOOPS_FILE, "r", encoding="utf-8") as f: return json.load(f)
         except: return {}
 
     @classmethod
     def _save(cls, data):
         os.makedirs(os.path.dirname(LOOPS_FILE), exist_ok=True)
         tmp = LOOPS_FILE + ".tmp"
-        with open(tmp, "w") as f: json.dump(data, f)
+        with open(tmp, "w", encoding="utf-8") as f: json.dump(data, f, ensure_ascii=False)
         os.replace(tmp, LOOPS_FILE)
 
     @classmethod
@@ -25,60 +27,68 @@ class OpenLoops:
 
     @classmethod
     def add_shopping(cls, tenant: str, item: str):
-        d = cls._load()
-        cls._ensure_tenant(d, tenant)
-        if item not in d[tenant]["shopping"]: d[tenant]["shopping"].append(item)
-        cls._save(d)
+        with cls._LOCK:
+            d = cls._load()
+            cls._ensure_tenant(d, tenant)
+            if item not in d[tenant]["shopping"]: d[tenant]["shopping"].append(item)
+            cls._save(d)
 
     @classmethod
     def clear_shopping(cls, tenant: str):
-        d = cls._load()
-        cls._ensure_tenant(d, tenant)
-        d[tenant]["shopping"] = []
-        cls._save(d)
+        with cls._LOCK:
+            d = cls._load()
+            cls._ensure_tenant(d, tenant)
+            d[tenant]["shopping"] = []
+            cls._save(d)
 
     @classmethod
     def add_payment(cls, tenant: str, desc: str, amount: str, iban: str, status: str = "ready"):
-        d = cls._load()
-        cls._ensure_tenant(d, tenant)
-        pid = str(uuid.uuid4())[:8]
-        d[tenant]["payments"].append({"id": pid, "desc": desc, "amount": amount, "iban": iban, "status": status})
-        cls._save(d)
-        return pid
+        with cls._LOCK:
+            d = cls._load()
+            cls._ensure_tenant(d, tenant)
+            pid = str(uuid.uuid4())[:8]
+            d[tenant]["payments"].append({"id": pid, "desc": desc, "amount": amount, "iban": iban, "status": status})
+            cls._save(d)
+            return pid
 
     @classmethod
     def remove_payment(cls, tenant: str, pid: str):
-        d = cls._load()
-        cls._ensure_tenant(d, tenant)
-        d[tenant]["payments"] = [p for p in d[tenant]["payments"] if p["id"] != pid]
-        cls._save(d)
+        with cls._LOCK:
+            d = cls._load()
+            cls._ensure_tenant(d, tenant)
+            d[tenant]["payments"] = [p for p in d[tenant]["payments"] if p["id"] != pid]
+            cls._save(d)
 
     @classmethod
     def add_calendar(cls, tenant: str, preview: str, events: list):
-        d = cls._load()
-        cls._ensure_tenant(d, tenant)
-        cid = str(uuid.uuid4())[:8]
-        d[tenant]["calendars"].append({"id": cid, "preview": preview, "events": events})
-        cls._save(d)
-        return cid
+        with cls._LOCK:
+            d = cls._load()
+            cls._ensure_tenant(d, tenant)
+            cid = str(uuid.uuid4())[:8]
+            d[tenant]["calendars"].append({"id": cid, "preview": preview, "events": events})
+            cls._save(d)
+            return cid
 
     @classmethod
     def remove_calendar(cls, tenant: str, cid: str):
-        d = cls._load()
-        cls._ensure_tenant(d, tenant)
-        d[tenant]["calendars"] = [c for c in d[tenant]["calendars"] if c["id"] != cid]
-        cls._save(d)
+        with cls._LOCK:
+            d = cls._load()
+            cls._ensure_tenant(d, tenant)
+            d[tenant]["calendars"] = [c for c in d[tenant]["calendars"] if c["id"] != cid]
+            cls._save(d)
             
     @classmethod
     def get_calendar(cls, tenant: str, cid: str):
-        d = cls._load()
-        for c in d.get(tenant, {}).get("calendars", []):
-            if c["id"] == cid: return c
-        return None
+        with cls._LOCK:
+            d = cls._load()
+            for c in d.get(tenant, {}).get("calendars", []):
+                if c["id"] == cid: return c
+            return None
 
     @classmethod
     def get_dashboard(cls, tenant: str):
-        d = cls._load().get(tenant, {})
+        with cls._LOCK:
+            d = cls._load().get(tenant, {})
         txt = ""
         btns = []
         
