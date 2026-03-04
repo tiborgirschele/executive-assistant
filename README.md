@@ -1,15 +1,12 @@
-# EA OS (Patched Deployment Bundle)
+# EA OS (Assistant Runtime)
 
-This bundle fixes the issues identified in the audit:
-- **Port coupling bug**: separates external host port from internal container port (always 8090).
-- **Postgres permission-denied**: uses a **named volume** for Postgres data.
-- **Sudo ownership trap**: deploy script chowns to the real (non-root) operator.
-- **Rootless Docker support**: docker socket path configurable via `DOCKER_SOCK`.
-- **Ingest endpoints secured**: require `Authorization: Bearer $EA_INGEST_TOKEN`.
-- **Operator/debug endpoints secured**: require `Authorization: Bearer $EA_OPERATOR_TOKEN`.
-- **Better OCR for German scans**: installs `tesseract-ocr-deu`.
-- **Logging**: JSONL file logs + Postgres audit table + `/debug/audit` endpoint.
-- **Telegram**: sends daily briefing + a multi-select poll; listens for poll answers and reacts.
+EA OS is a Telegram-first assistant runtime with:
+- multi-service deployment roles (`ea-api`, `ea-poller`, `ea-worker`, `ea-outbox`, `ea-event-worker`, `ea-teable-sync`)
+- secured ingest/debug boundaries (`EA_INGEST_TOKEN`, `EA_OPERATOR_TOKEN`)
+- BrowserAct/MetaSurvey/AvoMap intake and sidecar wiring
+- milestone-gated smoke + Docker E2E release checks from v1.12.x through v1.19.x
+
+This repo started as a patched deployment bundle, but current `main` is maintained as a staged assistant-OS codebase with explicit contract gates.
 
 ## Quick start
 

@@ -8,6 +8,17 @@ This guide captures the v1.19 contract/gate rollout that lands profile-driven
 future-intelligence care behavior as an enforced milestone instead of an
 optional design direction.
 
+## Scope and verification
+
+- This document is a branch-state change log, not a target-state promise.
+- Source of truth is the checked-in code + active gate scripts in this branch.
+- Strategy/design docs may describe forward roadmap items that are not yet
+  landed in runtime code.
+- For release readiness, use gate evidence from:
+  - `scripts/run_v119_smoke.sh`
+  - `scripts/docker_e2e.sh`
+  - `logs/gates/*.json`
+
 ## What changed
 
 1. Incoming v1.19 contract pack is now mirrored and executed in-repo
@@ -433,6 +444,40 @@ optional design direction.
   - `tests/smoke_v1_19_2_human_assistant_mode.py`
   - verifies `reading_commands` ownership and absence of inline reading command
     user-copy strings in `poll_listener.py`.
+
+36. v1.19.3 brief runtime extraction
+- Added `ea/app/brief_runtime.py`:
+  - `run_brief_command(...)`
+- `ea/app/poll_listener.py` now keeps only `/brief` inflight/throttle guards
+  and delegates render + outbox + survey + fallback delivery flow to
+  `brief_runtime`.
+- Updated smoke contracts to validate the new boundary:
+  - `tests/smoke_v1_12_7_contract_freeze.py`
+  - `tests/smoke_v1_12_11.py`
+  - `tests/smoke_v1_19_2_human_assistant_mode.py`
+
+37. v1.19.3 callback + intent runtime extraction
+- Added `ea/app/callback_commands.py`:
+  - `handle_callback_command(...)`
+- Added `ea/app/intent_runtime.py`:
+  - `handle_free_text_intent(...)`
+- `ea/app/poll_listener.py` now delegates callback action execution and
+  free-text intent execution to these modules while keeping security checks and
+  high-level routing in one place.
+- Updated wiring contracts:
+  - `tests/smoke_v1_18_1_runtime_alignment.py`
+  - `tests/smoke_v1_19_2_human_assistant_mode.py`
+
+38. v1.19.3 control-plane decomposition guardrail
+- Added `tests/smoke_v1_19_3_control_plane_decomposition.py` to enforce:
+  - `poll_listener.py` size budget (`<= 600` lines),
+  - required runtime module imports (`brief_runtime`, `callback_commands`,
+    `intent_runtime`),
+  - absence of extracted heavy callback/free-text branches in `poll_listener`.
+- Wired this smoke into all release gates:
+  - `scripts/run_v119_smoke.sh`
+  - `scripts/docker_e2e.sh`
+  - `.github/workflows/release-gates.yml`
 
 ## Rollout checklist
 
