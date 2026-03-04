@@ -18,6 +18,7 @@ expected SQL deltas, and gate coverage.
 4. Keep runbook output operationally actionable (reduce expected-noise dominance).
 5. Persist layered profile state and merge it into briefing intelligence context.
 6. Strengthen the cloud LLM contract boundary from thin adapter to guarded gateway.
+7. Shift user-facing compose behavior toward calm human-assistant mode.
 
 ## Implemented in this repo state
 
@@ -122,6 +123,24 @@ Behavior:
   - `EA_LLM_GATEWAY_MAX_SYSTEM_PROMPT_CHARS`
 - task-type-aware output validation via trust-boundary contract.
 - safe fallback copy on model call failures and blocked tool-like outputs.
+
+### G. Human-assistant compose mode (minus drama)
+
+Files:
+- `ea/app/briefings.py`
+- `ea/app/poll_listener.py`
+- `tests/smoke_v1_19_2_human_assistant_mode.py`
+- `tests/smoke_v1_12_6.py`
+- `scripts/run_v119_smoke.sh`
+- `scripts/docker_e2e.sh`
+- `.github/workflows/release-gates.yml`
+
+Behavior:
+- main briefing compose now evaluates trip + project + finance dossiers together.
+- critical/readiness/future/preparation/mode are fed from `dossiers`.
+- removed user-facing diagnostics append from briefing output (logs only).
+- calmer status text during compose and safer dict-shaped fallback payloads.
+- hidden `/mumbrain` from user menu by default (operator command remains available).
 
 ## SQL additions landed in this patch
 

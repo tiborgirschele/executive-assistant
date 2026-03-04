@@ -193,22 +193,32 @@ async def heartbeat_pinger():
         await asyncio.sleep(10)
 tg = TelegramClient(settings.telegram_bot_token)
 MENU_REGISTERED = False
-BOT_COMMANDS = [
-    {"command": "brief", "description": "Executive briefing + personal newspaper PDF"},
-    {"command": "auth", "description": "Authorize Google account/services"},
-    {"command": "briefpdf", "description": "Standalone article PDF"},
-    {"command": "articlespdf", "description": "Alias for article PDF"},
-    {"command": "remember", "description": "Store memory fact"},
-    {"command": "brain", "description": "Show stored memory"},
-    {"command": "mumbrain", "description": "Repair and system health status"},
-    {"command": "menu", "description": "Show all commands"},
-    {"command": "help", "description": "Show all commands"},
-    {"command": "start", "description": "Start and show command menu"},
-]
+
+
+def _mumbrain_user_visible() -> bool:
+    raw = str(os.getenv("EA_EXPOSE_MUMBRAIN_MENU", "false")).strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+def _bot_commands() -> list[dict]:
+    commands = [
+        {"command": "brief", "description": "Executive briefing + personal newspaper PDF"},
+        {"command": "auth", "description": "Authorize Google account/services"},
+        {"command": "briefpdf", "description": "Standalone article PDF"},
+        {"command": "articlespdf", "description": "Alias for article PDF"},
+        {"command": "remember", "description": "Store memory fact"},
+        {"command": "brain", "description": "Show stored memory"},
+        {"command": "menu", "description": "Show all commands"},
+        {"command": "help", "description": "Show all commands"},
+        {"command": "start", "description": "Start and show command menu"},
+    ]
+    if _mumbrain_user_visible():
+        commands.insert(6, {"command": "mumbrain", "description": "Repair and system health status"})
+    return commands
 
 
 def _menu_text() -> str:
-    return (
+    txt = (
         "📋 <b>Command Menu</b>\n\n"
         "• <code>/brief</code> - Executive briefing + personal newspaper PDF\n"
         "• <code>/auth [email]</code> - Authenticate Google services\n"
@@ -216,9 +226,15 @@ def _menu_text() -> str:
         "• <code>/articlespdf</code> - Alias for <code>/briefpdf</code>\n"
         "• <code>/remember &lt;text&gt;</code> - Save a memory fact\n"
         "• <code>/brain</code> - Show saved memory\n"
-        "• <code>/mumbrain</code> - System/repair diagnostics\n"
         "• <code>/menu</code> or <code>/help</code> - Show this menu"
     )
+    if _mumbrain_user_visible():
+        txt = txt.replace(
+            "• <code>/menu</code> or <code>/help</code> - Show this menu",
+            "• <code>/mumbrain</code> - System/repair diagnostics\n"
+            "• <code>/menu</code> or <code>/help</code> - Show this menu",
+        )
+    return txt
 
 
 async def _ensure_bot_command_menu():
@@ -226,7 +242,7 @@ async def _ensure_bot_command_menu():
     if MENU_REGISTERED or not settings.telegram_bot_token:
         return
     try:
-        await tg.set_my_commands(BOT_COMMANDS)
+        await tg.set_my_commands(_bot_commands())
         MENU_REGISTERED = True
     except Exception:
         pass
@@ -1400,6 +1416,13 @@ async def handle_command(chat_id: int, text: str, msg: dict):
             except Exception as e:
                 return await tg.send_message(chat_id, f'⚠️ Brain error: {_safe_err(e)}')
         if cmd == '/mumbrain':
+            is_admin = bool(get_val(t, 'is_admin', False)) or str(chat_id) == str(get_admin_chat_id() or "")
+            if not is_admin:
+                return await tg.send_message(
+                    chat_id,
+                    "ℹ️ This command is operator-only.",
+                    parse_mode='HTML',
+                )
             try:
                 from app.db import get_db
 

@@ -46,7 +46,7 @@ assert "epic_focus_mode" in modes_src
 
 brief_src = BRIEFINGS.read_text(encoding="utf-8")
 assert "from app.intelligence.epics import (" in brief_src
-assert "build_epics_from_dossiers(profile_ctx, [trip_dossier])" in brief_src
+assert "build_epics_from_dossiers(profile_ctx, dossiers)" in brief_src
 assert "summarize_epic_deltas(previous_epics, epics)" in brief_src
 assert "save_epic_snapshot(epic_snapshot_path, epics)" in brief_src
 assert "<b>Active Epics:</b>" in brief_src

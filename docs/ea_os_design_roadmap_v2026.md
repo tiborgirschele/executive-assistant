@@ -48,6 +48,8 @@ Consolidation before expansion:
 - Extend intelligence contracts beyond travel with project and finance commitment seams.
 - Persist layered profile context state and merge it into briefing intelligence context.
 - Harden cloud LLM contract boundary with prompt/output safety guards.
+- Rewire compose path to consume multi-dossier intelligence and present calm
+  user-facing output without diagnostics jargon.
 - Publish implementation patch memo with file-level and gate-level mapping.
 
 ## Execution Rule

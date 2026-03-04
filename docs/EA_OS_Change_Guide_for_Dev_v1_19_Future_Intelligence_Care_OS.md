@@ -104,6 +104,21 @@ optional design direction.
   - `EA_LLM_GATEWAY_TASK_TYPE`
 - Added host smoke: `tests/smoke_v1_19_1_llm_gateway_boundary.py`.
 
+12. v1.19.2 human-assistant compose wiring
+- Briefing compose path now builds and consumes all currently-supported dossier types:
+  - trip
+  - project
+  - finance commitment
+- `critical/readiness/future/preparation/mode` evaluation now receives `dossiers`
+  instead of a trip-only list.
+- User-facing fallback wording changed from hard "no critical items" phrasing to:
+  - `No immediate action blocks detected right now.`
+- Briefing diagnostics are now log-only; Telegram output no longer appends a
+  diagnostics block.
+- Bot command menu hides `/mumbrain` by default and supports optional exposure via:
+  - `EA_EXPOSE_MUMBRAIN_MENU=true`
+- Added host smoke: `tests/smoke_v1_19_2_human_assistant_mode.py`.
+
 ## Rollout checklist
 
 1. Host gate:

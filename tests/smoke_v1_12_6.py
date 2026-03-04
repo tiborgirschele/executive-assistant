@@ -225,17 +225,20 @@ def test_critical_commitment_lane_wiring() -> None:
     brief_src = (EA_ROOT / "app/briefings.py").read_text(encoding="utf-8")
     assert "def _runtime_confidence_note(" in brief_src
     assert "from app.intelligence.profile import build_profile_context" in brief_src
-    assert "from app.intelligence.dossiers import build_trip_dossier" in brief_src
+    assert "build_trip_dossier" in brief_src
+    assert "build_project_dossier" in brief_src
+    assert "build_finance_commitment_dossier" in brief_src
     assert "from app.intelligence.critical_lane import build_critical_actions" in brief_src
     assert "from app.intelligence.household_graph import build_household_graph, ensure_profile_isolation" in brief_src
     assert "from app.intelligence.modes import mode_label, select_briefing_mode" in brief_src
     assert "build_household_graph(" in brief_src
     assert "ensure_profile_isolation(household)" in brief_src
-    assert "select_briefing_mode(profile_ctx, [trip_dossier], critical)" in brief_src
+    assert "select_briefing_mode(profile_ctx, dossiers, critical)" in brief_src
     assert "<i>Mode:</i>" in brief_src
-    assert "build_critical_actions(profile_ctx, [trip_dossier])" in brief_src
+    assert "build_critical_actions(profile_ctx, dossiers)" in brief_src
     assert "<b>Immediate Action:</b>" in brief_src
     assert "No additional inbox-critical items after deterministic critical scan." in brief_src
+    assert "No immediate action blocks detected right now." in brief_src
     assert "EA_BRIEFING_DIAGNOSTIC_TO_CHAT" in brief_src
     assert "Fatal Briefing Error" not in brief_src
     _print_pass("test_critical_commitment_lane_wiring")

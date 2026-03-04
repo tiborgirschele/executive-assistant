@@ -10,7 +10,11 @@ from app.contracts.llm_gateway import ask_text as gateway_ask_text
 from app.contracts.repair import open_repair_incident
 from app.contracts.telegram import sanitize_incident_copy
 from app.intelligence.profile import build_profile_context
-from app.intelligence.dossiers import build_trip_dossier
+from app.intelligence.dossiers import (
+    build_finance_commitment_dossier,
+    build_project_dossier,
+    build_trip_dossier,
+)
 from app.intelligence.critical_lane import build_critical_actions
 from app.intelligence.epics import (
     build_epics_from_dossiers,
@@ -76,6 +80,22 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 def _briefing_diagnostics_enabled() -> bool:
     return _env_flag("EA_BRIEFING_DIAGNOSTIC_TO_CHAT", False)
+
+
+def _emit_internal_diagnostics(diag_logs: list[str]) -> None:
+    """
+    Keep diagnostics in logs only. Do not append internals to Telegram briefing text.
+    """
+    if not diag_logs:
+        return
+    if not _briefing_diagnostics_enabled():
+        return
+    try:
+        joined = "\n".join(str(x) for x in diag_logs if str(x).strip())
+        if joined:
+            print(f"[BRIEFING][DIAGNOSTICS]\n{joined}", flush=True)
+    except Exception:
+        pass
 
 
 def _runtime_confidence_note() -> str | None:
@@ -336,9 +356,18 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
         mails=list(clean_mails),
         calendar_events=list(clean_cal),
     )
-    critical = build_critical_actions(profile_ctx, [trip_dossier])
-    compose_mode = select_briefing_mode(profile_ctx, [trip_dossier], critical)
-    epics = build_epics_from_dossiers(profile_ctx, [trip_dossier])
+    project_dossier = build_project_dossier(
+        mails=list(clean_mails),
+        calendar_events=list(clean_cal),
+    )
+    finance_dossier = build_finance_commitment_dossier(
+        mails=list(clean_mails),
+        calendar_events=list(clean_cal),
+    )
+    dossiers = [d for d in (trip_dossier, project_dossier, finance_dossier) if int(getattr(d, "signal_count", 0)) > 0]
+    critical = build_critical_actions(profile_ctx, dossiers)
+    compose_mode = select_briefing_mode(profile_ctx, dossiers, critical)
+    epics = build_epics_from_dossiers(profile_ctx, dossiers)
     safe_tenant = re.sub(r"[^a-zA-Z0-9_.-]", "_", str(t_key or "tenant"))
     epic_snapshot_path = os.path.join(
         os.getenv("EA_ATTACHMENTS_DIR", "/attachments"),
@@ -349,13 +378,13 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
     save_epic_snapshot(epic_snapshot_path, epics)
     future_situations = build_future_situations(
         profile=profile_ctx,
-        dossiers=[trip_dossier],
+        dossiers=dossiers,
         calendar_events=list(clean_cal),
         horizon_hours=max(24, int(os.getenv("EA_FUTURE_SITUATION_HORIZON_HOURS", "72"))),
     )
     readiness = build_readiness_dossier(
         profile=profile_ctx,
-        dossiers=[trip_dossier],
+        dossiers=dossiers,
         future_situations=future_situations,
     )
     prep_plan = build_preparation_plan(
@@ -363,9 +392,23 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
         readiness=readiness,
         epics=epics,
     )
-    compose_mode = select_briefing_mode(profile_ctx, [trip_dossier], critical, epics=epics)
+    compose_mode = select_briefing_mode(profile_ctx, dossiers, critical, epics=epics)
 
-    prompt = f'You are an elite, ruthless Executive Assistant. I demand extreme noise reduction. NO BULLSHIT.\nCRITICAL CULLING RULES:\n1. THE PURGE: You MUST completely delete ALL package delivery updates, shipping notices, order confirmations, and standard payment receipts from the JSON. ERASE THEM ENTIRELY.\n2. EXCEPTION: You MAY include a package/delivery alert ONLY IF it is a FAILURE or requires manual pickup.\n3. CHURCHILL TONE: For the critical emails that remain, state brutally and concisely WHY it requires action in 1 sentence.\n4. CALENDARS: Format ALL events provided into a clean schedule. Group them cleanly by Day/Date. YOU MUST INCLUDE EVENTS FROM THIS MORNING.\n\nDATA:\nMails: {json.dumps(clean_mails, ensure_ascii=False)}\nCalendars: {json.dumps(clean_cal, ensure_ascii=False)}\n\nReturn ONLY valid JSON matching this schema:\n{{\n  "emails": [{{"sender": "Sender", "subject": "Subject", "churchill_action": "1 sentence: What must I do?", "action_button": "Short Command"}}],\n  "calendar_summary": "Clean, bulleted timeline of the schedule across all calendars, grouped by date."\n}}'
+    prompt = (
+        "You are a calm, concise executive assistant. "
+        "Prioritize what needs action today and suppress low-value noise.\n"
+        "Rules:\n"
+        "1) Exclude routine delivery/order notifications unless failed delivery or manual pickup is required.\n"
+        "2) For each kept email, give one short action-oriented reason.\n"
+        "3) Keep language calm and practical; no technical/system wording.\n"
+        "4) Format calendars as a clean timeline grouped by date.\n\n"
+        f"DATA:\nMails: {json.dumps(clean_mails, ensure_ascii=False)}\nCalendars: {json.dumps(clean_cal, ensure_ascii=False)}\n\n"
+        "Return ONLY valid JSON with schema:\n"
+        "{\n"
+        '  "emails": [{"sender":"Sender","subject":"Subject","churchill_action":"1 sentence action reason","action_button":"Short Command"}],\n'
+        '  "calendar_summary":"Clean bulleted timeline grouped by date."\n'
+        "}"
+    )
     out = await call_llm(prompt)
     try:
         obj = _safe_extract_obj(out)
@@ -393,6 +436,11 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
             if ev:
                 html_out += f"<i>Signal source:</i> {_sanitize_telegram_html(' | '.join(ev[:2]))}\n"
             html_out += '\n'
+        if readiness.blockers:
+            html_out += "<b>Why It Matters:</b>\n"
+            for blocker in list(readiness.blockers)[:2]:
+                html_out += f"• {_sanitize_telegram_html(str(blocker))}\n"
+            html_out += "\n"
         ranked_epics = rank_epics(epics)
         if ranked_epics:
             html_out += '<b>Active Epics:</b>\n'
@@ -448,7 +496,7 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
             elif confidence_note:
                 html_out += '<i>Standard scan found no urgent items, but runtime confidence is reduced.</i>\n\n'
             else:
-                html_out += '<i>No critical items require your immediate attention.</i>\n\n'
+                html_out += '<i>No immediate action blocks detected right now.</i>\n\n'
         html_out += f'<b>Calendars:</b>\n{_sanitize_telegram_html(obj.get('calendar_summary', 'No upcoming events.'))}'
         avomap_card, avomap_state = await _avomap_prepare_card(
             tenant_key=str(t_key),
@@ -462,11 +510,7 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
             st = str(avomap_state.get('status') or '').strip()
             if st:
                 diag_logs.append(f'🎬 AvoMap: {st}')
-        if diag_logs and _briefing_diagnostics_enabled():
-            diag_str = '\n'.join(diag_logs)
-            if len(diag_str) > 1000:
-                diag_str = diag_str[:1000] + '\n...[truncated]'
-            html_out += '\n\n<i>⚙️ Diagnostics:</i>\n<pre>' + html.escape(diag_str, quote=False) + '</pre>'
+        _emit_internal_diagnostics(diag_logs)
         clean_opts = [str(o) for o in options][:5]
         return {'text': html_out, 'options': clean_opts, 'dynamic_buttons': loop_btns}
     except Exception as e:
@@ -552,26 +596,25 @@ async def call_llm_async(prompt, *args, **kwargs):
         if not status_cb:
             return
         ticks = 0
-        emojis = ['⏳', '⌛', '💡', '🧠', '⚙️']
+        emojis = ['⏳', '⌛', '📝', '📅']
         await asyncio.sleep(1.0)
         while True:
             ticks += 1
             try:
                 elapsed = ticks * 2
-                sub = ''
                 if elapsed >= 12:
-                    sub = '\n\n🚨 <i>[Timeout]: All neural uplinks dead. Graceful Fallback...</i>'
-                elif elapsed >= 8:
-                    sub = '\n\n🧠 <i>[OODA]: Attempting internal WAF Bypass...</i>'
-                elif elapsed >= 4:
-                    sub = '\n\n📡 <i>[Network]: Contacting Cognitive Router...</i>'
-                msg = f'▶️ <b>Synthesizing Executive Action...</b> {emojis[ticks % len(emojis)]} ({elapsed}s){sub}'
+                    sub = '\n\n<i>Still working. If this takes longer, simplified delivery will be used automatically.</i>'
+                elif elapsed >= 6:
+                    sub = '\n\n<i>Collecting final details.</i>'
+                else:
+                    sub = ''
+                msg = f'▶️ <b>Preparing your briefing...</b> {emojis[ticks % len(emojis)]} ({elapsed}s){sub}'
                 res = status_cb(msg)
                 if inspect.isawaitable(res):
                     await res
             except asyncio.CancelledError:
                 try:
-                    res = status_cb('✅ Executive Action Report synthesized.')
+                    res = status_cb('✅ Briefing prepared.')
                     if __import__('inspect').isawaitable(res):
                         await res
                 except:
@@ -627,8 +670,22 @@ async def build_briefing_for_tenant(*args, **kwargs):
                 intent='render_visuals',
                 chat_id=str(chat_id),
             )
-            return sanitize_incident_copy(error_payload, correlation_id=cid, mode=mode)
+            return {
+                "text": sanitize_incident_copy(error_payload, correlation_id=cid, mode=mode),
+                "options": [],
+                "dynamic_buttons": [],
+            }
         except Exception as inner_e:
             print(f'L2 Wrapper crashed: {inner_e}')
-            return '⏳ *Preparing your briefing in safe mode...*\n_(Formatting repair running in background.)_'
-    return res
+            return {
+                "text": "⏳ <i>Preparing your briefing in safe mode. Formatting repair is running in background.</i>",
+                "options": [],
+                "dynamic_buttons": [],
+            }
+    if isinstance(res, dict):
+        return res
+    return {
+        "text": str(res or "⚠️ Briefing response was empty."),
+        "options": [],
+        "dynamic_buttons": [],
+    }
