@@ -33,6 +33,36 @@ def _sentinel_enabled_for_role() -> bool:
     # Default watchdog only where heartbeat_pinger is expected to run.
     return role in ("", "monolith", "poller")
 
+
+def _sentinel_alert_throttled() -> bool:
+    """
+    Return True if we should suppress user-facing sentinel alerts for now.
+    Persists state across container restarts in attachments volume.
+    """
+    min_interval_sec = max(60, int(os.getenv("EA_SENTINEL_ALERT_MIN_INTERVAL_SEC", "3600")))
+    state_path = os.path.join(os.getenv("EA_ATTACHMENTS_DIR", "/attachments"), ".sentinel_last_alert.json")
+    now = int(time.time())
+    try:
+        with open(state_path, "r", encoding="utf-8") as f:
+            state = json.load(f) if f else {}
+        last_ts = int((state or {}).get("ts") or 0)
+    except Exception:
+        last_ts = 0
+    if last_ts > 0 and (now - last_ts) < min_interval_sec:
+        return True
+    try:
+        os.makedirs(os.path.dirname(state_path) or ".", exist_ok=True)
+        tmp = state_path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"ts": now}, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, state_path)
+    except Exception:
+        pass
+    return False
+
+
 def _watchdog_loop():
     while True:
         time.sleep(15)
@@ -41,7 +71,7 @@ def _watchdog_loop():
             try:
                 tok = getattr(settings, 'telegram_bot_token', None)
                 admin = get_admin_chat_id()
-                if tok and admin:
+                if tok and admin and not _sentinel_alert_throttled():
                     msg = (
                         "⚠️ <b>Temporary interruption</b>\n"
                         "I ran into an internal issue and I am restarting automatically now.\n"

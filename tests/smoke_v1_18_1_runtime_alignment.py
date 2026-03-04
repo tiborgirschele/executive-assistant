@@ -127,6 +127,8 @@ assert ".rstrip(':')" in poll_src
 assert "Calendar Import Partial" in poll_src
 assert "Calendar Import Failed" in poll_src
 assert "_sentinel_enabled_for_role" in poll_src
+assert "_sentinel_alert_throttled" in poll_src
+assert "EA_SENTINEL_ALERT_MIN_INTERVAL_SEC" in poll_src
 assert "threading.Thread(target=_watchdog_loop, daemon=True).start()" in poll_src
 print("[SMOKE][HOST][PASS] /vrief alias + ':' command normalization wired")
 
