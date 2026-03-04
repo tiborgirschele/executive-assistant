@@ -40,6 +40,7 @@ __pycache__/
 .ea_*.log
 EA_OS_*.pdf
 EA_OS_Test_Pack_*.zip
+EA_OS_v*_Test_Pack.zip
 photo_*.jpg
 sonos_shredder.log
 briefing_cron.log
