@@ -13,10 +13,47 @@ from app.intake.calendar_import_result import build_calendar_import_response
 from app.memory import get_button_context, save_button_context
 from app.open_loops import OpenLoops
 from app.poll_ui import build_dynamic_ui, clean_html_for_telegram
+from app.skills.runtime_action_exec import execute_typed_action
 
 
 def _safe_err(err: Any) -> str:
     return html.escape(str(err), quote=False)
+
+
+def _dispatch_skill(
+    *,
+    skill_key: str,
+    operation: str,
+    tenant: str,
+    chat_id: int,
+    payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    from app.skills.router import dispatch_skill_operation
+
+    return dispatch_skill_operation(
+        skill_key=skill_key,
+        operation=operation,
+        tenant=tenant,
+        chat_id=chat_id,
+        payload=dict(payload or {}),
+    )
+
+
+async def _execute_typed_action_callback(
+    *,
+    tg,
+    chat_id: int,
+    tenant_name: str,
+    action_row: dict[str, Any],
+) -> None:
+    executed = execute_typed_action(
+        tenant_name=str(tenant_name or ""),
+        chat_id=int(chat_id),
+        action_row=dict(action_row or {}),
+        dispatch_skill=_dispatch_skill,
+    )
+    text = str(executed.get("text") or "").strip() or "⚠️ Action execution produced no response."
+    return await tg.send_message(chat_id, text, parse_mode="HTML")
 
 
 async def handle_callback_command(
@@ -182,6 +219,21 @@ async def handle_callback_command(
         action_id = cb["data"][4:]
         rich_prompt = get_button_context(action_id)
         if not rich_prompt:
+            from app.actions import consume_action
+
+            typed_action = consume_action(str(tenant_name or ""), str(action_id or ""))
+            if typed_action:
+                try:
+                    await tg.edit_message_reply_markup(chat_id, cb["message"]["message_id"], reply_markup={"inline_keyboard": []})
+                except Exception:
+                    pass
+                await tg.answer_callback_query(cb["id"], text="Executing...")
+                return await _execute_typed_action_callback(
+                    tg=tg,
+                    chat_id=int(chat_id),
+                    tenant_name=str(tenant_name or ""),
+                    action_row=dict(typed_action if isinstance(typed_action, dict) else {}),
+                )
             return await tg.answer_callback_query(cb["id"], text="⚠️ Action expired.", show_alert=True)
         btn_txt = "Task"
         for row in cb.get("message", {}).get("reply_markup", {}).get("inline_keyboard", []):

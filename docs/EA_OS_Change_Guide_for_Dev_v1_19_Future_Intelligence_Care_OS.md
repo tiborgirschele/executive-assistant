@@ -584,6 +584,26 @@ optional design direction.
   - `scripts/docker_e2e.sh`
   - `.github/workflows/release-gates.yml`
 
+48. v1.19.4 runtime skill-dispatch path
+- Added `ea/app/skill_commands.py`:
+  - `/skill <skill_key> [operation] [notes]` command runtime handler
+  - stages typed action `skill:<skill_key>` and renders capability plan preview
+    with execute button.
+- Updated `ea/app/poll_listener.py`:
+  - delegates `/skill` handling to `skill_commands` to keep control-plane
+    decomposition budget.
+- Updated `ea/app/callback_commands.py`:
+  - `act:` callback now falls back to typed-actions (`consume_action`) when
+    no button-context prompt exists.
+  - delegates typed-action evaluation to `ea/app/skills/runtime_action_exec.py`.
+  - typed-action dispatcher supports:
+    - `confirm_payment` / `cancel_payment` via payments skill
+    - `skill:*` action types via skill router.
+- Added `tests/smoke_v1_19_4_skill_runtime_path.py` and wired into:
+  - `scripts/run_v119_smoke.sh`
+  - `scripts/docker_e2e.sh`
+  - `.github/workflows/release-gates.yml`
+
 ## Rollout checklist
 
 1. Host gate:

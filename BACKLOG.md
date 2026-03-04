@@ -16,12 +16,14 @@ Branch: `main`
 - [DONE] Human compose contract tightening and wording alignment.
 - [DONE] Doc/code drift guard (`smoke_v1_19_4_doc_alignment.py` + gates).
 - [DONE] Generic skill handlers return deterministic capability plan metadata.
+- [DONE] Runtime skill-dispatch path:
+  - `/skill` command stages typed actions with plan preview.
+  - `act:` callback consumes typed actions and routes `skill:*` + payments actions.
 - [DONE] Full Docker E2E gate pass after each slice.
 
 ## Blocked
 - None.
 
 ## Next Queue (on new feedback)
-- Integrate capability plan selection into runtime execution paths (beyond contract placeholders).
 - Expand behavioral E2E coverage for sidecar/skill orchestration outcomes.
 - Optional convergence of LLM gateway package/export paths while preserving existing contract smokes.

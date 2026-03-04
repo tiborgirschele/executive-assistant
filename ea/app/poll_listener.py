@@ -48,6 +48,7 @@ from app.watchdog import heartbeat_pinger, mark_heartbeat, start_watchdog_thread
 from app.update_router import route_update
 from app.callback_commands import handle_callback_command as _handle_callback_command
 from app.intent_runtime import handle_free_text_intent as _handle_free_text_intent
+from app.skill_commands import handle_skill_command as _handle_skill_command
 
 
 start_watchdog_thread(
@@ -493,6 +494,13 @@ async def handle_command(chat_id: int, text: str, msg: dict):
                 tenant_name=str(tenant_name or ""),
                 command_text=text,
                 ask_llm_text=_ask_llm_text,
+            )
+        if cmd == '/skill':
+            return await _handle_skill_command(
+                tg=tg,
+                chat_id=chat_id,
+                command_text=text,
+                tenant_name=str(tenant_name or ""),
             )
         if cmd == '/brief':
             if _brief_command_throttled(chat_id):
