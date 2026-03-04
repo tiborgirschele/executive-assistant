@@ -24,10 +24,16 @@ Branch: `main`
     with capability plan metadata.
   - typed skill action rendering now surfaces selected primary/fallback capabilities.
   - `smoke_v1_19_4_sidecar_skill_orchestration.py` added and wired into all gates.
+- [DONE] LLM gateway package/export convergence:
+  - `app.llm_gateway.client.safe_llm_call` now delegates to
+    `app.contracts.llm_gateway.ask_text`.
+  - `app.llm_gateway` exports `ask_text` and `DEFAULT_SYSTEM_PROMPT` from the
+    hardened contract boundary.
+  - `smoke_v1_19_4_llm_gateway_convergence.py` added and wired into all gates.
 - [DONE] Full Docker E2E gate pass after each slice.
 
 ## Blocked
 - None.
 
 ## Next Queue (on new feedback)
-- Optional convergence of LLM gateway package/export paths while preserving existing contract smokes.
+- None.

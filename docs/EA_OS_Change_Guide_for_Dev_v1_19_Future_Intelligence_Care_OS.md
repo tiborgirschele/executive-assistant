@@ -624,6 +624,22 @@ optional design direction.
   - `scripts/docker_e2e.sh`
   - `.github/workflows/release-gates.yml`
 
+50. v1.19.4 LLM gateway package/export convergence
+- Updated `ea/app/llm_gateway/client.py`:
+  - `safe_llm_call(...)` is now a compatibility wrapper that delegates to
+    `app.contracts.llm_gateway.ask_text(...)` instead of returning a static
+    placeholder payload.
+- Updated `ea/app/llm_gateway/__init__.py`:
+  - exports `ask_text` + `DEFAULT_SYSTEM_PROMPT` from the hardened contract
+    boundary alongside trust-boundary helpers.
+- Added `tests/smoke_v1_19_4_llm_gateway_convergence.py`:
+  - asserts package exports include contract entrypoint.
+  - asserts `safe_llm_call(...)` delegates to contract gateway semantics.
+- Wired this smoke into:
+  - `scripts/run_v119_smoke.sh`
+  - `scripts/docker_e2e.sh`
+  - `.github/workflows/release-gates.yml`
+
 ## Rollout checklist
 
 1. Host gate:
