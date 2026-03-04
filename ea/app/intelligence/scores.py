@@ -9,30 +9,72 @@ def _clamp(value: int, low: int = 0, high: int = 100) -> int:
 
 
 def exposure_score(dossier: Dossier, *, threshold_eur: float = 5000.0) -> int:
-    if dossier.kind != "trip" or dossier.signal_count <= 0:
+    if dossier.signal_count <= 0:
         return 0
-    score = 0
-    if dossier.exposure_eur >= threshold_eur:
-        score += 45
-    if dossier.exposure_eur >= threshold_eur * 2:
-        score += 20
-    score += min(20, 8 * len(dossier.risk_hits))
-    if dossier.signal_count >= 3:
-        score += 10
-    return _clamp(score)
+    if dossier.kind == "trip":
+        score = 0
+        if dossier.exposure_eur >= threshold_eur:
+            score += 45
+        if dossier.exposure_eur >= threshold_eur * 2:
+            score += 20
+        score += min(20, 8 * len(dossier.risk_hits))
+        if dossier.signal_count >= 3:
+            score += 10
+        return _clamp(score)
+    if dossier.kind == "finance_commitment":
+        score = 0
+        if dossier.exposure_eur >= threshold_eur:
+            score += 50
+        elif dossier.exposure_eur >= 1000:
+            score += 35
+        if "final_notice" in dossier.risk_hits:
+            score += 20
+        if "overdue" in dossier.risk_hits:
+            score += 15
+        return _clamp(score)
+    if dossier.kind == "project":
+        score = 0
+        if "blocker" in dossier.risk_hits:
+            score += 35
+        if "overdue" in dossier.risk_hits:
+            score += 30
+        if dossier.signal_count >= 3:
+            score += 10
+        return _clamp(score)
+    return 0
 
 
 def decision_window_score(dossier: Dossier) -> int:
-    if dossier.kind != "trip" or dossier.signal_count <= 0:
+    if dossier.signal_count <= 0:
         return 0
-    score = 0
-    if dossier.near_term:
-        score += 65
-    if dossier.risk_hits:
-        score += 20
-    if dossier.exposure_eur > 0:
-        score += 10
-    return _clamp(score)
+    if dossier.kind == "trip":
+        score = 0
+        if dossier.near_term:
+            score += 65
+        if dossier.risk_hits:
+            score += 20
+        if dossier.exposure_eur > 0:
+            score += 10
+        return _clamp(score)
+    if dossier.kind == "finance_commitment":
+        score = 0
+        if dossier.near_term:
+            score += 70
+        if dossier.risk_hits:
+            score += 20
+        if dossier.exposure_eur >= 1000:
+            score += 10
+        return _clamp(score)
+    if dossier.kind == "project":
+        score = 0
+        if dossier.near_term:
+            score += 60
+        if "blocker" in dossier.risk_hits:
+            score += 20
+        if "overdue" in dossier.risk_hits:
+            score += 15
+        return _clamp(score)
+    return 0
 
 
 def readiness_score(

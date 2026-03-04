@@ -13,10 +13,12 @@ python3 -m py_compile \
   "$ROOT/ea/app/intelligence/modes.py" \
   "$ROOT/ea/app/intelligence/preparation_planner.py" \
   "$ROOT/tests/run_incoming_v119_pack.py" \
-  "$ROOT/tests/smoke_v1_19_future_intelligence_pack.py"
+  "$ROOT/tests/smoke_v1_19_future_intelligence_pack.py" \
+  "$ROOT/tests/smoke_v1_19_1_future_intelligence_expansion.py"
 
 echo "[SMOKE][v1.19] Incoming contract-pack smoke"
 python3 "$ROOT/tests/smoke_v1_19_future_intelligence_pack.py"
+python3 "$ROOT/tests/smoke_v1_19_1_future_intelligence_expansion.py"
 
 if [[ "${EA_SKIP_FULL_GATES:-0}" != "1" ]]; then
   echo "[SMOKE][v1.19] Running full docker gate suite"

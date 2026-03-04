@@ -171,3 +171,145 @@ def build_trip_dossier(
         near_term=bool(near_term),
         evidence=tuple(evidence),
     )
+
+
+def build_project_dossier(
+    *,
+    mails: list[dict],
+    calendar_events: list[dict],
+    near_term_hours: int | None = None,
+) -> Dossier:
+    project_kws = [
+        "project",
+        "deadline",
+        "milestone",
+        "launch",
+        "proposal",
+        "deliverable",
+        "client",
+        "meeting prep",
+        "action required",
+    ]
+    hours = max(12, int(near_term_hours or int(os.getenv("EA_PROJECT_WINDOW_HOURS", "72"))))
+    now_utc = datetime.now(timezone.utc)
+
+    signal_count = 0
+    near_term = False
+    evidence: list[str] = []
+    risk_hits: set[str] = set()
+
+    def _match(raw_text: str) -> bool:
+        lower = str(raw_text or "").lower()
+        if not any(k in lower for k in project_kws):
+            return False
+        if "blocked" in lower or "blocker" in lower:
+            risk_hits.add("blocker")
+        if "overdue" in lower:
+            risk_hits.add("overdue")
+        return True
+
+    for m in mails or []:
+        subject = str(m.get("subject") or m.get("title") or "").strip()
+        snippet = str(m.get("snippet") or m.get("body") or m.get("text") or "").strip()
+        raw = f"{subject}\n{snippet}"
+        if _match(raw):
+            signal_count += 1
+            if subject and len(evidence) < 3:
+                evidence.append(subject[:110])
+
+    for ev in calendar_events or []:
+        title = str(ev.get("summary") or ev.get("title") or "").strip()
+        location = str(ev.get("location") or "").strip()
+        raw = f"{title}\n{location}"
+        if _match(raw):
+            signal_count += 1
+            if title and len(evidence) < 3:
+                evidence.append(title[:110])
+        ts = _event_start_ts(ev)
+        if ts and now_utc - timedelta(hours=6) <= ts <= now_utc + timedelta(hours=hours):
+            if _match(raw):
+                near_term = True
+
+    return Dossier(
+        kind="project",
+        title="Project Dossier",
+        signal_count=int(signal_count),
+        exposure_eur=0.0,
+        risk_hits=tuple(sorted(risk_hits)),
+        near_term=bool(near_term),
+        evidence=tuple(evidence),
+    )
+
+
+def build_finance_commitment_dossier(
+    *,
+    mails: list[dict],
+    calendar_events: list[dict],
+    near_term_hours: int | None = None,
+) -> Dossier:
+    finance_kws = [
+        "invoice",
+        "payment",
+        "due",
+        "refund",
+        "tax",
+        "insurance",
+        "subscription",
+        "bill",
+        "renewal",
+    ]
+    hours = max(12, int(near_term_hours or int(os.getenv("EA_FINANCE_WINDOW_HOURS", "96"))))
+    now_utc = datetime.now(timezone.utc)
+
+    signal_count = 0
+    near_term = False
+    max_amount = 0.0
+    evidence: list[str] = []
+    risk_hits: set[str] = set()
+
+    def _match(raw_text: str) -> bool:
+        nonlocal max_amount
+        lower = str(raw_text or "").lower()
+        if not any(k in lower for k in finance_kws):
+            return False
+        amounts = _extract_amounts(raw_text)
+        if amounts:
+            max_amount = max(max_amount, max(amounts))
+        if "overdue" in lower:
+            risk_hits.add("overdue")
+        if "final notice" in lower or "last reminder" in lower:
+            risk_hits.add("final_notice")
+        return True
+
+    for m in mails or []:
+        subject = str(m.get("subject") or m.get("title") or "").strip()
+        snippet = str(m.get("snippet") or m.get("body") or m.get("text") or "").strip()
+        raw = f"{subject}\n{snippet}"
+        if _match(raw):
+            signal_count += 1
+            if subject and len(evidence) < 3:
+                evidence.append(subject[:110])
+            if "due today" in raw.lower() or "due tomorrow" in raw.lower():
+                near_term = True
+
+    for ev in calendar_events or []:
+        title = str(ev.get("summary") or ev.get("title") or "").strip()
+        location = str(ev.get("location") or "").strip()
+        raw = f"{title}\n{location}"
+        if _match(raw):
+            signal_count += 1
+            if title and len(evidence) < 3:
+                evidence.append(title[:110])
+            ts = _event_start_ts(ev)
+            if ts and now_utc - timedelta(hours=6) <= ts <= now_utc + timedelta(hours=hours):
+                near_term = True
+
+    return Dossier(
+        kind="finance_commitment",
+        title="Finance Commitment Dossier",
+        signal_count=int(signal_count),
+        exposure_eur=float(max_amount),
+        risk_hits=tuple(sorted(risk_hits)),
+        near_term=bool(near_term),
+        evidence=tuple(evidence),
+    )

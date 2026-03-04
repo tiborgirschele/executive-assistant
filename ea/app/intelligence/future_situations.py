@@ -48,9 +48,9 @@ def build_future_situations(
     out: list[FutureSituation] = []
 
     for dossier in dossiers or []:
-        if dossier.kind != "trip" or dossier.signal_count <= 0:
+        if dossier.signal_count <= 0:
             continue
-        if dossier.near_term or dossier.exposure_eur >= 2500 or bool(dossier.risk_hits):
+        if dossier.kind == "trip" and (dossier.near_term or dossier.exposure_eur >= 2500 or bool(dossier.risk_hits)):
             out.append(
                 FutureSituation(
                     kind="travel_window",
@@ -60,7 +60,7 @@ def build_future_situations(
                     evidence=tuple(dossier.evidence[:2]),
                 )
             )
-        if dossier.risk_hits:
+        if dossier.kind == "trip" and dossier.risk_hits:
             hits = ", ".join(dossier.risk_hits[:3])
             out.append(
                 FutureSituation(
@@ -68,6 +68,26 @@ def build_future_situations(
                     title=f"Travel route intersects risk signals ({hits})",
                     horizon_hours=horizon_hours,
                     confidence=0.82,
+                    evidence=tuple(dossier.evidence[:2]),
+                )
+            )
+        if dossier.kind == "project" and dossier.near_term:
+            out.append(
+                FutureSituation(
+                    kind="meeting_prep_window",
+                    title="Project prep window is near-term",
+                    horizon_hours=horizon_hours,
+                    confidence=0.74,
+                    evidence=tuple(dossier.evidence[:2]),
+                )
+            )
+        if dossier.kind == "finance_commitment" and (dossier.near_term or dossier.exposure_eur >= 1000):
+            out.append(
+                FutureSituation(
+                    kind="deadline_window",
+                    title="Finance commitment deadline window detected",
+                    horizon_hours=horizon_hours,
+                    confidence=0.76,
                     evidence=tuple(dossier.evidence[:2]),
                 )
             )

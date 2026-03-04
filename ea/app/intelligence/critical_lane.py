@@ -46,24 +46,40 @@ def build_critical_actions(profile: PersonProfileContext, dossiers: list[Dossier
         actions.append(profile.confidence.note)
 
     for d in dossiers or []:
-        if d.kind != "trip":
-            continue
-        exp, win = _score_trip_dossier(d, threshold=threshold)
-        exposure_score = max(exposure_score, exp)
-        decision_window_score = max(decision_window_score, win)
-        if d.signal_count and d.exposure_eur >= threshold:
-            actions.append(
-                f"High-value trip commitment detected (estimated exposure about EUR {int(round(d.exposure_eur)):,}). "
-                "Validate cancellation/rebooking terms today."
-            )
-        if d.signal_count and d.risk_hits:
-            hits = ", ".join(d.risk_hits[:3])
-            actions.append(
-                f"Potential route or layover risk signals detected ({hits}). "
-                "Check official advisories and alternative routes now."
-            )
-        if d.signal_count and d.near_term:
-            actions.append("Travel-related commitment is near-term (<72h). Confirm route viability and check-in now.")
+        if d.kind == "trip":
+            exp, win = _score_trip_dossier(d, threshold=threshold)
+            exposure_score = max(exposure_score, exp)
+            decision_window_score = max(decision_window_score, win)
+            if d.signal_count and d.exposure_eur >= threshold:
+                actions.append(
+                    f"High-value trip commitment detected (estimated exposure about EUR {int(round(d.exposure_eur)):,}). "
+                    "Validate cancellation/rebooking terms today."
+                )
+            if d.signal_count and d.risk_hits:
+                hits = ", ".join(d.risk_hits[:3])
+                actions.append(
+                    f"Potential route or layover risk signals detected ({hits}). "
+                    "Check official advisories and alternative routes now."
+                )
+            if d.signal_count and d.near_term:
+                actions.append("Travel-related commitment is near-term (<72h). Confirm route viability and check-in now.")
+        elif d.kind == "finance_commitment" and d.signal_count:
+            if d.exposure_eur >= threshold:
+                exposure_score = max(exposure_score, 60)
+            if d.near_term:
+                decision_window_score = max(decision_window_score, 70)
+            if d.exposure_eur >= threshold or d.risk_hits or d.near_term:
+                actions.append(
+                    "Finance commitment needs immediate review: verify due date, amount, and approval/payment path."
+                )
+        elif d.kind == "project" and d.signal_count:
+            if d.near_term:
+                decision_window_score = max(decision_window_score, 60)
+            if "blocker" in d.risk_hits or "overdue" in d.risk_hits:
+                exposure_score = max(exposure_score, 45)
+                actions.append(
+                    "Project blockers detected in a near-term window. Prepare decisions and unblock critical tasks now."
+                )
         for ev in d.evidence:
             if ev and ev not in evidence and len(evidence) < 3:
                 evidence.append(ev)
@@ -84,4 +100,3 @@ def build_critical_actions(profile: PersonProfileContext, dossiers: list[Dossier
         exposure_score=int(exposure_score),
         decision_window_score=int(decision_window_score),
     )
-

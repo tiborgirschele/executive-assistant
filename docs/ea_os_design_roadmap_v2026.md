@@ -43,6 +43,11 @@ Consolidation before expansion:
 - Prioritize high-exposure commitments + risk intersections before generic summarize/ranking paths.
 - Enforce confidence-aware composition and bounded preparation planning through smoke + real milestone gates.
 
+### Phase 7.1: v1.19.1 Reliability + Expansion
+- Add duplicate-briefing guardrails and watchdog false-positive reduction.
+- Extend intelligence contracts beyond travel with project and finance commitment seams.
+- Publish implementation patch memo with file-level and gate-level mapping.
+
 ## Execution Rule
 No new feature wave ships without an explicit contract owner and smoke test
 coverage for boundary invariants.

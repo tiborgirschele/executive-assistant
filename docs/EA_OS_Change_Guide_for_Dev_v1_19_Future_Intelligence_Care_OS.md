@@ -68,6 +68,17 @@ optional design direction.
   triggers arrive in a short window (for example user retry + delayed poll replay).
 - Added host contract smoke: `tests/smoke_brief_dedupe_guard.py`.
 
+9. v1.19.1 non-travel intelligence expansion
+- Added dossier builders for:
+  - project: `build_project_dossier`
+  - finance commitments: `build_finance_commitment_dossier`
+- Added future-situation kinds:
+  - `meeting_prep_window`
+  - `deadline_window`
+- Updated readiness/critical/scoring logic to account for project and finance
+  signals in addition to trip-only detection.
+- Added host smoke: `tests/smoke_v1_19_1_future_intelligence_expansion.py`.
+
 ## Rollout checklist
 
 1. Host gate:

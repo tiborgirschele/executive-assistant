@@ -30,17 +30,35 @@ def build_readiness_dossier(
     evidence: list[str] = []
 
     for dossier in dossiers or []:
-        if dossier.kind != "trip" or dossier.signal_count <= 0:
+        if dossier.signal_count <= 0:
             continue
-        if dossier.exposure_eur >= 5000:
-            blockers.append("High-value trip exposure requires explicit review.")
-            actions.append("Validate cancellation/rebooking terms and deadlines.")
-        if dossier.risk_hits:
-            blockers.append("Route/layover risk indicators detected.")
-            actions.append("Check official advisories and prepare alternate routing.")
-        if dossier.near_term:
-            watch.append("Departure window is near-term.")
-            actions.append("Confirm check-in, passport/visa, and route viability.")
+        if dossier.kind == "trip":
+            if dossier.exposure_eur >= 5000:
+                blockers.append("High-value trip exposure requires explicit review.")
+                actions.append("Validate cancellation/rebooking terms and deadlines.")
+            if dossier.risk_hits:
+                blockers.append("Route/layover risk indicators detected.")
+                actions.append("Check official advisories and prepare alternate routing.")
+            if dossier.near_term:
+                watch.append("Departure window is near-term.")
+                actions.append("Confirm check-in, passport/visa, and route viability.")
+        if dossier.kind == "project":
+            if "blocker" in dossier.risk_hits or "overdue" in dossier.risk_hits:
+                blockers.append("Project blockers detected in near-term timeline.")
+                actions.append("Resolve project blockers and prepare meeting decisions.")
+            if dossier.near_term:
+                watch.append("Project prep window is near-term.")
+                actions.append("Prepare project context pack and decision checklist.")
+        if dossier.kind == "finance_commitment":
+            if dossier.exposure_eur >= 1000:
+                blockers.append("High-value finance commitment requires review.")
+                actions.append("Confirm due date, amount, and available payment/refund options.")
+            if "overdue" in dossier.risk_hits or "final_notice" in dossier.risk_hits:
+                blockers.append("Finance urgency signals detected (overdue/final notice).")
+                actions.append("Prioritize finance follow-up before deadline closes.")
+            if dossier.near_term:
+                watch.append("Finance deadline window is near-term.")
+                actions.append("Prepare payment/approval path and required documents.")
         for item in dossier.evidence:
             if item and item not in evidence and len(evidence) < 3:
                 evidence.append(item)
