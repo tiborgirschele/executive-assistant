@@ -285,6 +285,15 @@ optional design direction.
   - `tests/smoke_v1_12_7_contract_freeze.py`
   - `tests/smoke_v1_19_2_human_assistant_mode.py`
 
+23. v1.19.3 newspaper PDF quality gate extraction
+- Added `ea/app/newspaper/pdf_quality_gate.py`:
+  - `_count_pdf_images(...)`
+  - `validate_newspaper_pdf_bytes(...)`
+- `ea/app/poll_listener.py` now imports the quality-gate function instead of
+  keeping PDF validation internals inline.
+- Updated wiring smoke:
+  - `tests/smoke_newspaper_pdf_gate_wiring.py`
+
 ## Rollout checklist
 
 1. Host gate:

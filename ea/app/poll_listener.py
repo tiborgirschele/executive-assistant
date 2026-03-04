@@ -26,6 +26,7 @@ from app.open_loops import OpenLoops
 from app.briefings import build_briefing_for_tenant, get_val
 from app.articles_digest import fetch_browseract_articles, select_interesting, render_articles_pdf, collect_user_signal_terms, enrich_full_articles
 from app.memory import get_button_context, save_button_context
+from app.newspaper.pdf_quality_gate import validate_newspaper_pdf_bytes
 from app.render_guard import classify_markupgo_error, log_render_guard, markupgo_breaker_open, open_markupgo_breaker, promote_known_good_template_if_needed
 from app.repair.healer import system_health_snapshot
 from app.policy.household import gate_household_document_action
@@ -86,67 +87,6 @@ def _safe_err(e) -> str:
 
 def _incident_ref(prefix: str = "EA") -> str:
     return f"{prefix}-{int(time.time())}"
-
-
-def _count_pdf_images(pdf_reader) -> int:
-    total = 0
-    for page in getattr(pdf_reader, "pages", []):
-        try:
-            res = page.get("/Resources") or {}
-            xobj = res.get("/XObject") if hasattr(res, "get") else None
-            if xobj is None:
-                continue
-            try:
-                xobj = xobj.get_object()
-            except Exception:
-                pass
-            if not hasattr(xobj, "items"):
-                continue
-            for _, obj in xobj.items():
-                try:
-                    target = obj.get_object()
-                except Exception:
-                    target = obj
-                subtype = ""
-                try:
-                    subtype = str(target.get("/Subtype") or "")
-                except Exception:
-                    subtype = ""
-                if subtype == "/Image":
-                    total += 1
-        except Exception:
-            continue
-    return total
-
-
-def _validate_newspaper_pdf_bytes(pdf_bytes: bytes, *, min_pages: int = 4, min_images: int = 3) -> tuple[bool, str]:
-    try:
-        import io
-        from pypdf import PdfReader
-    except Exception as e:
-        return False, f"pdf_validation_dependency_missing:{e}"
-    try:
-        reader = PdfReader(io.BytesIO(pdf_bytes))
-        page_count = len(reader.pages)
-        if page_count < min_pages:
-            return False, f"page_count:{page_count}<min:{min_pages}"
-        first_text = ""
-        try:
-            first_text = str(reader.pages[0].extract_text() or "")
-        except Exception:
-            first_text = ""
-        if "Tibor Daily" not in first_text:
-            return False, "missing_masthead:Tibor Daily"
-        image_count = _count_pdf_images(reader)
-        if image_count < min_images:
-            return False, f"image_count:{image_count}<min:{min_images}"
-        blob = first_text[:8000]
-        for banned in ("OODA Diagnostic", "statusCode", "FST_ERR_VALIDATION", "Traceback"):
-            if banned in blob:
-                return False, f"banned_token:{banned}"
-        return True, f"ok:pages={page_count},images={image_count}"
-    except Exception as e:
-        return False, f"pdf_validation_error:{e}"
 
 
 def _household_confidence_for_message(chat_id: int, msg: dict) -> float:
@@ -567,7 +507,7 @@ async def _send_briefing_newspaper_pdf(chat_id: int, tenant_name: str, tenant_cf
         pdf_bytes = await mg.render_pdf_buffer(payload, timeout_s=60.0)
         if not pdf_bytes:
             return False
-        ok, detail = _validate_newspaper_pdf_bytes(pdf_bytes, min_pages=4, min_images=3)
+        ok, detail = validate_newspaper_pdf_bytes(pdf_bytes, min_pages=4, min_images=3)
         if not ok:
             log_render_guard("brief_newspaper_pdf_quality_gate_failed", detail[:180], location="poll_listener")
             return False
