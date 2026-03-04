@@ -415,6 +415,16 @@ optional design direction.
   - verifies `auth_commands` ownership and absence of inline auth prompt copy
     in `poll_listener.py`.
 
+34. v1.19.3 poll-listener operator command extraction
+- Added `ea/app/operator_commands.py`:
+  - `handle_mumbrain_command(...)`
+- `ea/app/poll_listener.py` now delegates `/mumbrain` operator command handling
+  to this module instead of embedding admin gating + status rendering inline.
+- Updated decomposition smoke contract:
+  - `tests/smoke_v1_19_2_human_assistant_mode.py`
+  - verifies `operator_commands` ownership and absence of inline Mum Brain
+    status render strings in `poll_listener.py`.
+
 ## Rollout checklist
 
 1. Host gate:

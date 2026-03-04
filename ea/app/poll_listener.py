@@ -27,7 +27,7 @@ from app.articles_digest import fetch_browseract_articles, select_interesting, r
 from app.memory import get_button_context, save_button_context
 from app.newspaper.pdf_quality_gate import validate_newspaper_pdf_bytes
 from app.render_guard import classify_markupgo_error, log_render_guard, markupgo_breaker_open, open_markupgo_breaker, promote_known_good_template_if_needed
-from app.repair.healer import system_health_snapshot
+from app.operator_commands import handle_mumbrain_command as _handle_mumbrain_command
 from app.policy.household import gate_household_document_action
 from app.intake.survey_planner import plan_article_preference_survey, plan_briefing_feedback_survey
 from app.intake.calendar_import_result import build_calendar_import_response
@@ -656,32 +656,12 @@ async def handle_command(chat_id: int, text: str, msg: dict):
         if cmd == '/brain':
             return await _show_brain(tg=tg, chat_id=chat_id)
         if cmd == '/mumbrain':
-            is_admin = bool(get_val(t, 'is_admin', False)) or str(chat_id) == str(get_admin_chat_id() or "")
-            if not is_admin:
-                return await tg.send_message(
-                    chat_id,
-                    "ℹ️ This command is operator-only.",
-                    parse_mode='HTML',
-                )
-            try:
-                from app.db import get_db
-
-                db = get_db()
-                active = db.fetchone("SELECT count(*) AS c FROM delivery_sessions WHERE status = 'active'")
-                h = system_health_snapshot(db)
-                last = db.fetchone("SELECT recipe_key, status FROM repair_jobs ORDER BY job_id DESC LIMIT 1")
-                msg = (
-                    "🧠 <b>Mum Brain Status</b>\n\n"
-                    f"• Phase A active deliveries: <b>{int((active or {}).get('c') or 0)}</b>\n"
-                    f"• Phase B pending/running: <b>{h['pending']}</b>/<b>{h['running']}</b>\n"
-                    f"• Repairs 24h (ok/failed): <b>{h['completed_24h']}</b>/<b>{h['failed_24h']}</b>\n"
-                    f"• Replay queue/dead letters: <b>{h['replay_q']}</b>/<b>{h['dead_q']}</b>\n"
-                    f"• Render breaker open: <b>{'yes' if h['breaker_open'] else 'no'}</b>\n"
-                    f"• Last repair: <b>{(last or {}).get('recipe_key') or 'none'}</b> → <b>{(last or {}).get('status') or 'none'}</b>"
-                )
-                return await tg.send_message(chat_id, msg, parse_mode='HTML')
-            except Exception as e:
-                return await tg.send_message(chat_id, f'⚠️ Mum Brain status error: {_safe_err(e)}')
+            return await _handle_mumbrain_command(
+                tg=tg,
+                chat_id=chat_id,
+                tenant_cfg=t,
+                admin_chat_id=str(get_admin_chat_id() or ""),
+            )
         if cmd in ('/briefpdf', '/articlespdf'):
             wait_msg = await tg.send_message(chat_id, '🗞️ <i>Building reading PDF from BrowserAct...</i>', parse_mode='HTML')
             sent = await _send_browseract_articles_pdf(chat_id, tenant_name, t, force=True)

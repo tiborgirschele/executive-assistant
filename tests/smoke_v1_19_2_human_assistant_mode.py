@@ -55,6 +55,7 @@ def test_mumbrain_hidden_from_user_menu_by_default() -> None:
     delivery_src = (ROOT / "ea/app/briefing_delivery_sessions.py").read_text(encoding="utf-8")
     security_src = (ROOT / "ea/app/message_security.py").read_text(encoding="utf-8")
     auth_cmd_src = (ROOT / "ea/app/auth_commands.py").read_text(encoding="utf-8")
+    operator_cmd_src = (ROOT / "ea/app/operator_commands.py").read_text(encoding="utf-8")
     brain_src = (ROOT / "ea/app/brain_commands.py").read_text(encoding="utf-8")
     poll_ui_src = (ROOT / "ea/app/poll_ui.py").read_text(encoding="utf-8")
     preferences_src = (ROOT / "ea/app/newspaper/preferences.py").read_text(encoding="utf-8")
@@ -62,6 +63,7 @@ def test_mumbrain_hidden_from_user_menu_by_default() -> None:
     assert "from app.auth_sessions import AuthSessionStore" in poll_src
     assert "from app.chat_assist import ask_llm_text as _ask_llm_text, humanize_agent_report as _humanize_agent_report" in poll_src
     assert "from app.auth_commands import handle_auth_command as _handle_auth_command" in poll_src
+    assert "from app.operator_commands import handle_mumbrain_command as _handle_mumbrain_command" in poll_src
     assert "from app.brain_commands import remember_fact as _remember_fact, show_brain as _show_brain" in poll_src
     assert "from app.poll_ui import build_dynamic_ui, clean_html_for_telegram" in poll_src
     assert "from app.message_security import check_security, household_confidence_for_message as _household_confidence_for_message, message_document_ref as _message_document_ref" in poll_src
@@ -79,13 +81,14 @@ def test_mumbrain_hidden_from_user_menu_by_default() -> None:
     assert "def _humanize_agent_report(" not in poll_src
     assert "def _ask_llm_text(" not in poll_src
     assert "Which Google Account do you want to authorize?" not in poll_src
+    assert "Mum Brain Status" not in poll_src
     assert "def clean_html_for_telegram(" not in poll_src
     assert "def build_dynamic_ui(" not in poll_src
     assert "Brain is empty. Use /remember <text>." not in poll_src
     assert "Normalizing memory..." not in poll_src
     assert "def mumbrain_user_visible(" in menu_src
     assert "EA_EXPOSE_MUMBRAIN_MENU" in menu_src
-    assert "This command is operator-only." in poll_src
+    assert "This command is operator-only." in operator_cmd_src
     assert "class AuthSessionStore" in auth_src
     assert "def ask_llm_text(" in assist_src
     assert "def humanize_agent_report(" in assist_src
@@ -95,6 +98,7 @@ def test_mumbrain_hidden_from_user_menu_by_default() -> None:
     assert "def message_document_ref(" in security_src
     assert "async def check_security(" in security_src
     assert "async def handle_auth_command(" in auth_cmd_src
+    assert "async def handle_mumbrain_command(" in operator_cmd_src
     assert "async def show_brain(" in brain_src
     assert "async def remember_fact(" in brain_src
     assert "def clean_html_for_telegram(" in poll_ui_src
