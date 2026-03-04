@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from app.skills import payments
 from app.skills.capability_registry import capability_or_raise
+from app.skills.generic import build_generic_skill_handler
 
 
 SkillHandler = Callable[..., dict[str, Any]]
@@ -19,13 +19,80 @@ class SkillContract:
     capabilities: tuple[str, ...]
 
 
+def _payments_handler(
+    *,
+    operation: str,
+    tenant: str,
+    chat_id: int,
+    payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    # Lazy import keeps host-level contract smokes independent from DB driver deps.
+    from app.skills import payments
+
+    return payments.run_operation(
+        operation=operation,
+        tenant=tenant,
+        chat_id=chat_id,
+        payload=payload,
+    )
+
+
 SKILL_REGISTRY: dict[str, SkillContract] = {
     "payments": SkillContract(
         key="payments",
         display_name="Payments",
         operations=("generate_demo_draft", "handle_action"),
-        handler=payments.run_operation,
+        handler=_payments_handler,
         capabilities=("approvethis",),
+    ),
+    "travel_rescue": SkillContract(
+        key="travel_rescue",
+        display_name="Travel Rescue",
+        operations=("plan", "stage"),
+        handler=build_generic_skill_handler("travel_rescue", ("oneair", "avomap", "browseract")),
+        capabilities=("oneair", "avomap", "browseract"),
+    ),
+    "guided_intake": SkillContract(
+        key="guided_intake",
+        display_name="Guided Intake",
+        operations=("plan", "dispatch"),
+        handler=build_generic_skill_handler("guided_intake", ("involve_me", "metasurvey", "apix_drive")),
+        capabilities=("involve_me", "metasurvey", "apix_drive"),
+    ),
+    "draft_and_polish": SkillContract(
+        key="draft_and_polish",
+        display_name="Draft and Polish",
+        operations=("plan", "polish"),
+        handler=build_generic_skill_handler("draft_and_polish", ("prompting_systems", "undetectable")),
+        capabilities=("prompting_systems", "undetectable"),
+    ),
+    "prompt_compiler": SkillContract(
+        key="prompt_compiler",
+        display_name="Prompt Compiler",
+        operations=("compile",),
+        handler=build_generic_skill_handler("prompt_compiler", ("prompting_systems", "paperguide", "vizologi")),
+        capabilities=("prompting_systems", "paperguide", "vizologi"),
+    ),
+    "multimodal_burst": SkillContract(
+        key="multimodal_burst",
+        display_name="Multimodal Burst",
+        operations=("generate",),
+        handler=build_generic_skill_handler("multimodal_burst", ("one_min_ai", "ai_magicx", "peekshot")),
+        capabilities=("one_min_ai", "ai_magicx", "peekshot"),
+    ),
+    "evidence_pack_builder": SkillContract(
+        key="evidence_pack_builder",
+        display_name="Evidence Pack Builder",
+        operations=("build", "stage"),
+        handler=build_generic_skill_handler("evidence_pack_builder", ("involve_me", "prompting_systems", "undetectable")),
+        capabilities=("involve_me", "prompting_systems", "undetectable"),
+    ),
+    "trip_context_pack": SkillContract(
+        key="trip_context_pack",
+        display_name="Trip Context Pack",
+        operations=("build",),
+        handler=build_generic_skill_handler("trip_context_pack", ("oneair", "avomap", "one_min_ai", "ai_magicx")),
+        capabilities=("oneair", "avomap", "one_min_ai", "ai_magicx"),
     ),
 }
 

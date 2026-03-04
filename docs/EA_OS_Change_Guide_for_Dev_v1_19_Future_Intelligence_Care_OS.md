@@ -526,6 +526,23 @@ optional design direction.
     (`deadlock detected`, relation lock timeout/lock obtain failures)
   - keeps hard-fail behavior for non-transient SQL failures.
 
+43. v1.19.4 generic skill inventory baseline
+- Added `ea/app/skills/generic.py`:
+  - `build_generic_skill_handler(...)` placeholder contract for declarative
+    skills that are not implemented yet.
+- Expanded `ea/app/skills/registry.py` to include generic skills:
+  - `travel_rescue`
+  - `guided_intake`
+  - `draft_and_polish`
+  - `prompt_compiler`
+  - `multimodal_burst`
+  - `evidence_pack_builder`
+  - `trip_context_pack`
+- Added `tests/smoke_v1_19_4_skill_inventory.py` and wired it into:
+  - `scripts/run_v119_smoke.sh`
+  - `scripts/docker_e2e.sh`
+  - `.github/workflows/release-gates.yml`
+
 ## Rollout checklist
 
 1. Host gate:
