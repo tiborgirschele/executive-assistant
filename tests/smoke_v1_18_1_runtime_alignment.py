@@ -19,10 +19,11 @@ BROWSERACT = APP / "intake/browseract.py"
 NORMALIZER = APP / "approvals/normalizer.py"
 POLL_LISTENER = APP / "poll_listener.py"
 WATCHDOG = APP / "watchdog.py"
+BRIEF_COMMANDS = APP / "brief_commands.py"
 TG_SAFETY = APP / "telegram/safety.py"
 SCHEMA = ROOT / "ea/schema/20260303_v1_18_1_runtime_alignment.sql"
 
-for path in (SETTINGS, MAIN, RUNNER, DB, SERVER, OUTBOX_ROLE, QUEUE, EVENT_WORKER, BROWSERACT, NORMALIZER, POLL_LISTENER, WATCHDOG, TG_SAFETY):
+for path in (SETTINGS, MAIN, RUNNER, DB, SERVER, OUTBOX_ROLE, QUEUE, EVENT_WORKER, BROWSERACT, NORMALIZER, POLL_LISTENER, WATCHDOG, BRIEF_COMMANDS, TG_SAFETY):
     ast.parse(path.read_text(encoding="utf-8"))
 print("[SMOKE][HOST][PASS] v1.18.1 patched modules parse")
 
@@ -141,10 +142,7 @@ assert "Extracting schedule via 1min.ai gpt-4o" not in poll_src
 assert "from app.watchdog import heartbeat_pinger, mark_heartbeat, start_watchdog_thread" in poll_src
 assert "start_watchdog_thread(" in poll_src
 assert "mark_heartbeat()" in poll_src
-assert "EA_BRIEF_COMMAND_MIN_INTERVAL_SEC" in poll_src
-assert "def _brief_command_throttled(" in poll_src
-assert "def _brief_enter(" in poll_src
-assert "def _brief_exit(" in poll_src
+assert "from app.brief_commands import brief_command_throttled as _brief_command_throttled, brief_enter as _brief_enter, brief_exit as _brief_exit" in poll_src
 print("[SMOKE][HOST][PASS] /vrief alias + ':' command normalization wired")
 
 watchdog_src = WATCHDOG.read_text(encoding="utf-8")
@@ -156,6 +154,14 @@ assert "EA_SENTINEL_STARTUP_GRACE_SEC" in watchdog_src
 assert "EA_SENTINEL_EXIT_ON_STALL" in watchdog_src
 assert "threading.Thread(" in watchdog_src and "target=_watchdog_loop" in watchdog_src
 print("[SMOKE][HOST][PASS] sentinel watchdog module wiring")
+
+brief_cmd_src = BRIEF_COMMANDS.read_text(encoding="utf-8")
+assert "EA_BRIEF_COMMAND_MIN_INTERVAL_SEC" in brief_cmd_src
+assert "def brief_command_throttled(" in brief_cmd_src
+assert "def brief_enter(" in brief_cmd_src
+assert "def brief_exit(" in brief_cmd_src
+assert ".brief_last_command.json" in brief_cmd_src
+print("[SMOKE][HOST][PASS] brief command guard module wiring")
 
 briefings_src = (APP / "briefings.py").read_text(encoding="utf-8")
 assert "urllib.request.urlopen = _monkey_urlopen" not in briefings_src
