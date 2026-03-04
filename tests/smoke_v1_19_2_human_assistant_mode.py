@@ -37,8 +37,11 @@ def test_briefing_uses_multi_dossier_compose() -> None:
 
 def test_briefing_diagnostics_not_appended_to_chat() -> None:
     src = (ROOT / "ea/app/briefings.py").read_text(encoding="utf-8")
+    poll_src = (ROOT / "ea/app/poll_listener.py").read_text(encoding="utf-8")
     assert "⚙️ Diagnostics:" not in src
     assert "def _emit_internal_diagnostics(" in src
+    assert "EA_RENDER_DIAGNOSTIC_TO_CHAT" not in poll_src
+    assert "⚙️ <b>OODA Diagnostic (Rendering):</b>" not in poll_src
     _pass("v1.19.2 diagnostics-to-chat disabled")
 
 

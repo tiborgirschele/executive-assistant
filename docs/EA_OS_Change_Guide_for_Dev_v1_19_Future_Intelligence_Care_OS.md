@@ -256,6 +256,18 @@ optional design direction.
   - `scripts/docker_e2e_design_workflows.sh`
   - `.github/workflows/release-gates.yml`
 
+21. v1.19.2 poll-listener chat-assist extraction
+- Added `ea/app/chat_assist.py`:
+  - `ask_llm_text(...)`
+  - `humanize_agent_report(...)`
+- `ea/app/poll_listener.py` now imports chat-assist helpers instead of owning
+  LLM-assist glue and provider-error humanization inline.
+- Updated contract smokes to reflect extracted ownership while preserving
+  contract invariants:
+  - `tests/smoke_v1_12_7_contract_freeze.py`
+  - `tests/smoke_v1_19_1_llm_gateway_boundary.py`
+  - `tests/smoke_v1_19_2_human_assistant_mode.py`
+
 ## Rollout checklist
 
 1. Host gate:

@@ -81,7 +81,9 @@ def _env_flag(name: str, default: bool = False) -> bool:
 
 
 def _briefing_diagnostics_enabled() -> bool:
-    return _env_flag("EA_BRIEFING_DIAGNOSTIC_TO_CHAT", False)
+    # v1.19.3 hard boundary: diagnostics are never user-surface content.
+    # Keep this helper for backwards-compatibility with old call sites/tests.
+    return False
 
 
 def _emit_internal_diagnostics(diag_logs: list[str]) -> None:
@@ -89,8 +91,6 @@ def _emit_internal_diagnostics(diag_logs: list[str]) -> None:
     Keep diagnostics in logs only. Do not append internals to Telegram briefing text.
     """
     if not diag_logs:
-        return
-    if not _briefing_diagnostics_enabled():
         return
     try:
         joined = "\n".join(str(x) for x in diag_logs if str(x).strip())

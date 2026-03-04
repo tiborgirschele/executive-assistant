@@ -239,7 +239,8 @@ def test_critical_commitment_lane_wiring() -> None:
     assert "<b>Immediate Action:</b>" in brief_src
     assert "No additional inbox-critical items after deterministic critical scan." in brief_src
     assert "No immediate action blocks detected right now." in brief_src
-    assert "EA_BRIEFING_DIAGNOSTIC_TO_CHAT" in brief_src
+    assert "def _emit_internal_diagnostics(" in brief_src
+    assert "⚙️ Diagnostics:" not in brief_src
     assert "Fatal Briefing Error" not in brief_src
     _print_pass("test_critical_commitment_lane_wiring")
 
