@@ -5,6 +5,7 @@ Baseline commit: 476141f
 
 ## Purpose
 This guide starts from the post-ingress-fix runtime and captures the hardening patchset needed for guarded rollout.
+For next-wave architecture, see `docs/EA_OS_Design_v1_13_Profile_Intelligence_Core.md`.
 
 ## What changed in this wave
 

@@ -14,9 +14,10 @@ Consolidation before expansion:
 - Freeze LLM gateway, repair, Telegram safety boundaries.
 - Separate scheduler, poller, and interaction responsibilities.
 
-### Phase 1: v1.13 Actionable Briefings
-- Move briefing items from read-only toward typed draft/stage actions.
-- Keep execution bounded and approval-aware.
+### Phase 1: v1.13 Profile Intelligence Core
+- Build layered person profiles (stable, situational, learned, confidence).
+- Introduce dossier contracts and deterministic critical-action lane before normal compose.
+- Keep person profiles isolated and enforce household graph sharing policies explicitly.
 
 ### Phase 2: v1.14 Trust + Epics
 - Introduce long-running thread/epic objects.
@@ -38,4 +39,3 @@ Consolidation before expansion:
 ## Execution Rule
 No new feature wave ships without an explicit contract owner and smoke test
 coverage for boundary invariants.
-

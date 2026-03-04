@@ -188,6 +188,10 @@ def test_critical_commitment_lane_wiring() -> None:
     brief_src = (EA_ROOT / "app/briefings.py").read_text(encoding="utf-8")
     assert "def _scan_critical_commitments(" in brief_src
     assert "def _runtime_confidence_note(" in brief_src
+    assert "from app.intelligence.profile import build_profile_context" in brief_src
+    assert "from app.intelligence.dossiers import build_trip_dossier" in brief_src
+    assert "from app.intelligence.critical_lane import build_critical_actions" in brief_src
+    assert "build_critical_actions(profile_ctx, [trip_dossier])" in brief_src
     assert "<b>Immediate Action:</b>" in brief_src
     assert "No additional inbox-critical items after deterministic critical scan." in brief_src
     assert "EA_BRIEFING_DIAGNOSTIC_TO_CHAT" in brief_src

@@ -9,6 +9,9 @@ from app.calendar_store import list_events_range
 from app.contracts.llm_gateway import ask_text as gateway_ask_text
 from app.contracts.repair import open_repair_incident
 from app.contracts.telegram import sanitize_incident_copy
+from app.intelligence.profile import build_profile_context
+from app.intelligence.dossiers import build_trip_dossier
+from app.intelligence.critical_lane import build_critical_actions
 
 def _sanitize_telegram_html(text: str) -> str:
     return str(text).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
@@ -460,8 +463,19 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
         except Exception as e:
             diag_logs.append(f"⚠️ Local calendar fallback error: {str(e)[:40]}")
 
-    critical = _scan_critical_commitments(clean_mails, clean_cal)
     confidence_note = _runtime_confidence_note()
+    profile_ctx = build_profile_context(
+        tenant=str(t_key),
+        person_id=str(t_account or t_key),
+        timezone_name=str(getattr(settings, "tz", "UTC") or "UTC"),
+        runtime_confidence_note=confidence_note,
+        mode="standard_morning_briefing",
+    )
+    trip_dossier = build_trip_dossier(
+        mails=list(clean_mails),
+        calendar_events=list(clean_cal),
+    )
+    critical = build_critical_actions(profile_ctx, [trip_dossier])
 
     prompt = f'You are an elite, ruthless Executive Assistant. I demand extreme noise reduction. NO BULLSHIT.\nCRITICAL CULLING RULES:\n1. THE PURGE: You MUST completely delete ALL package delivery updates, shipping notices, order confirmations, and standard payment receipts from the JSON. ERASE THEM ENTIRELY.\n2. EXCEPTION: You MAY include a package/delivery alert ONLY IF it is a FAILURE or requires manual pickup.\n3. CHURCHILL TONE: For the critical emails that remain, state brutally and concisely WHY it requires action in 1 sentence.\n4. CALENDARS: Format ALL events provided into a clean schedule. Group them cleanly by Day/Date. YOU MUST INCLUDE EVENTS FROM THIS MORNING.\n\nDATA:\nMails: {json.dumps(clean_mails, ensure_ascii=False)}\nCalendars: {json.dumps(clean_cal, ensure_ascii=False)}\n\nReturn ONLY valid JSON matching this schema:\n{{\n  "emails": [{{"sender": "Sender", "subject": "Subject", "churchill_action": "1 sentence: What must I do?", "action_button": "Short Command"}}],\n  "calendar_summary": "Clean, bulleted timeline of the schedule across all calendars, grouped by date."\n}}'
     out = await call_llm(prompt)
@@ -476,15 +490,17 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
             raise ValueError('No valid JSON found in LLM response.')
         loops_txt, loop_btns = OpenLoops.get_dashboard(t_key)
         html_out = '🎩 <b>Executive Action Briefing</b>\n\n'
-        immediate_actions = []
-        if confidence_note:
-            immediate_actions.append(str(confidence_note))
-        immediate_actions.extend([str(x) for x in (critical.get('actions') or []) if str(x).strip()])
+        immediate_actions = [str(x) for x in critical.actions if str(x).strip()]
         if immediate_actions:
             html_out += '<b>Immediate Action:</b>\n'
             for a in immediate_actions[:4]:
                 html_out += f'• {_sanitize_telegram_html(a)}\n'
-            ev = [str(x) for x in (critical.get('evidence') or []) if str(x).strip()]
+            if critical.exposure_score or critical.decision_window_score:
+                html_out += (
+                    f"<i>Exposure/Decision score:</i> "
+                    f"{int(critical.exposure_score)}/{int(critical.decision_window_score)}\n"
+                )
+            ev = [str(x) for x in critical.evidence if str(x).strip()]
             if ev:
                 html_out += f"<i>Signal source:</i> {_sanitize_telegram_html(' | '.join(ev[:2]))}\n"
             html_out += '\n'
@@ -505,7 +521,7 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
                         seen_btns.add(btn_lower)
                         options.append(btn)
         else:
-            if critical.get('actions'):
+            if critical.actions:
                 html_out += '<i>No additional inbox-critical items after deterministic critical scan.</i>\n\n'
             elif confidence_note:
                 html_out += '<i>Standard scan found no urgent items, but runtime confidence is reduced.</i>\n\n'
