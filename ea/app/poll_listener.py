@@ -21,6 +21,7 @@ from app.repair.healer import system_health_snapshot
 from app.policy.household import gate_household_document_action
 from app.intake.survey_planner import plan_article_preference_survey, plan_briefing_feedback_survey
 from app.intake.calendar_import_result import build_calendar_import_response
+from app.intake.calendar_events import normalize_extracted_calendar_events
 from app.contracts.llm_gateway import ask_text as gateway_ask_text
 from app.contracts.repair import open_repair_incident
 LAST_HEARTBEAT = time.time()
@@ -919,7 +920,15 @@ async def handle_callback(cb):
             persisted = 0
             persist_status = "not_attempted"
             persist_err = ""
-            for ev in cal_data['events']:
+            events_for_import = normalize_extracted_calendar_events(cal_data.get('events') or [])
+            if not events_for_import:
+                await tg.send_message(
+                    chat_id,
+                    '⚠️ <b>Calendar Import Failed.</b>\nNo valid event timestamps were found in this request.',
+                    parse_mode='HTML',
+                )
+                return
+            for ev in events_for_import:
                 try:
                     await safe_gog(t_openclaw, ['calendar', 'events', 'add', str(ev.get('title', '')), '--start', str(ev.get('start', '')), '--end', str(ev.get('end', '')), '--location', str(ev.get('location', '')), '--calendar', 'Executive Assistant'], t_account, timeout=10.0)
                     imported += 1
@@ -947,7 +956,7 @@ async def handle_callback(cb):
                 except Exception as e:
                     persist_status = "failed"
                     persist_err = str(e)[:120]
-            total = len(cal_data.get('events') or [])
+            total = len(events_for_import)
             response = build_calendar_import_response(
                 imported=imported,
                 total=total,
@@ -1100,7 +1109,7 @@ async def handle_intent(chat_id: int, msg: dict):
                     extract_calendar_from_image(img_bytes, 'image/jpeg'),
                     timeout=max(10.0, vision_timeout_sec),
                 )
-                events = extracted.get('events', [])
+                events = normalize_extracted_calendar_events(extracted.get('events') or [])
                 if not events:
                     return await tg.edit_message_text(chat_id, res['message_id'], '⚠️ No calendar events detected.')
                 lines = []

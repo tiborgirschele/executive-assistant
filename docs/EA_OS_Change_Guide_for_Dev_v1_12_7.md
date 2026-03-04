@@ -71,6 +71,11 @@ For next-wave architecture, see `docs/EA_OS_Design_v1_13_Profile_Intelligence_Co
 - Added bounded timeout around calendar vision extraction in `poll_listener` via `asyncio.wait_for`.
 - On timeout, users get an explicit retry hint instead of a long silent wait.
 
+10. Calendar event normalization before preview/import
+- Added `ea/app/intake/calendar_events.py::normalize_extracted_calendar_events()`.
+- Calendar OCR results are now normalized (drop invalid rows, infer missing/invalid end timestamp, stable ordering) before Open Loops preview and before `exec_cal:*` remote/local import execution.
+- `exec_cal:*` now fails fast with a clear message when no valid event timestamps remain after normalization.
+
 ## New/updated tests
 - `tests/e2e_browseract_http_to_ready_asset.py` (new)
 - `tests/e2e_browseract_http_ingress.py` (updated)
@@ -78,6 +83,7 @@ For next-wave architecture, see `docs/EA_OS_Design_v1_13_Profile_Intelligence_Co
 - `tests/smoke_v1_12_6.py` (new day-context quality test)
 - `tests/smoke_sentinel_user_message.py` (sentinel copy/throttle contract)
 - `tests/smoke_calendar_import_result.py` (calendar import outcome contract)
+- `tests/smoke_calendar_event_normalization.py` (calendar event normalization contract)
 - `tests/smoke_calendar_preview_html_safety.py` (calendar preview HTML sanitization contract)
 - `tests/smoke_outbox_entity_fallback.py` (sendVideo branch guard)
 
