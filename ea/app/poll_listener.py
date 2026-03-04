@@ -110,7 +110,13 @@ def _incident_ref(prefix: str = "EA") -> str:
 
 
 async def _ask_llm_text(prompt: str) -> str:
-    return await asyncio.to_thread(gateway_ask_text, str(prompt))
+    return await asyncio.to_thread(
+        gateway_ask_text,
+        str(prompt),
+        task_type="profile_summary",
+        purpose="chat_assist",
+        data_class="derived_summary",
+    )
 
 
 def _create_briefing_delivery_session(chat_id: int, *, status: str = "pending") -> int | None:

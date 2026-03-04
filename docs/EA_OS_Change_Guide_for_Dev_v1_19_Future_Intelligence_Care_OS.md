@@ -105,6 +105,11 @@ optional design direction.
   - bounded output-size clamp,
   - egress audit metadata logging (purpose/task/correlation/data-class/verdict),
   - safe fallback copy on provider-call failures.
+- Updated main gateway call sites to pass explicit policy metadata instead of
+  relying on env defaults:
+  - briefing compose calls use `task_type="briefing_compose"`
+  - interactive chat-assist calls use `task_type="profile_summary"`
+  - coaching JSON resolver uses `task_type="operator_only"` + `allow_json=True`
 - New env knobs:
   - `EA_LLM_GATEWAY_MAX_PROMPT_CHARS`
   - `EA_LLM_GATEWAY_MAX_SYSTEM_PROMPT_CHARS`

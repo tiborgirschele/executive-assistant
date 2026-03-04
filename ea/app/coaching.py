@@ -21,7 +21,14 @@ async def resolve_person_role(tenant: str, name: str) -> dict:
     
     prompt = f"SYSTEM RULE: You are a role resolver. Who is '{name}' in the context of Austrian business/Industriellenvereinigung (IV)? Return STRICT JSON: {{\"role\": \"...\", \"org\": \"...\"}}. If unknown, return nulls."
     try:
-        res = await asyncio.to_thread(gateway_ask_text, prompt)
+        res = await asyncio.to_thread(
+            gateway_ask_text,
+            prompt,
+            task_type="operator_only",
+            purpose="coaching_role_resolver",
+            data_class="derived_summary",
+            allow_json=True,
+        )
         res = res.replace("```json", "").replace("```", "").strip()
         data = json.loads(res)
         
@@ -39,7 +46,13 @@ async def generate_coach_annex(tenant: str, event: dict) -> str:
     title = event.get("summary", "")
     desc = event.get("description", "")
     
-    name = await asyncio.to_thread(gateway_ask_text, f"Extract ONLY the full name of the coaching counterpart from this event. Event: {title} {desc}")
+    name = await asyncio.to_thread(
+        gateway_ask_text,
+        f"Extract ONLY the full name of the coaching counterpart from this event. Event: {title} {desc}",
+        task_type="profile_summary",
+        purpose="coaching_name_extract",
+        data_class="derived_summary",
+    )
     name = name.replace("```", "").strip()
     if not name or len(name) > 50: name = "Counterpart"
         
@@ -59,4 +72,10 @@ Format in Telegram Markdown:
 - ❓ 3 Coaching-Fragen: (Open useful angles)
 - ⚠️ Watch-out: (Tone guidance)
 """
-    return await asyncio.to_thread(gateway_ask_text, brief_prompt)
+    return await asyncio.to_thread(
+        gateway_ask_text,
+        brief_prompt,
+        task_type="profile_summary",
+        purpose="coaching_annex_compose",
+        data_class="derived_summary",
+    )

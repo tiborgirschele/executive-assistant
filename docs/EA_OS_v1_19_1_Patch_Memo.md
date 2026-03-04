@@ -136,6 +136,10 @@ Behavior:
   - correlation_id
   - data_class
   - verdict
+- primary call sites now pass explicit task metadata:
+  - briefing compose: `task_type=briefing_compose`
+  - chat-assist in poll listener: `task_type=profile_summary`
+  - coaching role resolver JSON path: `task_type=operator_only` + `allow_json=true`
 - safe fallback copy on model call failures and blocked tool-like outputs.
 
 ### G. Human-assistant compose mode (minus drama)

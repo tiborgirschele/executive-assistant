@@ -168,7 +168,13 @@ async def safe_gog(container, cmd, account, timeout=20.0):
         raise TimeoutError(f'CLI hung on command: {' '.join(cmd[:3])}')
 
 async def call_powerful_llm(prompt: str, temp=0.1) -> str:
-    return await asyncio.to_thread(gateway_ask_text, str(prompt))
+    return await asyncio.to_thread(
+        gateway_ask_text,
+        str(prompt),
+        task_type="briefing_compose",
+        purpose="briefing_compose",
+        data_class="derived_summary",
+    )
 
 async def call_llm(prompt: str, temp=0.1) -> str:
     return await call_powerful_llm(prompt, temp=temp)
@@ -625,7 +631,13 @@ async def call_llm_async(prompt, *args, **kwargs):
             await asyncio.sleep(2.0)
     hb_task = asyncio.create_task(_heartbeat())
     try:
-        return await asyncio.to_thread(gateway_ask_text, str(prompt))
+        return await asyncio.to_thread(
+            gateway_ask_text,
+            str(prompt),
+            task_type="briefing_compose",
+            purpose="briefing_compose",
+            data_class="derived_summary",
+        )
     finally:
         hb_task.cancel()
 call_llm = call_llm_async

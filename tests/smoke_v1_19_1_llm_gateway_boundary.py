@@ -176,6 +176,20 @@ def test_llm_gateway_writes_egress_audit_metadata() -> None:
     _pass("v1.19.1 llm gateway egress audit")
 
 
+def test_llm_gateway_callsite_task_type_wiring() -> None:
+    brief_src = (ROOT / "ea/app/briefings.py").read_text(encoding="utf-8")
+    poll_src = (ROOT / "ea/app/poll_listener.py").read_text(encoding="utf-8")
+    coaching_src = (ROOT / "ea/app/coaching.py").read_text(encoding="utf-8")
+
+    assert 'task_type="briefing_compose"' in brief_src
+    assert 'purpose="briefing_compose"' in brief_src
+    assert 'task_type="profile_summary"' in poll_src
+    assert 'purpose="chat_assist"' in poll_src
+    assert 'task_type="operator_only"' in coaching_src
+    assert "allow_json=True" in coaching_src
+    _pass("v1.19.1 llm gateway callsite policy wiring")
+
+
 if __name__ == "__main__":
     test_llm_gateway_contract_symbols()
     test_llm_gateway_redacts_and_clamps_prompt()
@@ -183,3 +197,4 @@ if __name__ == "__main__":
     test_llm_gateway_blocks_json_for_user_surface_tasks()
     test_llm_gateway_blocks_raw_document_payload_by_default()
     test_llm_gateway_writes_egress_audit_metadata()
+    test_llm_gateway_callsite_task_type_wiring()
