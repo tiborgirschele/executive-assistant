@@ -98,7 +98,14 @@ record_step "health_check" "pass" "$((end_ms - start_ms))"
 echo "== Docker E2E: runtime alignment smoke =="
 run_step "smoke_runtime_alignment" python3 tests/smoke_v1_18_1_runtime_alignment.py
 run_step "smoke_v1_12_6_avomap" python3 tests/smoke_v1_12_6.py
+run_step "smoke_v1_12_7_contract_freeze" python3 tests/smoke_v1_12_7_contract_freeze.py
+run_step "smoke_v1_13" python3 tests/smoke_v1_13.py
 run_step "smoke_v1_13_future_intelligence_pack" python3 tests/smoke_v1_13_future_intelligence_pack.py
+run_step "smoke_v1_14" python3 tests/smoke_v1_14.py
+run_step "smoke_v1_15" python3 tests/smoke_v1_15.py
+run_step "smoke_v1_16" python3 tests/smoke_v1_16.py
+run_step "smoke_v1_17" python3 tests/smoke_v1_17.py
+run_step "smoke_v1_18" python3 tests/smoke_v1_18.py
 
 echo "== Docker E2E: newspaper integration smokes =="
 run_step "smoke_newspaper_issue_pipeline" python3 tests/smoke_newspaper_issue_pipeline.py
