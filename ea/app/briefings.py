@@ -12,6 +12,13 @@ from app.contracts.telegram import sanitize_incident_copy
 from app.intelligence.profile import build_profile_context
 from app.intelligence.dossiers import build_trip_dossier
 from app.intelligence.critical_lane import build_critical_actions
+from app.intelligence.epics import (
+    build_epics_from_dossiers,
+    load_epic_snapshot,
+    rank_epics,
+    save_epic_snapshot,
+    summarize_epic_deltas,
+)
 from app.intelligence.household_graph import build_household_graph, ensure_profile_isolation
 from app.intelligence.modes import mode_label, select_briefing_mode
 
@@ -328,6 +335,16 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
     )
     critical = build_critical_actions(profile_ctx, [trip_dossier])
     compose_mode = select_briefing_mode(profile_ctx, [trip_dossier], critical)
+    epics = build_epics_from_dossiers(profile_ctx, [trip_dossier])
+    safe_tenant = re.sub(r"[^a-zA-Z0-9_.-]", "_", str(t_key or "tenant"))
+    epic_snapshot_path = os.path.join(
+        os.getenv("EA_ATTACHMENTS_DIR", "/attachments"),
+        f".briefing_epics_{safe_tenant}.json",
+    )
+    previous_epics = load_epic_snapshot(epic_snapshot_path)
+    epic_deltas = summarize_epic_deltas(previous_epics, epics)
+    save_epic_snapshot(epic_snapshot_path, epics)
+    compose_mode = select_briefing_mode(profile_ctx, [trip_dossier], critical, epics=epics)
 
     prompt = f'You are an elite, ruthless Executive Assistant. I demand extreme noise reduction. NO BULLSHIT.\nCRITICAL CULLING RULES:\n1. THE PURGE: You MUST completely delete ALL package delivery updates, shipping notices, order confirmations, and standard payment receipts from the JSON. ERASE THEM ENTIRELY.\n2. EXCEPTION: You MAY include a package/delivery alert ONLY IF it is a FAILURE or requires manual pickup.\n3. CHURCHILL TONE: For the critical emails that remain, state brutally and concisely WHY it requires action in 1 sentence.\n4. CALENDARS: Format ALL events provided into a clean schedule. Group them cleanly by Day/Date. YOU MUST INCLUDE EVENTS FROM THIS MORNING.\n\nDATA:\nMails: {json.dumps(clean_mails, ensure_ascii=False)}\nCalendars: {json.dumps(clean_cal, ensure_ascii=False)}\n\nReturn ONLY valid JSON matching this schema:\n{{\n  "emails": [{{"sender": "Sender", "subject": "Subject", "churchill_action": "1 sentence: What must I do?", "action_button": "Short Command"}}],\n  "calendar_summary": "Clean, bulleted timeline of the schedule across all calendars, grouped by date."\n}}'
     out = await call_llm(prompt)
@@ -356,6 +373,25 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
             ev = [str(x) for x in critical.evidence if str(x).strip()]
             if ev:
                 html_out += f"<i>Signal source:</i> {_sanitize_telegram_html(' | '.join(ev[:2]))}\n"
+            html_out += '\n'
+        ranked_epics = rank_epics(epics)
+        if ranked_epics:
+            html_out += '<b>Active Epics:</b>\n'
+            for epic in ranked_epics[:3]:
+                title = _sanitize_telegram_html(str(epic.title or "Epic"))
+                status = _sanitize_telegram_html(str(epic.status or "watch"))
+                summary = _sanitize_telegram_html(str(epic.summary or ""))
+                html_out += (
+                    f"• <b>{title}</b> ({status})"
+                    f" | salience {int(epic.salience)} | open {int(epic.unresolved_count)}\n"
+                )
+                if summary:
+                    html_out += f"  └ <i>{summary}</i>\n"
+            html_out += '\n'
+        if epic_deltas:
+            html_out += '<b>Epic Deltas:</b>\n'
+            for line in list(epic_deltas)[:3]:
+                html_out += f"• {_sanitize_telegram_html(str(line))}\n"
             html_out += '\n'
         html_out += loops_txt
         options = []

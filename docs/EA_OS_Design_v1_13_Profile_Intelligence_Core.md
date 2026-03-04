@@ -77,5 +77,5 @@ exposure if no deterministic critical lane exists.
 ## Next Steps
 1. Add household graph contract and ownership resolution boundaries.
 2. Add dossier registry (trip/health/finance/project) with typed builders.
-3. Add epic-link contract so dossiers feed long-running narrative threads.
+3. Add epic-link contract so dossiers feed long-running narrative threads. (Delivered in v1.14 contract layer.)
 4. Add action typing layer on top of critical lane outputs.

@@ -22,6 +22,8 @@ Consolidation before expansion:
 ### Phase 2: v1.14 Trust + Epics
 - Introduce long-running thread/epic objects.
 - Strengthen replay/dead-letter/trust flows.
+- Add deterministic epic ranking + delta summaries in briefing compose.
+- Track unresolved epic state and include epic salience in mode selection.
 
 ### Phase 3: v1.15 Document Intelligence
 - Safe retrieval packs and ownership-aware document signals.

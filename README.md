@@ -39,6 +39,7 @@ Gate reports are written to `logs/gates/*.json` and uploaded by CI.
 
 - Contract stabilization baseline: `docs/v1_12_7_contract_freeze.md`
 - v1.13 profile intelligence core: `docs/EA_OS_Design_v1_13_Profile_Intelligence_Core.md`
+- v1.14 epics and trust: `docs/EA_OS_Design_v1_14_Epics_and_Trust.md`
 - Product roadmap: `docs/ea_os_design_roadmap_v2026.md`
 - Change guide (this rollout state): `docs/EA_OS_Change_Guide_for_Dev_v1_12_7.md`
 
