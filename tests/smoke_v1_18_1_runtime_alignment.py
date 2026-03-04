@@ -19,6 +19,7 @@ EVENT_WORKER = APP / "workers/event_worker.py"
 BROWSERACT = APP / "intake/browseract.py"
 NORMALIZER = APP / "approvals/normalizer.py"
 POLL_LISTENER = APP / "poll_listener.py"
+CALLBACK_COMMANDS = APP / "callback_commands.py"
 WATCHDOG = APP / "watchdog.py"
 BRIEF_COMMANDS = APP / "brief_commands.py"
 UPDATE_ROUTER = APP / "update_router.py"
@@ -26,7 +27,7 @@ OFFSET_STORE = APP / "offset_store.py"
 TG_SAFETY = APP / "telegram/safety.py"
 SCHEMA = ROOT / "ea/schema/20260303_v1_18_1_runtime_alignment.sql"
 
-for path in (SETTINGS, MAIN, RUNNER, DB, SERVER, OUTBOX_ROLE, POLLER_ROLE, QUEUE, EVENT_WORKER, BROWSERACT, NORMALIZER, POLL_LISTENER, WATCHDOG, BRIEF_COMMANDS, UPDATE_ROUTER, OFFSET_STORE, TG_SAFETY):
+for path in (SETTINGS, MAIN, RUNNER, DB, SERVER, OUTBOX_ROLE, POLLER_ROLE, QUEUE, EVENT_WORKER, BROWSERACT, NORMALIZER, POLL_LISTENER, CALLBACK_COMMANDS, WATCHDOG, BRIEF_COMMANDS, UPDATE_ROUTER, OFFSET_STORE, TG_SAFETY):
     ast.parse(path.read_text(encoding="utf-8"))
 print("[SMOKE][HOST][PASS] v1.18.1 patched modules parse")
 
@@ -126,13 +127,15 @@ assert "INTERVAL '1 second'" in queue_src
 print("[SMOKE][HOST][PASS] outbox retry SQL uses safe interval arithmetic")
 
 poll_src = POLL_LISTENER.read_text(encoding="utf-8")
+cb_src = CALLBACK_COMMANDS.read_text(encoding="utf-8")
 assert "cmd_aliases" in poll_src
 assert "'/vrief': '/brief'" in poll_src
 assert ".rstrip(':')" in poll_src
 assert "from app.intake.calendar_import_result import build_calendar_import_response" in poll_src
 assert "from app.intake.calendar_events import normalize_extracted_calendar_events" in poll_src
-assert "build_calendar_import_response(" in poll_src
-assert "normalize_extracted_calendar_events(" in poll_src
+assert "from app.callback_commands import handle_callback_command as _handle_callback_command" in poll_src
+assert "build_calendar_import_response(" in cb_src
+assert "normalize_extracted_calendar_events(" in cb_src
 assert "EA_CALENDAR_VISION_TIMEOUT_SEC" in poll_src
 assert "EA_CALENDAR_VISION_PROGRESS_SEC" in poll_src
 assert "extract_calendar_from_image(img_bytes, 'image/jpeg')" in poll_src

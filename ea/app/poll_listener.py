@@ -46,6 +46,7 @@ from app.brief_runtime import run_brief_command as _run_brief_command
 from app.offset_store import atomic_write_offset, read_offset
 from app.watchdog import heartbeat_pinger, mark_heartbeat, start_watchdog_thread
 from app.update_router import route_update
+from app.callback_commands import handle_callback_command as _handle_callback_command
 
 
 start_watchdog_thread(
@@ -224,167 +225,13 @@ async def trigger_auth_flow(chat_id: int, email: str, t: dict, scopes: str=''):
         await tg.edit_message_text(chat_id, res['message_id'], f'⚠️ <b>Auth Error.</b>\nReference: <code>{ref}</code>', parse_mode='HTML')
 
 async def handle_callback(cb):
-    chat_id = cb.get('message', {}).get('chat', {}).get('id')
-    tenant_name, t = await check_security(chat_id)
-    if not t:
-        return await tg.answer_callback_query(cb['id'], text='Unauthorized.', show_alert=True)
-    if cb['data'] == 'cmd_auth_custom':
-        await tg.answer_callback_query(cb['id'])
-        return await tg.send_message(chat_id, 'Type: <code>/auth your.email@gmail.com</code>', parse_mode='HTML')
-    if cb['data'].startswith('auth_cb:'):
-        ctx_id = cb['data'].split(':')[1]
-        payload = get_button_context(ctx_id)
-        try:
-            await tg.edit_message_reply_markup(chat_id, cb['message']['message_id'], reply_markup={'inline_keyboard': []})
-        except:
-            pass
-        if not payload:
-            return await tg.send_message(chat_id, '⚠️ Auth session expired. Please type /auth again.')
-        try:
-            scope_type, email = payload.split('|', 1)
-        except ValueError:
-            return await tg.send_message(chat_id, '⚠️ Invalid auth payload.')
-        if scope_type == 'cancel':
-            AUTH_SESSIONS.clear(chat_id)
-            return await tg.send_message(chat_id, '🛑 Auth cancelled.')
-        await trigger_auth_flow(chat_id, email, t, scopes=scope_type)
-        return
-    if cb['data'] == 'clear_shopping':
-        OpenLoops.clear_shopping(tenant_name)
-        try:
-            await tg.edit_message_reply_markup(chat_id, cb['message']['message_id'], reply_markup={'inline_keyboard': []})
-        except:
-            pass
-        return await tg.send_message(chat_id, '✅ <b>Shopping List marked as Done.</b>', parse_mode='HTML')
-    if cb['data'].startswith('mark_paid:'):
-        OpenLoops.remove_payment(tenant_name, cb['data'].split(':')[1])
-        try:
-            await tg.edit_message_reply_markup(chat_id, cb['message']['message_id'], reply_markup={'inline_keyboard': []})
-        except:
-            pass
-        return await tg.send_message(chat_id, '✅ <b>Rechnung als bezahlt markiert.</b>', parse_mode='HTML')
-    if cb['data'].startswith('drop_pay:'):
-        OpenLoops.remove_payment(tenant_name, cb['data'].split(':')[1])
-        try:
-            await tg.edit_message_reply_markup(chat_id, cb['message']['message_id'], reply_markup={'inline_keyboard': []})
-        except:
-            pass
-        return await tg.send_message(chat_id, '🗑️ <b>Zahlungs-Loop gelöscht.</b>', parse_mode='HTML')
-    if cb['data'].startswith('exec_cal:'):
-        cid = cb['data'].split(':')[1]
-        cal_data = OpenLoops.get_calendar(tenant_name, cid)
-        if cal_data:
-            OpenLoops.remove_calendar(tenant_name, cid)
-            try:
-                await tg.edit_message_reply_markup(chat_id, cb['message']['message_id'], reply_markup={'inline_keyboard': []})
-            except:
-                pass
-            from app.briefings import safe_gog
-            from app.calendar_store import create_import, commit_import
-            t_openclaw = get_val(t, 'openclaw_container', '')
-            t_account = get_val(t, 'google_account', '')
-            imported = 0
-            failed = 0
-            normalized_events = []
-            persisted = 0
-            persist_status = "not_attempted"
-            persist_err = ""
-            events_for_import = normalize_extracted_calendar_events(cal_data.get('events') or [])
-            if not events_for_import:
-                await tg.send_message(
-                    chat_id,
-                    '⚠️ <b>Calendar Import Failed.</b>\nNo valid event timestamps were found in this request.',
-                    parse_mode='HTML',
-                )
-                return
-            for ev in events_for_import:
-                try:
-                    await safe_gog(t_openclaw, ['calendar', 'events', 'add', str(ev.get('title', '')), '--start', str(ev.get('start', '')), '--end', str(ev.get('end', '')), '--location', str(ev.get('location', '')), '--calendar', 'Executive Assistant'], t_account, timeout=10.0)
-                    imported += 1
-                    normalized_events.append({
-                        "title": str(ev.get("title", "")),
-                        "start_ts": str(ev.get("start", "")),
-                        "end_ts": str(ev.get("end", "")),
-                        "location": str(ev.get("location", "")),
-                        "notes": "",
-                    })
-                except Exception:
-                    failed += 1
-            # Persist successful imports into local calendar store as a reliable fallback for briefing.
-            if normalized_events:
-                try:
-                    imp_id = create_import(
-                        tenant=tenant_name,
-                        source_type="telegram_image_import",
-                        source_id=f"exec_cal:{cid}",
-                        filename="open_loop_import",
-                        extracted={"normalized_events": normalized_events},
-                        preview="Imported via Open Loops execute",
-                    )
-                    persisted, persist_status = commit_import(tenant_name, imp_id)
-                except Exception as e:
-                    persist_status = "failed"
-                    persist_err = str(e)[:120]
-            total = len(events_for_import)
-            response = build_calendar_import_response(
-                imported=imported,
-                total=total,
-                persisted=persisted,
-                persist_status=persist_status,
-                failed=failed,
-                persist_err=persist_err,
-            )
-            await tg.send_message(chat_id, response.text, parse_mode=response.parse_mode)
-        return
-    if cb['data'].startswith('drop_cal:'):
-        cid = cb['data'].split(':')[1]
-        OpenLoops.remove_calendar(tenant_name, cid)
-        await tg.answer_callback_query(cb['id'], text='Import Dropped!')
-        try:
-            await tg.edit_message_reply_markup(chat_id, cb['message']['message_id'], reply_markup={'inline_keyboard': []})
-        except:
-            pass
-        return await tg.send_message(chat_id, '🛑 <b>Calendar Import Discarded.</b>', parse_mode='HTML')
-    if cb['data'].startswith('act:'):
-        action_id = cb['data'][4:]
-        rich_prompt = get_button_context(action_id)
-        if not rich_prompt:
-            return await tg.answer_callback_query(cb['id'], text='⚠️ Action expired.', show_alert=True)
-        btn_txt = 'Task'
-        for row in cb.get('message', {}).get('reply_markup', {}).get('inline_keyboard', []):
-            for btn in row:
-                if btn.get('callback_data') == cb.get('data'):
-                    btn_txt = btn.get('text', 'Task')
-        try:
-            await tg.edit_message_reply_markup(chat_id, cb['message']['message_id'], reply_markup={'inline_keyboard': []})
-        except:
-            pass
-        await tg.answer_callback_query(cb['id'], text='Executing...')
-        clean_btn = btn_txt.replace('✅', '').replace('⚙️', '').replace('🎯', '').strip()
-        is_rejection = any((w in clean_btn.lower() for w in ['do not', 'no', 'cancel', 'stop', 'reject', 'abort', 'skip']))
-        if is_rejection:
-            enhanced_prompt = f'EXECUTE: {rich_prompt}\nCRITICAL UPDATE: The user REJECTED the previous proposal.'
-        else:
-            enhanced_prompt = f"EXECUTE: {rich_prompt}\nCRITICAL INSTRUCTIONS:\n1. Use google account '{get_val(t, 'google_account', '')}'."
-        res = await tg.send_message(chat_id, f'🚀 <b>Executing:</b> {clean_btn}...\n\n▶️ <b>Analyzing task requirements...</b>', parse_mode='HTML')
-
-        async def _ui_updater(msg):
-            try:
-                await tg.edit_message_text(chat_id, res['message_id'], f'🚀 <b>Executing:</b> {clean_btn}...\n\n▶️ <b>{msg[:80]}...</b>', parse_mode='HTML', disable_web_page_preview=True)
-            except:
-                pass
-        try:
-            report = await asyncio.wait_for(gog_scout(get_val(t, 'openclaw_container', ''), enhanced_prompt, get_val(t, 'google_account', ''), _ui_updater, task_name=f'Button: {clean_btn}'), timeout=240.0)
-            kb_dict = build_dynamic_ui(report, enhanced_prompt, save_ctx=save_button_context)
-            clean_rep = clean_html_for_telegram(re.sub('\\[OPTIONS:.*?\\]', '', _humanize_agent_report(report)).replace('[YES/NO]', ''))
-            if not clean_rep.strip() or clean_rep.strip() == '[]':
-                clean_rep = '✅ Task executed successfully!'
-            try:
-                await tg.edit_message_text(chat_id, res['message_id'], f'🎯 <b>Result:</b>\n\n{clean_rep[:3500]}', parse_mode='HTML', reply_markup=kb_dict)
-            except:
-                await tg.edit_message_text(chat_id, res['message_id'], f'🎯 <b>Result:</b>\n\n{_safe_err(clean_rep).strip()[:3500]}', reply_markup=kb_dict)
-        except Exception as task_err:
-            await tg.send_message(chat_id, f'❌ Task Failed: {_safe_err(task_err)}')
+    await _handle_callback_command(
+        tg=tg,
+        cb=cb,
+        check_security=check_security,
+        auth_sessions=AUTH_SESSIONS,
+        trigger_auth_flow=trigger_auth_flow,
+    )
 
 async def handle_intent(chat_id: int, msg: dict):
     try:
