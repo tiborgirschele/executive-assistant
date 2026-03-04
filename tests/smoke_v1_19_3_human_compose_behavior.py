@@ -44,7 +44,8 @@ def test_human_compose_degraded_confidence_no_false_all_clear() -> None:
     )
     lowered = html.lower()
     assert "no critical items require your immediate attention" not in lowered
-    assert "runtime confidence is reduced" in lowered
+    assert "urgent status may be incomplete" in lowered
+    assert "<i>mode:</i>" not in lowered
     assert "immediate action" not in lowered
     assert options == []
     _pass("v1.19.3 degraded confidence compose behavior")
@@ -87,7 +88,7 @@ def test_human_compose_prioritizes_non_travel_critical_actions() -> None:
     assert "<b>immediate action:</b>" in lowered
     assert "finance commitment deadline closes today" in lowered
     assert "project prep gap detected" in lowered
-    assert "risk urgency:" in lowered
+    assert "urgency:" in lowered
     assert "decision window:" in lowered
     _pass("v1.19.3 non-travel critical promotion behavior")
 
@@ -121,6 +122,7 @@ def test_human_compose_sanitizes_internal_terms() -> None:
     )
     assert "statuscode &lt;500&gt;" in html.lower()
     assert "traceback &lt;details&gt;" in html.lower()
+    assert "signal source:" not in html.lower()
     assert "⚙️ diagnostics" not in html.lower()
     _pass("v1.19.3 user-surface html escaping behavior")
 

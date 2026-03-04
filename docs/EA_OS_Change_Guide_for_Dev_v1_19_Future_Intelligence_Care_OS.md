@@ -479,6 +479,53 @@ optional design direction.
   - `scripts/docker_e2e.sh`
   - `.github/workflows/release-gates.yml`
 
+39. v1.19.3 skills registry + router baseline
+- Added `ea/app/skills/registry.py`:
+  - `SkillContract` dataclass
+  - `SKILL_REGISTRY` with initial `payments` skill contract
+  - `skill_or_raise(...)` and `list_skills(...)`
+- Added `ea/app/skills/router.py`:
+  - `dispatch_skill_operation(...)` for contract-based skill routing
+- Refactored `ea/app/skills/payments.py`:
+  - explicit operation entrypoint `run_operation(...)`
+  - structured status returns for draft generation and action handling
+- Added `tests/smoke_v1_19_3_skill_router.py` and wired it into all v1.19
+  release gates.
+
+40. v1.19.4 capability registry baseline (vendor adapters)
+- Added `ea/app/skills/capability_registry.py`:
+  - `CapabilityContract` dataclass
+  - `CAPABILITY_REGISTRY` with current sidecar/vendor inventory:
+    `apix_drive`, `oneair`, `prompting_systems`, `undetectable`,
+    `involve_me`, `ai_magicx`, `one_min_ai`, `avomap`, `metasurvey`,
+    `paperguide`, `vizologi`, `peekshot`, `approvethis`, `browseract`
+  - helpers:
+    - `capability_or_raise(...)`
+    - `list_capabilities(...)`
+    - `capabilities_for_task(...)`
+- Extended `ea/app/skills/registry.py`:
+  - each `SkillContract` now declares backing `capabilities`
+  - `list_skills(...)` returns capability metadata from the capability
+    registry.
+- Added gate `tests/smoke_v1_19_4_capability_registry.py` and wired it into:
+  - `scripts/run_v119_smoke.sh`
+  - `scripts/docker_e2e.sh`
+  - `.github/workflows/release-gates.yml`
+
+41. v1.19.4 human-compose tone tightening
+- Updated `ea/app/intelligence/human_compose.py`:
+  - removed mode banner from user chat
+  - replaced telemetry-oriented wording with calm user phrasing
+  - moved watch-items into explicit `What Can Wait` section
+  - preserved strict HTML escaping (`&`, `<`, `>`) and deterministic critical
+    action ordering.
+
+42. v1.19.4 design E2E lock/deadlock hardening
+- Updated `scripts/docker_e2e_design_workflows.sh` schema replay:
+  - added bounded retry logic for transient DB lock/deadlock errors
+    (`deadlock detected`, relation lock timeout/lock obtain failures)
+  - keeps hard-fail behavior for non-transient SQL failures.
+
 ## Rollout checklist
 
 1. Host gate:

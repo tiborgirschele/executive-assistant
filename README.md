@@ -4,6 +4,7 @@ EA OS is a Telegram-first assistant runtime with:
 - multi-service deployment roles (`ea-api`, `ea-poller`, `ea-worker`, `ea-outbox`, `ea-event-worker`, `ea-teable-sync`)
 - secured ingest/debug boundaries (`EA_INGEST_TOKEN`, `EA_OPERATOR_TOKEN`)
 - BrowserAct/MetaSurvey/AvoMap intake and sidecar wiring
+- capability + skill registries for controlled sidecar/tool routing
 - milestone-gated smoke + Docker E2E release checks from v1.12.x through v1.19.x
 
 This repo started as a patched deployment bundle, but current `main` is maintained as a staged assistant-OS codebase with explicit contract gates.

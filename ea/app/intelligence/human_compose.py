@@ -2,9 +2,6 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
-from app.intelligence.modes import mode_label
-
-
 def _sanitize_telegram_html(text: str) -> str:
     return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -52,7 +49,6 @@ def compose_briefing_html(
     confidence_note: str | None,
 ) -> tuple[str, list[str]]:
     html_out = "🎩 <b>Executive Action Briefing</b>\n\n"
-    html_out += f"<i>Mode:</i> {_sanitize_telegram_html(mode_label(compose_mode))}\n\n"
 
     immediate_actions = _iter_actions(getattr(critical, "actions", ()), limit=4)
     if immediate_actions:
@@ -63,7 +59,7 @@ def compose_briefing_html(
         decision_score = int(getattr(critical, "decision_window_score", 0) or 0)
         if exposure_score or decision_score:
             html_out += (
-                f"<i>Risk urgency:</i> {_sanitize_telegram_html(_score_band(exposure_score).title())} | "
+                f"<i>Urgency:</i> {_sanitize_telegram_html(_score_band(exposure_score).title())} | "
                 f"<i>Decision window:</i> {_sanitize_telegram_html(_decision_label(decision_score).title())}\n"
             )
         evidence = _iter_actions(getattr(critical, "evidence", ()), limit=2)
@@ -103,10 +99,13 @@ def compose_briefing_html(
     readiness_status = str(getattr(readiness, "status", "") or "watch").title()
     readiness_score = int(getattr(readiness, "score", 0) or 0)
     readiness_band = _score_band(readiness_score).title()
-    html_out += f"<b>Readiness:</b> {_sanitize_telegram_html(readiness_status)} ({_sanitize_telegram_html(readiness_band)})\n"
+    html_out += f"<b>Current State:</b> {_sanitize_telegram_html(readiness_status)} readiness ({_sanitize_telegram_html(readiness_band)})\n"
     watch_items = _iter_actions(getattr(readiness, "watch_items", ()), limit=2)
     if watch_items:
-        html_out += "<i>Watch for:</i> " + _sanitize_telegram_html(" | ".join(watch_items)) + "\n"
+        html_out += "<b>What Can Wait:</b>\n"
+        for watch in watch_items:
+            html_out += f"• {_sanitize_telegram_html(watch)}\n"
+    html_out += "\n"
 
     prep_actions = _iter_actions(getattr(prep_plan, "actions", ()), limit=4)
     if prep_actions:
@@ -140,9 +139,9 @@ def compose_briefing_html(
             options.append(btn)
     else:
         if immediate_actions:
-            html_out += "<i>No additional inbox-critical items after deterministic critical scan.</i>\n\n"
+            html_out += "<i>No additional high-priority inbox actions right now.</i>\n\n"
         elif confidence_note:
-            html_out += "<i>Runtime confidence is reduced; urgent status may be incomplete. Please verify high-impact commitments.</i>\n\n"
+            html_out += "<i>Some checks are still recovering, so urgent status may be incomplete. Please verify high-impact commitments.</i>\n\n"
         else:
             html_out += "<i>No immediate action blocks detected right now.</i>\n\n"
 

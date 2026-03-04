@@ -241,7 +241,7 @@ def test_critical_commitment_lane_wiring() -> None:
     assert "compose_briefing_html(" in brief_src
     assert "build_critical_actions(profile_ctx, dossiers, future_situations=future_situations)" in brief_src
     assert "<b>Immediate Action:</b>" in compose_src
-    assert "No additional inbox-critical items after deterministic critical scan." in compose_src
+    assert "No additional high-priority inbox actions right now." in compose_src
     assert "No immediate action blocks detected right now." in compose_src
     assert "def collect_briefing_sources(" in acq_src
     assert "def _emit_internal_diagnostics(" in brief_src

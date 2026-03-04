@@ -29,9 +29,9 @@ def test_briefing_uses_multi_dossier_compose() -> None:
     assert "from app.intelligence.human_compose import compose_briefing_html" in brief_src
     assert "from app.intelligence.source_acquisition import collect_briefing_sources" in brief_src
     assert "No immediate action blocks detected right now." in compose_src
-    assert "Runtime confidence is reduced; urgent status may be incomplete." in compose_src
+    assert "urgent status may be incomplete" in compose_src
     assert "No critical items require your immediate attention." not in compose_src
-    assert "Risk urgency:" in compose_src
+    assert "Urgency:" in compose_src
     assert "Decision window:" in compose_src
     assert "def collect_briefing_sources(" in acq_src
     _pass("v1.19.2 multi-dossier compose wiring")
