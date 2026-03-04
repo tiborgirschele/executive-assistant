@@ -41,12 +41,21 @@ exposure if no deterministic critical lane exists.
 - `app/intelligence/critical_lane.py`
   - `CriticalLaneResult`
   - `build_critical_actions(...)`
+- `app/intelligence/household_graph.py`
+  - `HouseholdGraph`
+  - `build_household_graph(...)`
+  - `ensure_profile_isolation(...)`
+- `app/intelligence/modes.py`
+  - `select_briefing_mode(...)`
+  - `mode_label(...)`
 
 ## Runtime Integration (implemented)
 - `app/briefings.py` now:
   - builds profile context,
+  - builds household graph and validates profile isolation invariant,
   - builds trip dossier,
   - runs critical lane,
+  - selects compose mode (`standard`, `travel_mode`, `risk_mode`, `low_confidence`),
   - renders `Immediate Action` before normal summary blocks.
 - User-facing diagnostics remain hidden by default unless
   `EA_BRIEFING_DIAGNOSTIC_TO_CHAT=true`.
@@ -70,4 +79,3 @@ exposure if no deterministic critical lane exists.
 2. Add dossier registry (trip/health/finance/project) with typed builders.
 3. Add epic-link contract so dossiers feed long-running narrative threads.
 4. Add action typing layer on top of critical lane outputs.
-

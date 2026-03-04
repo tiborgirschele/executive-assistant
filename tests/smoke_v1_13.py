@@ -11,6 +11,8 @@ REGISTRY = ROOT / "ea/app/connectors/registry.py"
 PROFILE_CORE = ROOT / "ea/app/intelligence/profile.py"
 DOSSIERS = ROOT / "ea/app/intelligence/dossiers.py"
 CRITICAL_LANE = ROOT / "ea/app/intelligence/critical_lane.py"
+HOUSEHOLD_GRAPH = ROOT / "ea/app/intelligence/household_graph.py"
+MODES = ROOT / "ea/app/intelligence/modes.py"
 
 schema = SCHEMA.read_text(encoding="utf-8")
 for table in (
@@ -42,7 +44,7 @@ assert "DELETE FROM channel_bindings" in onboard_src
 assert "CONNECTOR_REGISTRY" in REGISTRY.read_text(encoding="utf-8")
 print("[SMOKE][HOST][PASS] v1.13 core symbols present")
 
-for path in (PROFILE_CORE, DOSSIERS, CRITICAL_LANE):
+for path in (PROFILE_CORE, DOSSIERS, CRITICAL_LANE, HOUSEHOLD_GRAPH, MODES):
     src = path.read_text(encoding="utf-8")
     ast.parse(src)
 print("[SMOKE][HOST][PASS] v1.13 profile intelligence modules parse")
@@ -56,4 +58,27 @@ assert "def build_trip_dossier(" in dossiers_src
 critical_src = CRITICAL_LANE.read_text(encoding="utf-8")
 assert "class CriticalLaneResult" in critical_src
 assert "def build_critical_actions(" in critical_src
+household_src = HOUSEHOLD_GRAPH.read_text(encoding="utf-8")
+assert "class HouseholdGraph" in household_src
+assert "def build_household_graph(" in household_src
+assert "def ensure_profile_isolation(" in household_src
+modes_src = MODES.read_text(encoding="utf-8")
+assert "def select_briefing_mode(" in modes_src
+assert "def mode_label(" in modes_src
 print("[SMOKE][HOST][PASS] v1.13 profile intelligence symbols present")
+
+import sys
+sys.path.insert(0, str(ROOT / "ea"))
+from app.intelligence.household_graph import build_household_graph, ensure_profile_isolation  # noqa: E402
+
+g_ok = build_household_graph(
+    principals=[{"tenant": "t1", "person_id": "p1"}, {"tenant": "t1", "person_id": "p2"}],
+    relationships=[{"source_person_id": "p1", "target_person_id": "p2", "relationship": "family", "share_scope": "summaries"}],
+)
+assert ensure_profile_isolation(g_ok) is True
+g_bad = build_household_graph(
+    principals=[{"tenant": "t1", "person_id": "p1"}, {"tenant": "t1", "person_id": "p2"}],
+    relationships=[{"source_person_id": "p1", "target_person_id": "p2", "relationship": "family", "share_scope": "profile"}],
+)
+assert ensure_profile_isolation(g_bad) is False
+print("[SMOKE][HOST][PASS] v1.13 household profile-isolation invariant")

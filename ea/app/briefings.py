@@ -12,6 +12,8 @@ from app.contracts.telegram import sanitize_incident_copy
 from app.intelligence.profile import build_profile_context
 from app.intelligence.dossiers import build_trip_dossier
 from app.intelligence.critical_lane import build_critical_actions
+from app.intelligence.household_graph import build_household_graph, ensure_profile_isolation
+from app.intelligence.modes import mode_label, select_briefing_mode
 
 def _sanitize_telegram_html(text: str) -> str:
     return str(text).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
@@ -90,168 +92,6 @@ def _runtime_confidence_note() -> str | None:
         f"Briefing confidence reduced: runtime auto-recovery was triggered about {age_min}m ago. "
         "Critical scan ran, but you should verify high-impact commitments explicitly."
     )
-
-
-def _extract_amounts(raw: str) -> list[float]:
-    amounts: list[float] = []
-    if not raw:
-        return amounts
-    pat = re.compile(r"(?i)(?:€|eur|usd|\\$|chf|gbp)\\s*([0-9][0-9\\.,\\s]{1,})")
-    for m in pat.finditer(str(raw)):
-        token = str(m.group(1) or "").strip().replace(" ", "")
-        if not token:
-            continue
-        normalized = token
-        if "," in normalized and "." in normalized:
-            if normalized.rfind(",") > normalized.rfind("."):
-                normalized = normalized.replace(".", "").replace(",", ".")
-            else:
-                normalized = normalized.replace(",", "")
-        elif "," in normalized:
-            parts = normalized.split(",")
-            if len(parts[-1]) == 2 and len(parts) > 1:
-                normalized = "".join(parts[:-1]).replace(".", "") + "." + parts[-1]
-            else:
-                normalized = normalized.replace(",", "")
-        elif "." in normalized:
-            parts = normalized.split(".")
-            if len(parts[-1]) == 2 and len(parts) > 1:
-                normalized = "".join(parts[:-1]).replace(",", "") + "." + parts[-1]
-            else:
-                normalized = normalized.replace(".", "")
-        try:
-            val = float(normalized)
-            if val > 0:
-                amounts.append(val)
-        except Exception:
-            continue
-    return amounts
-
-
-def _event_start_ts(ev: dict) -> datetime | None:
-    start_val = ev.get("start", {})
-    dt_str = ""
-    if isinstance(start_val, dict):
-        dt_str = str(start_val.get("dateTime") or start_val.get("date") or "").strip()
-    else:
-        dt_str = str(start_val or "").strip()
-    if not dt_str:
-        return None
-    try:
-        if "T" in dt_str:
-            dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-        else:
-            dt = datetime.fromisoformat(dt_str + "T00:00:00+00:00")
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
-    except Exception:
-        return None
-
-
-def _scan_critical_commitments(mails: list[dict], calendar_events: list[dict]) -> dict:
-    travel_kws = [
-        "flight",
-        "airline",
-        "booking",
-        "reservation",
-        "itinerary",
-        "layover",
-        "stopover",
-        "check-in",
-        "airport",
-        "hotel",
-        "vacation",
-        "holiday",
-        "trip",
-        "reise",
-        "flug",
-    ]
-    risk_kws = [
-        "iran",
-        "israel",
-        "gaza",
-        "lebanon",
-        "ukraine",
-        "russia",
-        "war",
-        "conflict",
-        "unrest",
-        "advisory",
-    ]
-    extra_risk = [x.strip().lower() for x in str(os.getenv("EA_TRAVEL_RISK_KEYWORDS", "")).split(",") if x.strip()]
-    if extra_risk:
-        risk_kws = list(dict.fromkeys(risk_kws + extra_risk))
-    high_value_threshold = max(500.0, float(os.getenv("EA_CRITICAL_TRAVEL_EUR_THRESHOLD", "5000")))
-    near_term_hours = max(12, int(os.getenv("EA_CRITICAL_TRAVEL_WINDOW_HOURS", "72")))
-
-    travel_signal_count = 0
-    max_amount = 0.0
-    risk_hits: set[str] = set()
-    near_term_travel = False
-    evidence: list[str] = []
-    now_utc = datetime.now(timezone.utc)
-
-    def _track_text(raw_text: str) -> bool:
-        nonlocal max_amount
-        text = str(raw_text or "")
-        lower = text.lower()
-        travel_hit = any(k in lower for k in travel_kws)
-        if travel_hit:
-            amts = _extract_amounts(text)
-            if amts:
-                max_amount = max(max_amount, max(amts))
-            for rk in risk_kws:
-                if rk in lower:
-                    risk_hits.add(rk)
-        return travel_hit
-
-    for m in mails or []:
-        subject = str(m.get("subject") or m.get("title") or "").strip()
-        snippet = str(m.get("snippet") or m.get("body") or m.get("text") or "").strip()
-        sender = str(m.get("from") or m.get("sender") or "").strip()
-        raw = f"{subject}\n{snippet}\n{sender}"
-        if _track_text(raw):
-            travel_signal_count += 1
-            if subject and len(evidence) < 2:
-                evidence.append(subject[:110])
-
-    for ev in calendar_events or []:
-        title = str(ev.get("summary") or ev.get("title") or "").strip()
-        location = str(ev.get("location") or "").strip()
-        cal = str(ev.get("_calendar") or "").strip()
-        raw = f"{title}\n{location}\n{cal}"
-        if _track_text(raw):
-            travel_signal_count += 1
-            if title and len(evidence) < 2:
-                evidence.append(title[:110])
-            ts = _event_start_ts(ev)
-            if ts and now_utc - timedelta(hours=6) <= ts <= now_utc + timedelta(hours=near_term_hours):
-                near_term_travel = True
-
-    actions: list[str] = []
-    if travel_signal_count and max_amount >= high_value_threshold:
-        actions.append(
-            f"High-value travel commitment detected (estimated exposure about EUR {int(round(max_amount)):,}). "
-            "Validate cancellation/rebooking terms today."
-        )
-    if travel_signal_count and risk_hits:
-        hits = ", ".join(sorted(risk_hits)[:3])
-        actions.append(
-            f"Potential route or layover risk signals detected ({hits}). "
-            "Check official advisories and alternative routes now."
-        )
-    if travel_signal_count and near_term_travel:
-        actions.append("Travel-related event is near-term (<72h). Confirm route viability, check-in, and disruption status now.")
-
-    return {
-        "actions": actions,
-        "travel_signal_count": int(travel_signal_count),
-        "max_amount": float(max_amount),
-        "risk_hits": sorted(risk_hits),
-        "near_term_travel": bool(near_term_travel),
-        "evidence": evidence,
-    }
 
 
 async def _avomap_prepare_card(
@@ -471,11 +311,23 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
         runtime_confidence_note=confidence_note,
         mode="standard_morning_briefing",
     )
+    household = build_household_graph(
+        principals=[
+            {
+                "person_id": str(t_account or t_key),
+                "tenant": str(t_key),
+                "role": "principal",
+            }
+        ]
+    )
+    if not ensure_profile_isolation(household):
+        diag_logs.append("⚠️ Household graph profile-isolation invariant failed; continuing in single-profile mode.")
     trip_dossier = build_trip_dossier(
         mails=list(clean_mails),
         calendar_events=list(clean_cal),
     )
     critical = build_critical_actions(profile_ctx, [trip_dossier])
+    compose_mode = select_briefing_mode(profile_ctx, [trip_dossier], critical)
 
     prompt = f'You are an elite, ruthless Executive Assistant. I demand extreme noise reduction. NO BULLSHIT.\nCRITICAL CULLING RULES:\n1. THE PURGE: You MUST completely delete ALL package delivery updates, shipping notices, order confirmations, and standard payment receipts from the JSON. ERASE THEM ENTIRELY.\n2. EXCEPTION: You MAY include a package/delivery alert ONLY IF it is a FAILURE or requires manual pickup.\n3. CHURCHILL TONE: For the critical emails that remain, state brutally and concisely WHY it requires action in 1 sentence.\n4. CALENDARS: Format ALL events provided into a clean schedule. Group them cleanly by Day/Date. YOU MUST INCLUDE EVENTS FROM THIS MORNING.\n\nDATA:\nMails: {json.dumps(clean_mails, ensure_ascii=False)}\nCalendars: {json.dumps(clean_cal, ensure_ascii=False)}\n\nReturn ONLY valid JSON matching this schema:\n{{\n  "emails": [{{"sender": "Sender", "subject": "Subject", "churchill_action": "1 sentence: What must I do?", "action_button": "Short Command"}}],\n  "calendar_summary": "Clean, bulleted timeline of the schedule across all calendars, grouped by date."\n}}'
     out = await call_llm(prompt)
@@ -490,6 +342,7 @@ async def _raw_build_briefing_for_tenant(tenant, status_cb=None) -> dict:
             raise ValueError('No valid JSON found in LLM response.')
         loops_txt, loop_btns = OpenLoops.get_dashboard(t_key)
         html_out = '🎩 <b>Executive Action Briefing</b>\n\n'
+        html_out += f"<i>Mode:</i> { _sanitize_telegram_html(mode_label(compose_mode)) }\n\n"
         immediate_actions = [str(x) for x in critical.actions if str(x).strip()]
         if immediate_actions:
             html_out += '<b>Immediate Action:</b>\n'

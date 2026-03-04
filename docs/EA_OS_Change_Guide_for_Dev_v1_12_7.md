@@ -45,8 +45,10 @@ For next-wave architecture, see `docs/EA_OS_Design_v1_13_Profile_Intelligence_Co
   - route/layover risk keywords,
   - near-term travel windows.
 - Briefings now render an **Immediate Action** block before normal summary content when critical signals are present.
+- Briefings now surface a compose mode label (`Standard`, `Travel`, `Risk`, `Low-Confidence`).
 - Added runtime confidence degradation notice when recent sentinel auto-recovery was observed.
 - User-facing diagnostics are now hidden by default and only shown if `EA_BRIEFING_DIAGNOSTIC_TO_CHAT=true`.
+- Added profile-intelligence contracts (`profile`, `dossiers`, `critical_lane`, `household_graph`, `modes`) and wiring in briefing compose.
 - Added host smoke guard `tests/smoke_v1_12_6.py::test_critical_commitment_lane_wiring`.
 
 ## New/updated tests
