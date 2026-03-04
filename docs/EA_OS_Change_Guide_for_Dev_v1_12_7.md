@@ -70,6 +70,7 @@ For next-wave architecture, see `docs/EA_OS_Design_v1_13_Profile_Intelligence_Co
 - Calendar image intake status text now uses provider-agnostic copy (`Extracting schedule from image...`) instead of stale provider-specific wording.
 - Added bounded timeout around calendar vision extraction in `poll_listener` via `asyncio.wait_for`.
 - On timeout, users get an explicit retry hint instead of a long silent wait.
+- Added periodic in-chat progress updates while calendar extraction is running.
 
 10. Calendar event normalization before preview/import
 - Added `ea/app/intake/calendar_events.py::normalize_extracted_calendar_events()`.
@@ -108,6 +109,7 @@ For next-wave architecture, see `docs/EA_OS_Design_v1_13_Profile_Intelligence_Co
   - `EA_BRIEFING_DIAGNOSTIC_TO_CHAT` (default `false`)
 - Calendar image intake knob:
   - `EA_CALENDAR_VISION_TIMEOUT_SEC` (default `90`)
+  - `EA_CALENDAR_VISION_PROGRESS_SEC` (default `15`)
 
 ## Guarded rollout checklist
 1. Set ingest auth token in runtime (`EA_INGEST_TOKEN` or `APIXDRIVE_SHARED_SECRET`).

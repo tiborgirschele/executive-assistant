@@ -1084,7 +1084,28 @@ async def handle_intent(chat_id: int, msg: dict):
             AUTH_SESSIONS.set(chat_id, sess)
         if is_image_calendar:
             res = await tg.send_message(chat_id, '🖼️ <b>Extracting schedule from image...</b>', parse_mode='HTML')
+            progress_task = None
+            stop_progress = asyncio.Event()
+
+            async def _calendar_progress_ticker() -> None:
+                elapsed = 0
+                progress_sec = max(10, int(float(os.getenv("EA_CALENDAR_VISION_PROGRESS_SEC", "15") or 15)))
+                while not stop_progress.is_set():
+                    await asyncio.sleep(progress_sec)
+                    elapsed += progress_sec
+                    if stop_progress.is_set():
+                        break
+                    try:
+                        await tg.edit_message_text(
+                            chat_id,
+                            res['message_id'],
+                            f'🖼️ <b>Extracting schedule from image...</b>\n<i>Still processing ({elapsed}s elapsed)...</i>',
+                            parse_mode='HTML',
+                        )
+                    except Exception:
+                        pass
             try:
+                progress_task = asyncio.create_task(_calendar_progress_ticker())
                 document_id, raw_ref = _message_document_ref(chat_id, msg, doc, photo)
                 gate = gate_household_document_action(
                     document_id=document_id,
@@ -1130,6 +1151,14 @@ async def handle_intent(chat_id: int, msg: dict):
                 )
             except Exception as e:
                 await tg.edit_message_text(chat_id, res['message_id'], f'⚠️ Vision Error: {_safe_err(e)}', parse_mode='HTML')
+            finally:
+                stop_progress.set()
+                if progress_task is not None:
+                    progress_task.cancel()
+                    try:
+                        await progress_task
+                    except Exception:
+                        pass
             return
         if is_invoice:
             res = await tg.send_message(chat_id, '💸 <b>Rechnung erkannt. Lese Daten (1min.ai gpt-4o)...</b>', parse_mode='HTML')

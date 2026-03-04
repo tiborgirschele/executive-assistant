@@ -129,8 +129,11 @@ assert "from app.intake.calendar_events import normalize_extracted_calendar_even
 assert "build_calendar_import_response(" in poll_src
 assert "normalize_extracted_calendar_events(" in poll_src
 assert "EA_CALENDAR_VISION_TIMEOUT_SEC" in poll_src
+assert "EA_CALENDAR_VISION_PROGRESS_SEC" in poll_src
 assert "extract_calendar_from_image(img_bytes, 'image/jpeg')" in poll_src
 assert "asyncio.wait_for(" in poll_src
+assert "Still processing (" in poll_src
+assert "_calendar_progress_ticker" in poll_src
 assert "Calendar extraction timed out" in poll_src
 assert "Extracting schedule via 1min.ai gpt-4o" not in poll_src
 assert "_sentinel_enabled_for_role" in poll_src
