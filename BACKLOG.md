@@ -62,10 +62,14 @@ Branch: `main`
 - [DONE] Typed-action sessionization:
   - `act:*` callback path now writes execution sessions and step transitions.
   - `smoke_v1_20_typed_action_sessions.py` added and wired into host/docker/CI gates.
+- [DONE] BrowserAct event sessionization:
+  - durable BrowserAct event processing now writes execution sessions.
+  - event execution outcome (`processed`/`discarded`/`failed`) is persisted in session step results.
+  - `smoke_v1_20_browseract_event_sessions.py` added and wired into host/docker/CI gates.
 
 ## Blocked
 - None.
 
 ## Next Queue (on new feedback)
 - [TODO] Evolve execution-session seed from free-text path into shared planner/session runtime
-  for slash commands, skill actions, and webhook-driven long-running workflows.
+  for slash-command execution paths and non-BrowserAct webhook processors.

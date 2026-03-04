@@ -1,5 +1,13 @@
 import json, logging, os
 from app.db import get_db
+from app.execution import (
+    append_execution_event,
+    compile_intent_spec,
+    create_execution_session,
+    finalize_execution_session,
+    mark_execution_session_running,
+    mark_execution_step_status,
+)
 from app.integrations.avomap.finalize import finalize_avomap_render_event
 from app.settings import settings
 
@@ -115,6 +123,8 @@ def _maybe_enqueue_late_attach_followup(db, *, tenant: str, spec_id: str) -> Non
 
 async def process_browseract_event(event_id: str):
     db = get_db()
+    session_id = None
+    current_step = "compile_intent"
     try:
         row = db.fetchone(
             """
@@ -138,8 +148,46 @@ async def process_browseract_event(event_id: str):
         p_raw = row['payload_json'] if hasattr(row, 'keys') else row[2]
         payload = json.loads(p_raw) if isinstance(p_raw, str) else p_raw
         if not isinstance(payload, dict): payload = {}
+        intent_spec = compile_intent_spec(
+            text=f"Process BrowserAct event workflow {str(workflow or '').strip()}",
+            tenant=str(tenant),
+            chat_id=_parse_chat_id_from_tenant(str(tenant)),
+            has_url=False,
+        )
+        intent_spec["source"] = "browseract"
+        intent_spec["event_id"] = str(event_id)
+        plan_steps = [
+            {"step_key": "compile_intent", "step_title": "Compile Event Intent"},
+            {"step_key": "execute_intent", "step_title": "Execute Event Handler"},
+            {"step_key": "persist_result", "step_title": "Persist Event Result"},
+        ]
+        session_id = create_execution_session(
+            tenant=str(tenant),
+            chat_id=_parse_chat_id_from_tenant(str(tenant)),
+            intent_spec=intent_spec,
+            plan_steps=plan_steps,
+            source="external_event_browseract",
+            correlation_id=f"browseract:{tenant}:{event_id}",
+        )
+        if session_id:
+            mark_execution_session_running(session_id)
+            mark_execution_step_status(session_id, "compile_intent", "completed", result=intent_spec)
+            append_execution_event(
+                session_id,
+                event_type="external_event_claimed",
+                message="BrowserAct external event claimed for processing.",
+                payload={"event_id": str(event_id), "workflow": str(workflow)},
+            )
 
         if str(workflow or "").startswith("avomap.") or str(workflow or "") == settings.avomap_browseract_workflow:
+            current_step = "execute_intent"
+            if session_id:
+                mark_execution_step_status(
+                    session_id,
+                    "execute_intent",
+                    "running",
+                    evidence={"workflow": str(workflow), "event_id": str(event_id)},
+                )
             result = finalize_avomap_render_event(
                 event_id=str(event_id),
                 tenant=str(tenant),
@@ -148,6 +196,23 @@ async def process_browseract_event(event_id: str):
                 db=db,
             )
             ext_status = "processed" if bool(result.get("ok")) else "failed"
+            if session_id:
+                mark_execution_step_status(
+                    session_id,
+                    "execute_intent",
+                    "completed" if ext_status == "processed" else "failed",
+                    result={"status": str(result.get("status") or ""), "ok": bool(result.get("ok"))},
+                )
+                append_execution_event(
+                    session_id,
+                    event_type="avomap_finalize_result",
+                    level="info" if ext_status == "processed" else "error",
+                    message="AvoMap finalize returned.",
+                    payload={"ext_status": ext_status, "result_status": str(result.get("status") or "")},
+                )
+            current_step = "persist_result"
+            if session_id:
+                mark_execution_step_status(session_id, "persist_result", "running")
             db.execute(
                 """
                 UPDATE external_events
@@ -162,12 +227,43 @@ async def process_browseract_event(event_id: str):
                     tenant=str(tenant),
                     spec_id=str(result.get("spec_id") or ""),
                 )
+            if session_id:
+                mark_execution_step_status(
+                    session_id,
+                    "persist_result",
+                    "completed",
+                    result={"external_event_status": ext_status},
+                )
+                finalize_execution_session(
+                    session_id,
+                    status="completed" if ext_status == "processed" else "failed",
+                    outcome={"external_event_status": ext_status, "result_status": str(result.get("status") or "")},
+                    last_error=None if ext_status == "processed" else str(result)[:500],
+                )
             if hasattr(db, 'commit'): db.commit()
             return
 
         # Autonome Extraktion der ID
+        current_step = "execute_intent"
+        if session_id:
+            mark_execution_step_status(
+                session_id,
+                "execute_intent",
+                "running",
+                evidence={"workflow": str(workflow), "event_id": str(event_id)},
+            )
         template_id = payload.get("template_id") or payload.get("data", {}).get("template_id") or payload.get("output", {}).get("template_id") or payload.get("id")
+        if session_id:
+            mark_execution_step_status(
+                session_id,
+                "execute_intent",
+                "completed",
+                result={"template_found": bool(template_id)},
+            )
         
+        current_step = "persist_result"
+        if session_id:
+            mark_execution_step_status(session_id, "persist_result", "running")
         if template_id:
             logging.info(f"🤖 AUTO-HEALING: Speichere Template-ID '{template_id}' für {tenant} in Registry...")
             db.execute("INSERT INTO template_registry (tenant, key, provider, template_id) VALUES (%s, 'briefing.image', 'markupgo', %s) ON CONFLICT (tenant, key, provider) DO UPDATE SET template_id = EXCLUDED.template_id", (tenant, str(template_id)))
@@ -197,6 +293,19 @@ async def process_browseract_event(event_id: str):
                 str(workflow),
                 str(tenant),
             )
+        if session_id:
+            event_status = "processed" if template_id else "discarded"
+            mark_execution_step_status(
+                session_id,
+                "persist_result",
+                "completed",
+                result={"external_event_status": event_status},
+            )
+            finalize_execution_session(
+                session_id,
+                status="completed",
+                outcome={"external_event_status": event_status, "template_found": bool(template_id)},
+            )
 
         if hasattr(db, 'commit'): db.commit()
         
@@ -210,4 +319,24 @@ async def process_browseract_event(event_id: str):
             """,
             (str(event_id),),
         )
+        if session_id:
+            mark_execution_step_status(
+                session_id,
+                current_step,
+                "failed",
+                error_text=str(e)[:400],
+            )
+            append_execution_event(
+                session_id,
+                level="error",
+                event_type="external_event_failed",
+                message="BrowserAct event processing failed.",
+                payload={"event_id": str(event_id), "step": current_step},
+            )
+            finalize_execution_session(
+                session_id,
+                status="failed",
+                last_error=str(e)[:400],
+                outcome={"event_id": str(event_id), "failed_step": current_step},
+            )
         if hasattr(db, 'commit'): db.commit()

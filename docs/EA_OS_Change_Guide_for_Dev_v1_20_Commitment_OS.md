@@ -48,9 +48,15 @@ be tracked as deterministic steps.
    - `ea/app/callback_commands.py` now applies the same execution-session lifecycle to `act:*` typed actions.
    - `/skill` queued actions executed through callback now persist compile/execute/render status in the same ledger.
 
-6. Gate coverage:
+6. BrowserAct event sessionization:
+   - `ea/app/intake/browseract.py` now wraps durable event processing in execution sessions.
+   - Session source: `external_event_browseract`.
+   - Step tracking added for event execution and persistence outcome (`processed` / `discarded` / `failed`).
+
+7. Gate coverage:
    - `tests/smoke_v1_20_execution_sessions.py`
    - `tests/smoke_v1_20_typed_action_sessions.py`
+   - `tests/smoke_v1_20_browseract_event_sessions.py`
    - wired into:
      - `scripts/run_v119_smoke.sh`
      - `scripts/docker_e2e.sh`
