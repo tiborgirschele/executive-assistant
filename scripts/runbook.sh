@@ -7,14 +7,31 @@ OP_TOKEN="$(grep -E '^EA_OPERATOR_TOKEN=' "${EA_ROOT}/.env" | tail -n1 | cut -d=
 SCAN_MINUTES="${EA_LOG_SCAN_MINUTES:-20}"
 SCAN_PATTERN='error|exception|traceback|fatal|deadlock|panic|failed|sentinel|api_key_invalid|api key expired|permission denied'
 IGNORE_ERROR_PATTERN="${EA_LOG_SCAN_IGNORE_PATTERN:-duplicate key value violates unique constraint \"action_drafts_tenant_key_idempotency_key_key\"}"
+IGNORE_DB_LOG_PATTERN="${EA_DB_LOG_SCAN_IGNORE_PATTERN:-action_drafts_tenant_key_idempotency_key_key|Key \\(tenant_key, idempotency_key\\)|INSERT INTO action_drafts|idempotency_key}"
 IGNORE_CONTAINERS="${EA_LOG_SCAN_IGNORE_CONTAINERS:-tautulli}"
 SCAN_ALL_CONTAINERS="${EA_SCAN_ALL_CONTAINERS:-0}"
+DB_LOG_TAIL_LINES="${EA_DB_LOG_TAIL_LINES:-200}"
+DB_LOG_MODE="${EA_DB_LOG_MODE:-filtered}"
 
 echo "== ps =="
 docker compose ps
 
 echo -e "\n== ea-db logs =="
-docker logs --since "${SCAN_MINUTES}m" ea-db
+DB_LOGS="$(docker logs --since "${SCAN_MINUTES}m" ea-db 2>&1 | tail -n "${DB_LOG_TAIL_LINES}" || true)"
+if [[ "${DB_LOG_MODE}" == "filtered" && -n "${DB_LOGS}" ]]; then
+  DB_LOGS="$(echo "${DB_LOGS}" | grep -Ei "${SCAN_PATTERN}" || true)"
+fi
+if [[ -n "${IGNORE_ERROR_PATTERN}" && -n "${DB_LOGS}" ]]; then
+  DB_LOGS="$(echo "${DB_LOGS}" | grep -Evi "${IGNORE_ERROR_PATTERN}" || true)"
+fi
+if [[ -n "${IGNORE_DB_LOG_PATTERN}" && -n "${DB_LOGS}" ]]; then
+  DB_LOGS="$(echo "${DB_LOGS}" | grep -Evi "${IGNORE_DB_LOG_PATTERN}" || true)"
+fi
+if [[ -n "${DB_LOGS}" ]]; then
+  echo "${DB_LOGS}"
+else
+  echo "(no ea-db log lines after filters)"
+fi
 
 echo -e "\n== EA service logs =="
 docker compose logs --tail 240 ea-api ea-worker ea-poller ea-outbox ea-event-worker || true
