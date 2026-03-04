@@ -228,6 +228,33 @@ Behavior:
 - readiness and critical lane now promote urgent or near-term health follow-ups.
 - briefing compose now includes health dossier alongside trip/project/finance.
 
+### K. Intelligence snapshot persistence (v1.19.2)
+
+Files:
+- `ea/app/intelligence/snapshots.py`
+- `ea/app/briefings.py`
+- `ea/app/db.py`
+- `ea/schema/20260304_v1_19_2_intelligence_snapshots.sql`
+- `tests/smoke_v1_19_2_snapshot_persistence.py`
+- `scripts/run_v119_smoke.sh`
+- `scripts/docker_e2e.sh`
+- `scripts/docker_e2e_design_workflows.sh`
+- `.github/workflows/release-gates.yml`
+
+Behavior:
+- added best-effort persistence of compose-cycle intelligence snapshots:
+  - profile
+  - dossiers
+  - future situations
+  - readiness
+  - critical lane
+  - preparation plan
+  - epics
+  - compose mode
+- snapshots are written to `intelligence_snapshots` and indexed by
+  `(tenant, person_id, created_at desc)` plus source/time.
+- compose path now records snapshots without blocking user delivery.
+
 ## SQL additions landed in this patch
 
 Migration file: `ea/schema/20260304_v1_19_1_profile_core.sql`
@@ -291,9 +318,8 @@ Table:
 ## Remaining gaps after v1.19.2
 
 1. De-minify core control-plane files (`main.py`, `supervisor.py`, `briefings.py`, `scheduler.py`, `poll_listener.py`).
-2. Persist dossier/future/readiness snapshots in DB (profile snapshot is now landed).
-3. Expand dossier set with household ops/evidence-first dossier types.
-4. Deepen trust-boundary policy schema (tenant/person/domain-specific egress policies).
+2. Expand dossier set with household ops/evidence-first dossier types.
+3. Deepen trust-boundary policy schema (tenant/person/domain-specific egress policies).
 
 ## Release checklist
 
@@ -304,6 +330,7 @@ Table:
 5. `python3 tests/smoke_v1_19_2_human_assistant_mode.py`
 6. `python3 tests/smoke_v1_19_2_missingness.py`
 7. `python3 tests/smoke_v1_19_2_health_dossier.py`
-8. `python3 tests/smoke_v1_18_1_runtime_alignment.py`
-9. `bash scripts/run_v119_smoke.sh /docker/EA`
-10. `bash scripts/docker_e2e.sh`
+8. `python3 tests/smoke_v1_19_2_snapshot_persistence.py`
+9. `python3 tests/smoke_v1_18_1_runtime_alignment.py`
+10. `bash scripts/run_v119_smoke.sh /docker/EA`
+11. `bash scripts/docker_e2e.sh`

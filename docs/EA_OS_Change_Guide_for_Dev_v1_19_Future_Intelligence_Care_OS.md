@@ -202,6 +202,27 @@ optional design direction.
 - Extended host smoke: `tests/smoke_v1_19_2_human_assistant_mode.py` enforces
   absence of `Exposure/Decision score` and `salience` phrasing in compose code.
 
+18. v1.19.2 intelligence snapshot persistence
+- Added `ea/app/intelligence/snapshots.py` with best-effort persistence API:
+  - `save_intelligence_snapshot(...)`
+- Briefing compose now persists a deterministic snapshot per compose cycle with:
+  - profile context,
+  - dossiers,
+  - future situations,
+  - readiness,
+  - critical lane,
+  - preparation plan,
+  - compose mode.
+- Added runtime/bootstrap DDL in `ea/app/db.py` for `intelligence_snapshots`.
+- Added migration SQL:
+  - `ea/schema/20260304_v1_19_2_intelligence_snapshots.sql`
+- Wired smoke/gates:
+  - `tests/smoke_v1_19_2_snapshot_persistence.py`
+  - `scripts/run_v119_smoke.sh`
+  - `scripts/docker_e2e.sh`
+  - `scripts/docker_e2e_design_workflows.sh`
+  - `.github/workflows/release-gates.yml`
+
 ## Rollout checklist
 
 1. Host gate:
