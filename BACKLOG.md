@@ -94,6 +94,10 @@ Branch: `main`
   - `act:*` legacy button-context execution path now writes execution session lifecycle
     (compile/execute/render/finalize), aligned with typed-action callbacks.
   - `smoke_v1_20_legacy_button_action_sessions.py` added and wired into host/docker/CI gates.
+- [DONE] Brief command sessionization:
+  - `/brief` runtime path now writes execution sessions with explicit step tracking
+    (compile/build/render/persist) and deterministic completion/failure outcomes.
+  - `smoke_v1_20_brief_command_sessions.py` added and wired into host/docker/CI gates.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`
     from `runner.py` (canonical role shim path), not direct worker import.

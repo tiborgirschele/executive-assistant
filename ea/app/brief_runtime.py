@@ -14,6 +14,13 @@ from app.briefing_delivery_sessions import (
 )
 from app.briefings import build_briefing_for_tenant, get_val
 from app.contracts.repair import open_repair_incident
+from app.execution import (
+    compile_intent_spec,
+    create_execution_session,
+    finalize_execution_session,
+    mark_execution_session_running,
+    mark_execution_step_status,
+)
 from app.intake.survey_planner import plan_briefing_feedback_survey
 from app.render_guard import (
     classify_markupgo_error,
@@ -224,6 +231,57 @@ async def run_brief_command(
     safe_task: Callable[[str, Awaitable[Any]], Awaitable[Any]],
     incident_ref: Callable[[str], str],
 ) -> None:
+    session_id = None
+    session_finalized = False
+    current_step = "compile_intent"
+
+    def _mark_step(step_key: str, status: str, **kwargs) -> None:
+        if not session_id:
+            return
+        try:
+            mark_execution_step_status(session_id, step_key, status, **kwargs)
+        except Exception:
+            return
+
+    def _finish_session(*, status: str, outcome: dict[str, Any], last_error: str | None = None) -> None:
+        nonlocal session_finalized
+        if not session_id or session_finalized:
+            return
+        try:
+            finalize_execution_session(
+                session_id,
+                status=status,
+                outcome=outcome,
+                last_error=last_error,
+            )
+            session_finalized = True
+        except Exception:
+            return
+
+    intent_spec = compile_intent_spec(
+        text="Handle /brief command",
+        tenant=str(tenant_name or ""),
+        chat_id=int(chat_id),
+        has_url=False,
+    )
+    intent_spec["command"] = "/brief"
+    session_id = create_execution_session(
+        tenant=str(tenant_name or ""),
+        chat_id=int(chat_id),
+        intent_spec=intent_spec,
+        plan_steps=[
+            {"step_key": "compile_intent", "step_title": "Compile Brief Command Intent"},
+            {"step_key": "execute_intent", "step_title": "Build Briefing Payload"},
+            {"step_key": "render_reply", "step_title": "Render and Deliver Briefing"},
+            {"step_key": "persist_result", "step_title": "Persist Delivery Outcome"},
+        ],
+        source="slash_command_brief",
+        correlation_id=f"{tenant_name}:{chat_id}:brief:{int(init_message_id)}",
+    )
+    if session_id:
+        mark_execution_session_running(session_id)
+        _mark_step("compile_intent", "completed", result=intent_spec)
+
     async def _update_status(msg_text: str) -> None:
         try:
             await tg.edit_message_text(
@@ -237,6 +295,12 @@ async def run_brief_command(
             pass
 
     try:
+        current_step = "execute_intent"
+        _mark_step(
+            "execute_intent",
+            "running",
+            result={"init_message_id": int(init_message_id)},
+        )
         briefing_payload = await asyncio.wait_for(
             build_briefing_for_tenant(tenant_cfg, status_cb=_update_status),
             timeout=240.0,
@@ -244,8 +308,18 @@ async def run_brief_command(
         txt = briefing_payload.get("text", "⚠️ Error")
         markup = _build_inline_markup(briefing_payload, save_ctx)
         safe_txt = clean_html(txt)
+        _mark_step(
+            "execute_intent",
+            "completed",
+            result={
+                "text_chars": len(str(txt or "")),
+                "option_count": len(list((briefing_payload or {}).get("options") or [])),
+            },
+        )
 
         try:
+            current_step = "render_reply"
+            _mark_step("render_reply", "running", result={"delivery_mode": "outbox_photo_template"})
             rendered = await _try_template_render_outbox(
                 update_status=_update_status,
                 tenant_name=tenant_name,
@@ -267,12 +341,20 @@ async def run_brief_command(
                     await tg.delete_message(chat_id, init_message_id)
                 except Exception:
                     pass
+                _mark_step("render_reply", "completed", result={"delivery_mode": "outbox_photo_template"})
+                _mark_step("persist_result", "completed", result={"delivery_mode": "outbox_photo_template"})
+                _finish_session(
+                    status="completed",
+                    outcome={"command": "/brief", "delivery_mode": "outbox_photo_template"},
+                )
                 return
         except Exception as mg_err:
             fault = classify_markupgo_error(mg_err)
             if fault in ("invalid_template_id", "renderer_unavailable"):
                 open_markupgo_breaker(fault, skill="markupgo", location="poll_listener")
             try:
+                current_step = "render_reply"
+                _mark_step("render_reply", "running", result={"delivery_mode": "outbox_photo_html_fallback"})
                 rendered = await _try_html_fallback_outbox(
                     tenant_name=tenant_name,
                     chat_id=chat_id,
@@ -294,6 +376,12 @@ async def run_brief_command(
                         await tg.delete_message(chat_id, init_message_id)
                     except Exception:
                         pass
+                    _mark_step("render_reply", "completed", result={"delivery_mode": "outbox_photo_html_fallback"})
+                    _mark_step("persist_result", "completed", result={"delivery_mode": "outbox_photo_html_fallback"})
+                    _finish_session(
+                        status="completed",
+                        outcome={"command": "/brief", "delivery_mode": "outbox_photo_html_fallback"},
+                    )
                     return
             except Exception as html_fb_err:
                 log_render_guard(
@@ -318,6 +406,8 @@ async def run_brief_command(
             safe_txt += "\n\n📝 <i>Visual template unavailable, switched to safe text mode.</i>"
 
         try:
+            current_step = "render_reply"
+            _mark_step("render_reply", "running", result={"delivery_mode": "telegram_html"})
             delivery_session_id = await asyncio.to_thread(
                 create_briefing_delivery_session,
                 chat_id,
@@ -342,12 +432,15 @@ async def run_brief_command(
                 safe_txt=safe_txt,
                 full_text=txt,
             )
+            _mark_step("render_reply", "completed", result={"delivery_mode": "telegram_html"})
         except Exception as tg_err:
             print(f"Telegram HTML Parse Error: {tg_err}", flush=True)
             plain_txt = re.sub("<[^>]+>", "", txt).replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
             if len(plain_txt) > 4000:
                 plain_txt = plain_txt[:4000] + "...[truncated]"
             try:
+                current_step = "render_reply"
+                _mark_step("render_reply", "running", result={"delivery_mode": "telegram_plain"})
                 delivery_session_id = await asyncio.to_thread(
                     create_briefing_delivery_session,
                     chat_id,
@@ -363,6 +456,7 @@ async def run_brief_command(
                 )
                 if delivery_session_id:
                     await asyncio.to_thread(activate_briefing_delivery_session, int(delivery_session_id))
+                _mark_step("render_reply", "completed", result={"delivery_mode": "telegram_plain"})
             except Exception:
                 await tg.edit_message_text(
                     chat_id,
@@ -370,7 +464,27 @@ async def run_brief_command(
                     "⚠️ Fatal error rendering briefing.",
                     parse_mode=None,
                 )
+                _mark_step("render_reply", "failed", error_text="fatal_rendering_error")
+                _mark_step("persist_result", "failed", error_text="fatal_rendering_error")
+                _finish_session(
+                    status="failed",
+                    outcome={"command": "/brief", "delivery_mode": "fatal_rendering_error"},
+                    last_error="fatal_rendering_error",
+                )
+                return
+        _mark_step("persist_result", "completed", result={"command": "/brief"})
+        _finish_session(
+            status="completed",
+            outcome={"command": "/brief", "delivery_mode": "telegram_or_fallback"},
+        )
     except Exception:
+        _mark_step(current_step, "failed", error_text="briefing_exception")
+        _mark_step("persist_result", "failed", error_text="briefing_exception")
+        _finish_session(
+            status="failed",
+            outcome={"command": "/brief", "failed_step": current_step},
+            last_error="briefing_exception",
+        )
         ref = incident_ref("BRIEF")
         print(f"BRIEFING FAILED [{ref}] {traceback.format_exc()}", flush=True)
         await tg.edit_message_text(
