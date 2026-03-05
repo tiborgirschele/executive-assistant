@@ -52,6 +52,7 @@ Gate reports are written to `logs/gates/*.json` and uploaded by CI.
 - v1.20 commitment OS foundations: `docs/EA_OS_Change_Guide_for_Dev_v1_20_Commitment_OS.md`
 - Teable curated-memory model: `docs/EA_OS_Teable_Memory_Model.md`
 - Product roadmap: `docs/ea_os_design_roadmap_v2026.md`
+- Auditor LTD/tier inventory: `LTD_INVENTORY.md`
 - Change guide (this rollout state): `docs/EA_OS_Change_Guide_for_Dev_v1_12_7.md`
 - v1.19 change guide: `docs/EA_OS_Change_Guide_for_Dev_v1_19_Future_Intelligence_Care_OS.md`
 
