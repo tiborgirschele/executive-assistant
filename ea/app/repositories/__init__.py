@@ -12,6 +12,8 @@ from app.repositories.observation import ObservationEventRepository, InMemoryObs
 from app.repositories.observation_postgres import PostgresObservationEventRepository
 from app.repositories.policy_decisions import PolicyDecisionRepository, InMemoryPolicyDecisionRepository
 from app.repositories.policy_decisions_postgres import PostgresPolicyDecisionRepository
+from app.repositories.task_contracts import InMemoryTaskContractRepository, TaskContractRepository
+from app.repositories.task_contracts_postgres import PostgresTaskContractRepository
 from app.repositories.tool_registry import InMemoryToolRegistryRepository, ToolRegistryRepository
 from app.repositories.tool_registry_postgres import PostgresToolRegistryRepository
 
@@ -37,6 +39,9 @@ __all__ = [
     "PostgresObservationEventRepository",
     "PostgresPolicyDecisionRepository",
     "PostgresExecutionLedgerRepository",
+    "InMemoryTaskContractRepository",
+    "TaskContractRepository",
+    "PostgresTaskContractRepository",
     "InMemoryToolRegistryRepository",
     "ToolRegistryRepository",
     "PostgresToolRegistryRepository",

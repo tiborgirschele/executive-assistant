@@ -123,6 +123,19 @@ class ConnectorBinding:
 
 
 @dataclass(frozen=True)
+class TaskContract:
+    task_key: str
+    deliverable_type: str
+    default_risk_class: str
+    default_approval_class: str
+    allowed_tools: tuple[str, ...]
+    evidence_requirements: tuple[str, ...]
+    memory_write_policy: str
+    budget_policy_json: dict[str, Any]
+    updated_at: str
+
+
+@dataclass(frozen=True)
 class ApprovalRequest:
     approval_id: str
     session_id: str

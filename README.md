@@ -23,6 +23,7 @@ Removed:
 - `/v1/delivery/outbox/{delivery_id}/failed` marks retry/dead-letter transitions with error context
 - `/v1/tools/registry*` manages typed tool contracts (`tool_name`, schemas, policy metadata)
 - `/v1/connectors/bindings*` manages external connector bindings and status transitions
+- `/v1/tasks/contracts*` manages typed task contracts used by intent compilation
 - observation intake supports `source_id`/`external_id`/`dedupe_key` attribution and auth/raw-payload pointers
 - delivery outbox supports idempotency keys plus retry/dead-letter state fields
 - `/v1/channels/telegram/ingest` maps raw Telegram updates into normalized observation events
@@ -51,6 +52,7 @@ Removed:
 - approvals workflow migration: `ea/schema/20260305_v0_7_approvals_kernel.sql`
 - channel runtime reliability migration: `ea/schema/20260305_v0_8_channel_runtime_reliability.sql`
 - tool/connector kernel migration: `ea/schema/20260305_v0_9_tool_connector_kernel.sql`
+- task-contract kernel migration: `ea/schema/20260305_v0_10_task_contracts_kernel.sql`
 
 ## Auth
 

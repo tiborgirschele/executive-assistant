@@ -82,12 +82,18 @@ class _FakeToolRuntime:
         return []
 
 
+class _FakeTaskContracts:
+    def list_contracts(self, limit: int = 100):
+        return []
+
+
 class _FakeContainer:
     def __init__(self) -> None:
         self.settings = _Settings()
         self.orchestrator = _FakeOrchestrator()
         self.channel_runtime = _FakeRuntime()
         self.tool_runtime = _FakeToolRuntime()
+        self.task_contracts = _FakeTaskContracts()
         self.readiness = _FakeReadiness()
 
 

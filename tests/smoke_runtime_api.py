@@ -303,6 +303,38 @@ def test_tool_registry_and_connector_bindings_flow() -> None:
     assert disabled.json()["status"] == "disabled"
 
 
+def test_task_contracts_flow_and_rewrite_compilation() -> None:
+    client = _client(storage_backend="memory", approval_threshold_chars=20000)
+
+    created = client.post(
+        "/v1/tasks/contracts",
+        json={
+            "task_key": "rewrite_text",
+            "deliverable_type": "rewrite_note",
+            "default_risk_class": "low",
+            "default_approval_class": "manager",
+            "allowed_tools": ["rewrite_store"],
+            "evidence_requirements": [],
+            "memory_write_policy": "reviewed_only",
+            "budget_policy_json": {"class": "low"},
+        },
+    )
+    assert created.status_code == 200
+    assert created.json()["task_key"] == "rewrite_text"
+
+    listed = client.get("/v1/tasks/contracts", params={"limit": 10})
+    assert listed.status_code == 200
+    assert any(row["task_key"] == "rewrite_text" for row in listed.json())
+
+    fetched = client.get("/v1/tasks/contracts/rewrite_text")
+    assert fetched.status_code == 200
+    assert fetched.json()["default_approval_class"] == "manager"
+
+    rewrite = client.post("/v1/rewrite/artifact", json={"text": "short rewrite input"})
+    assert rewrite.status_code == 409
+    assert rewrite.json()["error"]["code"] == "policy_denied:approval_required"
+
+
 def test_auth_allow_and_deny() -> None:
     token = "secret-token"
     client = _client(storage_backend="memory", auth_token=token)

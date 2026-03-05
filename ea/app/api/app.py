@@ -11,6 +11,7 @@ from app.api.routes.health import router as health_router
 from app.api.routes.observations import router as observations_router
 from app.api.routes.policy import router as policy_router
 from app.api.routes.rewrite import router as rewrite_router
+from app.api.routes.task_contracts import router as task_contracts_router
 from app.api.routes.tools import router as tools_router
 from app.container import build_container
 from app.settings import get_settings
@@ -29,5 +30,6 @@ def create_app() -> FastAPI:
     app.include_router(connectors_router, dependencies=auth_dependency)
     app.include_router(policy_router, dependencies=auth_dependency)
     app.include_router(rewrite_router, dependencies=auth_dependency)
+    app.include_router(task_contracts_router, dependencies=auth_dependency)
     app.include_router(tools_router, dependencies=auth_dependency)
     return app

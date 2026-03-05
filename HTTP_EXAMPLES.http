@@ -211,3 +211,28 @@ Content-Type: application/json
 {
   "status": "disabled"
 }
+
+### Task Contracts -> upsert
+POST {{host}}/v1/tasks/contracts
+Content-Type: application/json
+
+{
+  "task_key": "rewrite_text",
+  "deliverable_type": "rewrite_note",
+  "default_risk_class": "low",
+  "default_approval_class": "none",
+  "allowed_tools": [
+    "rewrite_store"
+  ],
+  "evidence_requirements": [],
+  "memory_write_policy": "reviewed_only",
+  "budget_policy_json": {
+    "class": "low"
+  }
+}
+
+### Task Contracts -> list
+GET {{host}}/v1/tasks/contracts?limit=20
+
+### Task Contracts -> get by key
+GET {{host}}/v1/tasks/contracts/rewrite_text

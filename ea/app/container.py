@@ -10,6 +10,7 @@ from app.repositories.tool_registry import InMemoryToolRegistryRepository
 from app.services.channel_runtime import ChannelRuntimeService, build_channel_runtime
 from app.services.orchestrator import RewriteOrchestrator, build_default_orchestrator
 from app.services.policy import PolicyDecisionService
+from app.services.task_contracts import TaskContractService, build_task_contract_service
 from app.services.tool_runtime import ToolRuntimeService, build_tool_runtime
 from app.settings import Settings, get_settings
 
@@ -52,6 +53,7 @@ class AppContainer:
     orchestrator: RewriteOrchestrator
     channel_runtime: ChannelRuntimeService
     tool_runtime: ToolRuntimeService
+    task_contracts: TaskContractService
     readiness: ReadinessService
 
 
@@ -84,10 +86,18 @@ def build_container(settings: Settings | None = None) -> AppContainer:
             tool_registry=InMemoryToolRegistryRepository(),
             connector_bindings=InMemoryConnectorBindingRepository(),
         )
+    try:
+        task_contracts = build_task_contract_service(settings=resolved)
+    except Exception as exc:
+        log.warning("task-contract bootstrap failed, using in-memory fallback: %s", exc)
+        from app.repositories.task_contracts import InMemoryTaskContractRepository
+
+        task_contracts = TaskContractService(InMemoryTaskContractRepository())
     return AppContainer(
         settings=resolved,
         orchestrator=orchestrator,
         channel_runtime=channel_runtime,
         tool_runtime=tool_runtime,
+        task_contracts=task_contracts,
         readiness=ReadinessService(resolved),
     )

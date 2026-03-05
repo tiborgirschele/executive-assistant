@@ -34,6 +34,9 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | POST | `/v1/connectors/bindings` | `200` | validation `422` |
 | GET | `/v1/connectors/bindings` | `200` | validation `422` |
 | POST | `/v1/connectors/bindings/{binding_id}/status` | `200` | `404 binding_not_found` |
+| POST | `/v1/tasks/contracts` | `200` | validation `422` |
+| GET | `/v1/tasks/contracts` | `200` | validation `422` |
+| GET | `/v1/tasks/contracts/{task_key}` | `200` | `404 task_contract_not_found` |
 
 Error envelope for failures:
 - `{ "error": { "code": "...", "message": "...", "details": ..., "correlation_id": "..." } }`
@@ -122,6 +125,7 @@ Applies:
 - `ea/schema/20260305_v0_7_approvals_kernel.sql`
 - `ea/schema/20260305_v0_8_channel_runtime_reliability.sql`
 - `ea/schema/20260305_v0_9_tool_connector_kernel.sql`
+- `ea/schema/20260305_v0_10_task_contracts_kernel.sql`
 
 Check table presence/counts:
 

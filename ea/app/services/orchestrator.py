@@ -26,6 +26,7 @@ from app.repositories.policy_decisions import InMemoryPolicyDecisionRepository, 
 from app.repositories.policy_decisions_postgres import PostgresPolicyDecisionRepository
 from app.settings import Settings, get_settings
 from app.services.policy import PolicyDecisionService, PolicyDeniedError
+from app.services.task_contracts import TaskContractService, build_task_contract_service
 
 
 @dataclass(frozen=True)
@@ -46,26 +47,31 @@ class RewriteOrchestrator:
         policy_repo: PolicyDecisionRepository | None = None,
         approvals: ApprovalRepository | None = None,
         policy: PolicyDecisionService | None = None,
+        task_contracts: TaskContractService | None = None,
     ) -> None:
         self._artifacts = artifacts or InMemoryArtifactRepository()
         self._ledger = ledger or InMemoryExecutionLedgerRepository()
         self._policy_repo = policy_repo or InMemoryPolicyDecisionRepository()
         self._approvals = approvals or InMemoryApprovalRepository()
         self._policy = policy or PolicyDecisionService()
+        self._task_contracts = task_contracts
 
     def build_artifact(self, req: RewriteRequest) -> Artifact:
-        intent = IntentSpecV3(
-            principal_id="local-user",
-            goal="rewrite supplied text into an artifact",
-            task_type="rewrite",
-            deliverable_type="rewrite_note",
-            risk_class="low",
-            approval_class="none",
-            budget_class="low",
-            allowed_tools=("rewrite_store",),
-            desired_artifact="rewrite_note",
-            memory_write_policy="reviewed_only",
-        )
+        if self._task_contracts:
+            intent = self._task_contracts.compile_rewrite_intent(principal_id="local-user")
+        else:
+            intent = IntentSpecV3(
+                principal_id="local-user",
+                goal="rewrite supplied text into an artifact",
+                task_type="rewrite_text",
+                deliverable_type="rewrite_note",
+                risk_class="low",
+                approval_class="none",
+                budget_class="low",
+                allowed_tools=("rewrite_store",),
+                desired_artifact="rewrite_note",
+                memory_write_policy="reviewed_only",
+            )
         session = self._ledger.start_session(intent)
         correlation_id = str(uuid.uuid4())
         self._ledger.append_event(
@@ -356,6 +362,7 @@ def build_default_orchestrator(settings: Settings | None = None) -> RewriteOrche
     policy_repo = build_policy_repo(resolved)
     approvals = build_approval_repo(resolved)
     artifacts = build_artifact_repo(resolved)
+    task_contracts = build_task_contract_service(resolved)
     policy = PolicyDecisionService(
         max_rewrite_chars=resolved.policy.max_rewrite_chars,
         approval_required_chars=resolved.policy.approval_required_chars,
@@ -366,4 +373,5 @@ def build_default_orchestrator(settings: Settings | None = None) -> RewriteOrche
         policy_repo=policy_repo,
         approvals=approvals,
         policy=policy,
+        task_contracts=task_contracts,
     )

@@ -34,6 +34,10 @@ All notable changes to the rewrite-kernel baseline are documented here.
   - `tool_registry` store for typed tool contracts and policy metadata
   - `connector_bindings` store for external account bindings + status
   - API endpoints for tool registry and connector binding CRUD/status updates
+- Task-contract kernel primitives:
+  - `task_contracts` store for typed task contracts
+  - API endpoints for task contract upsert/list/get
+  - orchestrator rewrite intent now compiles from task contracts (default fallback preserved)
 - Postgres + in-memory repository backends for kernel stores.
 - Kernel SQL migrations:
   - `v0_2` execution ledger
@@ -44,6 +48,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
   - `v0_7` approvals workflow
   - `v0_8` channel runtime reliability
   - `v0_9` tool/connector kernel
+  - `v0_10` task-contracts kernel
 - Operator tooling:
   - `scripts/db_bootstrap.sh`
   - `scripts/db_status.sh`
@@ -65,6 +70,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Approval-required rewrite sessions now pause with `waiting_approval` steps and transition on approve/deny/expire decisions.
 - Observation ingest now supports dedupe and source attribution; delivery outbox now supports retry scheduling and idempotent enqueue.
 - API/runtime now includes first-class tool registry and connector binding management surfaces.
+- Rewrite orchestration now supports contract-driven intent compilation via task contracts.
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.
