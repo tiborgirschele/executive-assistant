@@ -13,9 +13,8 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-042 | P3 | Add script-level help/usage output for `scripts/support_bundle.sh` | codex | queued | Complete `--help` parity across key operator scripts |
 | Q-044 | P2 | Keep queue log current as slices are added/closed | codex | queued | Use this file as the default intake point for new tasks |
-| Q-045 | P3 | Add script-level help/usage output for `scripts/archive_tasks.sh` and `scripts/verify_release_assets.sh` | codex | queued | Finish operator UX consistency across maintenance scripts |
+| Q-051 | P3 | Add small smoke check that validates operator scripts respond to `--help` | codex | queued | Guard script UX contracts in local/CI checks |
 
 ## In Progress
 
@@ -77,6 +76,13 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | D-042 | P3 | Add support bundle timestamp-format override | codex | done | Added `SUPPORT_BUNDLE_TIMESTAMP_FMT` support |
 | D-043 | P3 | Document host-port resolution for runtime scripts | codex | done | Added ordering note to top of `RUNBOOK.md` |
 | D-044 | P2 | Create queue-first work-log format for rewrite slices | codex | done | Added usage rules + blocked lane + queue intake emphasis |
+| D-045 | P3 | Add script-level help output for `support_bundle.sh` | codex | done | Added `--help` with env var contract |
+| D-046 | P3 | Add script-level help output for archive/verify script pair | codex | done | Added `--help` to `archive_tasks.sh` and `verify_release_assets.sh` |
+| D-047 | P3 | Add runbook script-help index section | codex | done | Added quick `--help` command table for key operator scripts |
+| D-048 | P3 | Add aggregate operator-help make target | codex | done | Added `make operator-help` to print key script help outputs |
+| D-049 | P3 | Add README entry for operator-help index | codex | done | Documented `make operator-help` in quick operator references |
+| D-050 | P3 | Add release-asset docs linkage checks for operator-help index | codex | done | Verifies README and RUNBOOK contain help-index references |
+| D-051 | P3 | Add runbook quick command for `make operator-help` | codex | done | Added combined index command under script-help section |
 
 ## Intake Template
 

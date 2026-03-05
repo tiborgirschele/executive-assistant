@@ -7,8 +7,23 @@ ARCHIVE_FILE="${EA_ROOT}/TASKS_ARCHIVE.md"
 PRUNE_DONE=0
 DRY_RUN=0
 
+usage() {
+  cat <<'EOF'
+Usage:
+  bash scripts/archive_tasks.sh [--dry-run] [--prune-done]
+
+Options:
+  --dry-run     Show rows that would be archived without writing files.
+  --prune-done  After archiving, replace Done rows with an empty placeholder row.
+EOF
+}
+
 for arg in "$@"; do
   case "${arg}" in
+    --help|-h)
+      usage
+      exit 0
+      ;;
     --prune-done)
       PRUNE_DONE=1
       ;;
@@ -17,7 +32,7 @@ for arg in "$@"; do
       ;;
     *)
       echo "unknown argument: ${arg}" >&2
-      echo "usage: scripts/archive_tasks.sh [--dry-run] [--prune-done]" >&2
+      usage >&2
       exit 2
       ;;
   esac

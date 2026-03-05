@@ -4,6 +4,17 @@ set -euo pipefail
 EA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${EA_ROOT}"
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'EOF'
+Usage:
+  bash scripts/verify_release_assets.sh
+
+Validates presence of required runtime docs, scripts, and schema files.
+Exits non-zero when any required asset is missing.
+EOF
+  exit 0
+fi
+
 missing=0
 
 required_files=(
@@ -42,6 +53,21 @@ for f in "${required_files[@]}"; do
     missing=1
   fi
 done
+
+echo "== verify release docs linkage =="
+if grep -Fq "make operator-help" "README.md"; then
+  echo "ok: README operator-help reference"
+else
+  echo "missing: README operator-help reference" >&2
+  missing=1
+fi
+
+if grep -Fq "Operator Script Help Index" "RUNBOOK.md"; then
+  echo "ok: RUNBOOK script help index"
+else
+  echo "missing: RUNBOOK script help index" >&2
+  missing=1
+fi
 
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2

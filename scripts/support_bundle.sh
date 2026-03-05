@@ -4,6 +4,22 @@ set -euo pipefail
 EA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${EA_ROOT}"
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'EOF'
+Usage:
+  bash scripts/support_bundle.sh
+
+Environment:
+  SUPPORT_BUNDLE_PREFIX=<name>          Bundle filename prefix (default: support_bundle)
+  SUPPORT_BUNDLE_TIMESTAMP_FMT=<fmt>    UTC timestamp format for filename (date format)
+  SUPPORT_LOG_TAIL_LINES=<n>            Number of log lines to capture (default: 300)
+  SUPPORT_INCLUDE_API=0|1               Include ea-api logs (default: 1)
+  SUPPORT_INCLUDE_DB=0|1                Include ea-db logs (default: 1)
+  SUPPORT_INCLUDE_QUEUE=0|1             Include queued task snapshot (default: 1)
+EOF
+  exit 0
+fi
+
 if docker compose version >/dev/null 2>&1; then
   DC=(docker compose)
 else

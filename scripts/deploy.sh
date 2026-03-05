@@ -3,6 +3,18 @@ set -euo pipefail
 
 EA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'EOF'
+Usage:
+  bash scripts/deploy.sh
+
+Environment:
+  EA_MEMORY_ONLY=1   Deploy API service using docker-compose.memory.yml override.
+  EA_BOOTSTRAP_DB=1  Run db bootstrap after deploy (ignored if EA_MEMORY_ONLY=1).
+EOF
+  exit 0
+fi
+
 echo "== EA rewrite deploy: ${EA_ROOT} =="
 
 if [[ ! -f "${EA_ROOT}/.env" ]]; then

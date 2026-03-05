@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-memory deploy-bootstrap bootstrap db-status smoke-api test-api openapi-export openapi-diff openapi-prune endpoints version-info operator-summary support-bundle tasks-archive tasks-archive-prune tasks-archive-dry-run ci-local verify-release-assets all-local
+.PHONY: deploy deploy-memory deploy-bootstrap bootstrap db-status smoke-api test-api openapi-export openapi-diff openapi-prune endpoints version-info operator-summary operator-help support-bundle tasks-archive tasks-archive-prune tasks-archive-dry-run ci-local verify-release-assets all-local
 
 deploy:
 	bash scripts/deploy.sh
@@ -38,6 +38,13 @@ version-info:
 
 operator-summary:
 	bash scripts/operator_summary.sh
+
+operator-help:
+	@for s in scripts/deploy.sh scripts/db_bootstrap.sh scripts/db_status.sh scripts/smoke_api.sh scripts/support_bundle.sh scripts/archive_tasks.sh scripts/verify_release_assets.sh; do \
+	  echo "===== $$s --help ====="; \
+	  bash $$s --help; \
+	  echo; \
+	done
 
 support-bundle:
 	bash scripts/support_bundle.sh

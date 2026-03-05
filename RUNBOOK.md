@@ -20,6 +20,26 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | POST | `/v1/delivery/outbox/{delivery_id}/sent` | `200` | `404 delivery_not_found` |
 | POST | `/v1/channels/telegram/ingest` | `200` | validation `422` |
 
+## Operator Script Help Index
+
+Use `--help` (or `-h`) on key scripts to print usage contracts quickly:
+
+| Script | Help Command | Purpose |
+|---|---|---|
+| `scripts/deploy.sh` | `bash scripts/deploy.sh --help` | Deploy runtime (standard or memory-only) |
+| `scripts/db_bootstrap.sh` | `bash scripts/db_bootstrap.sh --help` | Apply kernel DB migrations |
+| `scripts/db_status.sh` | `bash scripts/db_status.sh --help` | Check kernel table presence/counts |
+| `scripts/smoke_api.sh` | `bash scripts/smoke_api.sh --help` | Run API smoke contracts |
+| `scripts/support_bundle.sh` | `bash scripts/support_bundle.sh --help` | Build operator support bundle |
+| `scripts/archive_tasks.sh` | `bash scripts/archive_tasks.sh --help` | Archive/prune task log Done rows |
+| `scripts/verify_release_assets.sh` | `bash scripts/verify_release_assets.sh --help` | Verify release artifact completeness |
+
+Combined index:
+
+```bash
+make operator-help
+```
+
 ## 1) Start Services
 
 ```bash

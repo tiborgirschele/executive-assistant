@@ -3,6 +3,19 @@ set -euo pipefail
 
 EA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'EOF'
+Usage:
+  bash scripts/db_bootstrap.sh
+
+Applies kernel migrations in order:
+  - v0_2 execution ledger
+  - v0_3 channel runtime
+  - v0_4 policy decisions
+EOF
+  exit 0
+fi
+
 if docker compose version >/dev/null 2>&1; then
   DC=(docker compose)
 else

@@ -3,6 +3,22 @@ set -euo pipefail
 
 EA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'EOF'
+Usage:
+  bash scripts/smoke_api.sh
+
+Runs end-to-end HTTP smoke checks for health, rewrite/session/policy,
+observations, delivery outbox, and telegram adapter.
+
+Exit codes:
+  11 missing execution_session_id
+  12 blocked-policy contract mismatch
+  13 missing delivery_id
+EOF
+  exit 0
+fi
+
 fail() {
   local code="$1"
   local msg="$2"

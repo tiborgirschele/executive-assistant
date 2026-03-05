@@ -74,6 +74,7 @@ Snapshot pruning is available via `scripts/prune_openapi.sh` or `make openapi-pr
 Endpoint inventory can be printed via `scripts/list_endpoints.sh` or `make endpoints`.
 Version fingerprint can be printed via `scripts/version_info.sh` or `make version-info`.
 Operator summary can be printed via `scripts/operator_summary.sh` or `make operator-summary`.
+Operator script usage index can be printed via `make operator-help`.
 Support bundle export is available via `scripts/support_bundle.sh` or `make support-bundle`.
 Support bundles apply baseline redaction for common secret/token/password patterns.
 Set `SUPPORT_INCLUDE_DB=0` to skip DB logs in support bundle generation.

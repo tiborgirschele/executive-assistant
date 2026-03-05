@@ -3,6 +3,18 @@ set -euo pipefail
 
 EA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'EOF'
+Usage:
+  bash scripts/db_status.sh
+
+Checks kernel table presence and row counts for:
+  execution_sessions, execution_events, observation_events,
+  delivery_outbox, policy_decisions
+EOF
+  exit 0
+fi
+
 if docker compose version >/dev/null 2>&1; then
   DC=(docker compose)
 else
