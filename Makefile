@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-memory deploy-bootstrap bootstrap db-status smoke-api test-api openapi-export openapi-diff openapi-prune endpoints version-info operator-summary operator-help support-bundle tasks-archive tasks-archive-prune tasks-archive-dry-run ci-local verify-release-assets all-local
+.PHONY: deploy deploy-memory deploy-bootstrap bootstrap db-status smoke-api smoke-help release-smoke release-preflight release-docs test-api openapi-export openapi-diff openapi-prune endpoints version-info operator-summary operator-help support-bundle tasks-archive tasks-archive-prune tasks-archive-dry-run ci-local ci-gates verify-release-assets docs-verify all-local
 
 deploy:
 	bash scripts/deploy.sh
@@ -17,6 +17,20 @@ db-status:
 
 smoke-api:
 	bash scripts/smoke_api.sh
+
+smoke-help:
+	bash scripts/smoke_help.sh
+
+release-smoke: smoke-help smoke-api
+
+release-preflight:
+	$(MAKE) verify-release-assets
+	$(MAKE) operator-help
+	$(MAKE) release-smoke
+
+release-docs:
+	$(MAKE) docs-verify
+	$(MAKE) operator-help
 
 test-api:
 	PYTHONPATH=ea EA_LEDGER_BACKEND=memory pytest -q tests/smoke_runtime_api.py
@@ -61,8 +75,18 @@ tasks-archive-dry-run:
 ci-local:
 	python3 -m compileall -q ea/app
 	python3 -m py_compile tests/smoke_runtime_api.py
+	bash scripts/smoke_help.sh
+
+# Mirror the smoke-runtime CI gate order locally from one entrypoint.
+ci-gates:
+	$(MAKE) smoke-help
+	$(MAKE) ci-local
+	$(MAKE) test-api
+	$(MAKE) verify-release-assets
 
 verify-release-assets:
 	bash scripts/verify_release_assets.sh
+
+docs-verify: verify-release-assets
 
 all-local: ci-local verify-release-assets

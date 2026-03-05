@@ -67,6 +67,8 @@ Runnable endpoint samples are in `HTTP_EXAMPLES.http`.
 Release notes are tracked in `CHANGELOG.md`.
 Environment/profile recommendations are in `ENVIRONMENT_MATRIX.md`.
 Current machine-readable milestone checkpoint is `MILESTONE.json`.
+Gate-bundle hardening flags are tracked in `MILESTONE.json` feature tags (`ci_gate_bundle`, `release_preflight_bundle`, `docs_verify_alias`).
+Release preflight checklist includes milestone gate-tag parity verification in `RELEASE_CHECKLIST.md`.
 Release operations checklist is `RELEASE_CHECKLIST.md`.
 OpenAPI snapshot export is available via `scripts/export_openapi.sh` or `make openapi-export`.
 Snapshot diff is available via `scripts/diff_openapi.sh` or `make openapi-diff`.
@@ -84,7 +86,16 @@ Set `SUPPORT_BUNDLE_PREFIX=<tag>` to customize support bundle filenames.
 Set `SUPPORT_BUNDLE_TIMESTAMP_FMT=<date format>` to customize bundle timestamp formatting.
 HTTP script host-port resolution details are documented at the top of `RUNBOOK.md`.
 Task archive rotation is available via `scripts/archive_tasks.sh` or `make tasks-archive`.
+Script help contract smoke is available via `scripts/smoke_help.sh` or `make smoke-help`.
+Release smoke aggregate is available via `make release-smoke`.
 Local CI-parity compile checks can be run via `make ci-local`.
+One-command local CI gate bundle is available via `make ci-gates`.
 Release asset integrity can be checked via `scripts/verify_release_assets.sh` or `make verify-release-assets`.
+Docs-focused alias for the same check: `make docs-verify`.
+Docs + operator help aggregate: `make release-docs`.
+Release preflight aggregate is available via `make release-preflight`.
+Recommended sequencing: run `make release-docs` before `make release-preflight`.
 One-command local readiness check: `make all-local`.
+`make all-local` is a lighter local readiness pass; use `make release-preflight` for release-stage smoke + operator checks.
+CI gate sequence is documented in `RUNBOOK.md` and currently runs `smoke-help`, `ci-local`, runtime API smoke tests, and release-asset verification.
 Shell script lint config is tracked in `.shellcheckrc`.

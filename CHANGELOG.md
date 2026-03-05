@@ -21,8 +21,10 @@ All notable changes to the rewrite-kernel baseline are documented here.
   - `scripts/db_bootstrap.sh`
   - `scripts/db_status.sh`
   - `scripts/smoke_api.sh`
+  - `scripts/smoke_help.sh`
   - `Makefile` shortcuts
   - `RUNBOOK.md`, `ARCHITECTURE_MAP.md`, `HTTP_EXAMPLES.http`
+- CI/local gate bundle tooling and docs (`make ci-gates`, `make release-smoke`, `make release-preflight`, `make docs-verify`, `make release-docs`, script `--help` contracts).
 - CI smoke workflow: `.github/workflows/smoke-runtime.yml`
 - Runtime API smoke tests: `tests/smoke_runtime_api.py`
 
@@ -30,6 +32,8 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Container hardening: removed `docker.io` install from app images.
 - Deploy flow can optionally chain DB bootstrap (`EA_BOOTSTRAP_DB=1`).
 - Rewrite path now emits execution ledger events and policy audit records.
+- Milestone metadata now includes CI/docs/release gate-bundle feature tags.
+- Release checklist now includes explicit milestone gate-tag parity verification.
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.

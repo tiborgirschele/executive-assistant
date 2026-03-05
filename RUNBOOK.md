@@ -40,6 +40,25 @@ Combined index:
 make operator-help
 ```
 
+## CI Gate Summary
+
+`smoke-runtime` workflow currently enforces:
+
+- `make smoke-help`
+- `make ci-local`
+- `pytest -q tests/smoke_runtime_api.py`
+- `make verify-release-assets`
+
+Milestone tracking linkage: `MILESTONE.json` feature tags include `ci_gate_bundle`, `release_preflight_bundle`, and `docs_verify_alias`.
+
+Local mirror command:
+
+```bash
+make ci-gates
+```
+
+Release ops linkage: `RELEASE_CHECKLIST.md` includes `make ci-gates` as an optional local parity command.
+
 ## 1) Start Services
 
 ```bash
@@ -139,11 +158,21 @@ curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/channels/telegram/in
 bash scripts/smoke_api.sh
 # or
 make smoke-api
+# or (includes help-smoke + API smoke)
+make release-smoke
 ```
 
 The smoke script now includes a blocked-policy assertion (`403` on oversized rewrite input).
 
-## 8) Export OpenAPI Snapshot
+## 8) Script Help Smoke
+
+```bash
+bash scripts/smoke_help.sh
+# or
+make smoke-help
+```
+
+## 9) Export OpenAPI Snapshot
 
 ```bash
 bash scripts/export_openapi.sh
@@ -169,7 +198,7 @@ bash scripts/prune_openapi.sh 50
 make openapi-prune
 ```
 
-## 9) Optional Local Pre-Commit Hook
+## 10) Optional Local Pre-Commit Hook
 
 ```bash
 mkdir -p .githooks
@@ -178,7 +207,7 @@ chmod +x .githooks/pre-commit
 git config core.hooksPath .githooks
 ```
 
-## 10) Print Endpoint Inventory
+## 11) Print Endpoint Inventory
 
 ```bash
 bash scripts/list_endpoints.sh
@@ -186,7 +215,7 @@ bash scripts/list_endpoints.sh
 make endpoints
 ```
 
-## 11) Print Version Fingerprint
+## 12) Print Version Fingerprint
 
 ```bash
 bash scripts/version_info.sh
@@ -194,7 +223,7 @@ bash scripts/version_info.sh
 make version-info
 ```
 
-## 12) Print Operator Summary
+## 13) Print Operator Summary
 
 ```bash
 bash scripts/operator_summary.sh
@@ -202,7 +231,7 @@ bash scripts/operator_summary.sh
 make operator-summary
 ```
 
-## 13) Generate Support Bundle
+## 14) Generate Support Bundle
 
 ```bash
 bash scripts/support_bundle.sh
@@ -224,7 +253,7 @@ make support-bundle
 
 `support_bundle.sh` applies baseline redaction patterns for common secret/token/password forms.
 
-## 14) Archive Completed Task Rows
+## 15) Archive Completed Task Rows
 
 ```bash
 # append Done rows to TASKS_ARCHIVE.md
@@ -239,19 +268,35 @@ make tasks-archive-dry-run
 make tasks-archive-prune
 ```
 
-## 15) Verify Release Assets
+## 16) Verify Release Assets
 
 ```bash
 bash scripts/verify_release_assets.sh
 # or
 make verify-release-assets
+# docs-focused alias
+make docs-verify
+# docs + operator-help bundle
+make release-docs
 ```
+
+Use `make release-docs` as a pre-smoke documentation/usage pass before running `make release-preflight`.
 
 Combined local readiness check:
 
 ```bash
 make all-local
 ```
+
+`make all-local` is a lightweight readiness pass. Use `make release-preflight` for release-stage smoke and operator checks.
+
+Release preflight aggregate (asset checks + operator help + release smoke):
+
+```bash
+make release-preflight
+```
+
+`RELEASE_CHECKLIST.md` now includes an explicit milestone gate-tag parity preflight line to validate `MILESTONE.json` feature tags.
 
 ## Smoke Exit Codes
 

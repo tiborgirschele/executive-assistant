@@ -10,7 +10,11 @@
     "telegram_adapter_ingest",
     "api_smoke_tests",
     "ci_smoke_workflow",
-    "operator_runbook"
+    "operator_runbook",
+    "script_help_contracts",
+    "ci_gate_bundle",
+    "release_preflight_bundle",
+    "docs_verify_alias"
   ],
   "migrations": [
     "ea/schema/20260305_v0_2_execution_ledger_kernel.sql",

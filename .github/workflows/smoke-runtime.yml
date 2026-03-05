@@ -22,9 +22,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r ea/requirements.txt pytest httpx
 
-      - name: Run Runtime API Smoke Tests
-        env:
-          PYTHONPATH: ea
-          EA_LEDGER_BACKEND: memory
+      - name: Run CI Gate Bundle
         run: |
-          pytest -q tests/smoke_runtime_api.py
+          make ci-gates

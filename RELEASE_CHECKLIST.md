@@ -6,6 +6,11 @@
 - [ ] `.env` is present with production-safe values.
 - [ ] `EA_LEDGER_BACKEND=postgres` and `DATABASE_URL` are set.
 - [ ] CI smoke workflow is green.
+- [ ] CI gate bundle (`make smoke-help`, `make ci-local`, runtime smoke API tests, `make verify-release-assets`) is green.
+- [ ] Optional local parity run completed: `make ci-gates`.
+- [ ] Optional docs parity run completed: `make docs-verify`.
+- [ ] Optional docs+usage parity run completed: `make release-docs`.
+- [ ] Docs parity confirms milestone gate tags in `MILESTONE.json` (`ci_gate_bundle`, `release_preflight_bundle`, `docs_verify_alias`).
 
 ## Build & Deploy
 
@@ -25,7 +30,10 @@
 
 ## Smoke
 
-- [ ] `bash scripts/smoke_api.sh`
+- [ ] Optional one-command release bundle: `make release-preflight`
+- [ ] `make release-smoke`
+- [ ] `make operator-help` (manual spot-check of script usage contracts)
+- [ ] Optional combined local mirror: `make ci-gates`
 - [ ] Confirm blocked-policy path returns `403`.
 - [ ] Confirm `/v1/policy/decisions/recent` includes new entries after rewrite call.
 

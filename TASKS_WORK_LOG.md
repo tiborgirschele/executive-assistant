@@ -14,7 +14,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
 | Q-044 | P2 | Keep queue log current as slices are added/closed | codex | queued | Use this file as the default intake point for new tasks |
-| Q-051 | P3 | Add small smoke check that validates operator scripts respond to `--help` | codex | queued | Guard script UX contracts in local/CI checks |
+| Q-116 | P3 | Add changelog note for runbook/checklist milestone parity linkage | codex | queued | Track cross-doc milestone parity linkage in release notes |
 
 ## In Progress
 
@@ -83,6 +83,70 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | D-049 | P3 | Add README entry for operator-help index | codex | done | Documented `make operator-help` in quick operator references |
 | D-050 | P3 | Add release-asset docs linkage checks for operator-help index | codex | done | Verifies README and RUNBOOK contain help-index references |
 | D-051 | P3 | Add runbook quick command for `make operator-help` | codex | done | Added combined index command under script-help section |
+| D-052 | P3 | Add script-help smoke checker and local make target | codex | done | Added `scripts/smoke_help.sh`, `make smoke-help`, and `ci-local` hook |
+| D-053 | P3 | Run script-help smoke in CI workflow | codex | done | Added `make smoke-help` step to `smoke-runtime` workflow |
+| D-054 | P3 | Add release checklist step for script-help smoke | codex | done | Added `make smoke-help` to release smoke checklist |
+| D-055 | P3 | Add release checklist operator-help spot-check | codex | done | Added `make operator-help` spot-check line to smoke checklist |
+| D-056 | P3 | Add release-smoke make target and docs references | codex | done | Added `make release-smoke` and linked in README/RUNBOOK/checklist |
+| D-057 | P3 | Add release-asset check for runbook smoke-help reference | codex | done | Verifies RUNBOOK includes `scripts/smoke_help.sh` usage path |
+| D-058 | P3 | Add release-asset check for README release-smoke reference | codex | done | Verifies README includes `make release-smoke` usage path |
+| D-059 | P3 | Add CI release-asset verification step | codex | done | Workflow now runs `make verify-release-assets` after runtime tests |
+| D-060 | P3 | Add CI ci-local parity gate | codex | done | Workflow now runs `make ci-local` after dependency install |
+| D-061 | P3 | Add runbook CI gate summary | codex | done | Documented smoke-runtime workflow gate sequence in RUNBOOK |
+| D-062 | P3 | Add README CI gate sequence note | codex | done | Added concise gate summary to entrypoint documentation |
+| D-063 | P3 | Add release checklist CI gate bundle preflight line | codex | done | Added explicit CI gate bundle requirement in preflight section |
+| D-064 | P3 | Add release-asset guard for checklist CI gate bundle line | codex | done | Verifies `RELEASE_CHECKLIST.md` keeps CI gate bundle preflight note |
+| D-065 | P3 | Add local CI gate aggregator target and docs | codex | done | Added `make ci-gates` and linked it in README/RUNBOOK |
+| D-066 | P3 | Refactor CI workflow to use ci-gates target | codex | done | Workflow now runs `make ci-gates` as a single gate bundle step |
+| D-067 | P3 | Add release checklist ci-gates parity line | codex | done | Added optional local `make ci-gates` preflight check |
+| D-068 | P3 | Add release-asset guard for checklist ci-gates line | codex | done | Verifies `RELEASE_CHECKLIST.md` includes `make ci-gates` guidance |
+| D-069 | P3 | Add ci-gates and help-smoke visibility to changelog | codex | done | Captured new gate bundle/tooling in release history notes |
+| D-070 | P3 | Add ci-gates mention to release checklist smoke section | codex | done | Added optional `make ci-gates` line beside smoke checklist commands |
+| D-071 | P3 | Add release-asset guard for changelog ci-gates note | codex | done | Verifies `CHANGELOG.md` retains ci-gates visibility entry |
+| D-072 | P3 | Add runbook release checklist ci-gates linkage note | codex | done | Added explicit runbook cross-link to checklist `make ci-gates` guidance |
+| D-073 | P3 | Add release-asset guard for runbook release linkage note | codex | done | Verifies RUNBOOK keeps release-ops cross-link wording |
+| D-074 | P3 | Add release-asset guard for CI ci-gates usage | codex | done | Verifies workflow keeps `make ci-gates` as gate bundle command |
+| D-075 | P3 | Add Makefile comment for ci-gates purpose | codex | done | Clarified local/CI gate parity intent near target definition |
+| D-076 | P3 | Add release-preflight aggregate target and docs linkage | codex | done | Added `make release-preflight` and linked in README/RUNBOOK/checklist |
+| D-077 | P3 | Add release-asset guards for release-preflight doc references | codex | done | Verifies README/RUNBOOK/RELEASE_CHECKLIST retain `make release-preflight` |
+| D-078 | P3 | Add changelog mention for release-preflight command | codex | done | Captured new aggregate release command in history notes |
+| D-079 | P3 | Add release-asset guard for changelog release-preflight note | codex | done | Verifies release notes keep `make release-preflight` visibility |
+| D-080 | P3 | Add README note differentiating all-local vs release-preflight | codex | done | Clarified lighter readiness pass vs release-stage preflight bundle |
+| D-081 | P3 | Add release-asset guard for README all-local/release-preflight note | codex | done | Verifies command-scope differentiation remains documented |
+| D-082 | P3 | Add RUNBOOK note differentiating all-local vs release-preflight | codex | done | Clarified lightweight readiness vs release-stage aggregate in runbook |
+| D-083 | P3 | Add release-asset guard for RUNBOOK all-local/release-preflight note | codex | done | Verifies runbook keeps command-scope differentiation wording |
+| D-084 | P3 | Add docs-verify make alias and README mention | codex | done | Added `make docs-verify` alias for release asset/doc verification |
+| D-085 | P3 | Add release-asset guard for README docs-verify alias | codex | done | Verifies entry docs retain `make docs-verify` alias reference |
+| D-086 | P3 | Add RUNBOOK mention for docs-verify alias | codex | done | Added docs-focused alias line in verification command section |
+| D-087 | P3 | Add release-asset guard for RUNBOOK docs-verify alias | codex | done | Verifies runbook retains `make docs-verify` reference |
+| D-088 | P3 | Add changelog mention for docs-verify alias | codex | done | Captured docs verification alias in gate tooling notes |
+| D-089 | P3 | Add release-asset guard for changelog docs-verify note | codex | done | Verifies release notes retain `make docs-verify` alias visibility |
+| D-090 | P3 | Add release checklist docs-verify parity line | codex | done | Added optional `make docs-verify` preflight line |
+| D-091 | P3 | Add release-asset guard for checklist docs-verify line | codex | done | Verifies `RELEASE_CHECKLIST.md` retains docs-verify parity guidance |
+| D-092 | P3 | Add release-docs aggregate target and docs references | codex | done | Added `make release-docs` and linked in README/RUNBOOK/checklist |
+| D-093 | P3 | Add release-asset guards for release-docs references | codex | done | Verifies README/RUNBOOK/RELEASE_CHECKLIST retain `make release-docs` |
+| D-094 | P3 | Add changelog mention for release-docs bundle | codex | done | Captured docs+usage parity bundle in gate tooling notes |
+| D-095 | P3 | Add release-asset guard for changelog release-docs note | codex | done | Verifies release notes retain `make release-docs` alias visibility |
+| D-096 | P3 | Add RUNBOOK pre-smoke guidance for release-docs | codex | done | Added sequencing note: `release-docs` before `release-preflight` |
+| D-097 | P3 | Add release-asset guard for runbook release-docs sequencing note | codex | done | Verifies runbook retains pre-smoke sequencing guidance |
+| D-098 | P3 | Add README sequencing note for release-docs then release-preflight | codex | done | Entry docs now mirror runbook pre-smoke sequencing guidance |
+| D-099 | P3 | Add release-asset guard for README release-docs sequencing note | codex | done | Verifies entry docs retain release-docs sequencing guidance |
+| D-100 | P3 | Add milestone metadata for gate-bundle hardening | codex | done | Added ci/docs/release gate feature tags to `MILESTONE.json` |
+| D-101 | P3 | Add release-asset guard for milestone gate feature tags | codex | done | Verifies `MILESTONE.json` retains gate-bundle feature annotations |
+| D-102 | P3 | Add changelog note for milestone gate-bundle tags | codex | done | Recorded milestone metadata expansion in changelog `Changed` section |
+| D-103 | P3 | Add release-asset guard for changelog milestone-tag note | codex | done | Verifies changelog keeps milestone gate-tag visibility line |
+| D-104 | P3 | Add README pointer for milestone gate-bundle tags | codex | done | Added feature-tag pointer near `MILESTONE.json` entry doc reference |
+| D-105 | P3 | Add release-asset guard for README milestone gate-tag pointer | codex | done | Verifies entry docs retain milestone gate-bundle feature pointer |
+| D-106 | P3 | Add RUNBOOK milestone gate-tag linkage note | codex | done | Linked CI gate summary section to `MILESTONE.json` feature tags |
+| D-107 | P3 | Add release-asset guard for RUNBOOK milestone gate-tag linkage | codex | done | Verifies runbook retains milestone feature-tag linkage guidance |
+| D-108 | P3 | Add release checklist milestone gate-tag parity line | codex | done | Added explicit milestone tag verification note in preflight checklist |
+| D-109 | P3 | Add release-asset guard for checklist milestone gate-tag line | codex | done | Verifies checklist keeps milestone tag parity guidance |
+| D-110 | P3 | Add changelog line for checklist milestone gate-tag verification | codex | done | Recorded checklist milestone parity update in changelog `Changed` section |
+| D-111 | P3 | Add release-asset guard for changelog checklist milestone-tag line | codex | done | Verifies changelog keeps checklist milestone parity visibility |
+| D-112 | P3 | Add README note for checklist milestone parity verification | codex | done | Entry docs now highlight checklist milestone gate-tag verification |
+| D-113 | P3 | Add release-asset guard for README checklist milestone parity note | codex | done | Verifies entry docs keep checklist milestone parity guidance visible |
+| D-114 | P3 | Add RUNBOOK note for checklist milestone parity preflight line | codex | done | Added runbook linkage to checklist milestone-tag preflight validation |
+| D-115 | P3 | Add release-asset guard for runbook checklist milestone parity note | codex | done | Verifies runbook/checklist milestone parity linkage remains documented |
 
 ## Intake Template
 
