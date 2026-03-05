@@ -378,7 +378,7 @@ Owner: Codex runtime worker
       - added/wired `smoke_v1_22_execute_step_queue_seed.py`.
       - expanded planner export/runtime/plan-store smokes for queue-step selection.
 
-36. `IN_PROGRESS` - Planner world-model linkage from execute outputs.
+36. `DONE` - Planner world-model linkage from execute outputs.
    - Deliverables:
       - emit `followups` seed rows from execute-intent completion when output
         artifact type implies deferred action (`decision_pack`, `strategy_pack`,
@@ -386,6 +386,31 @@ Owner: Codex runtime worker
       - attach generated followup ids into execution step `output_refs_json` and
         session finalize outcome payload.
       - add smoke coverage for followup seed emission and output-ref linkage.
+   - Progress:
+      - added followup-seeding helper in `intent_runtime` for deferred-action
+        artifact classes.
+      - execution render-step persistence now links `artifact:*` and
+        `followup:*` refs via `output_refs_json`.
+      - finalize-session outcomes now carry `artifact_id` and `followup_ids`.
+      - added/wired `smoke_v1_22_followup_seed_from_execute.py`.
+
+37. `DONE` - Full docker E2E validation for v1.22 followup/runtime slice.
+   - Deliverables:
+      - run `bash scripts/docker_e2e.sh` on current queue state.
+      - resolve runtime-safe regressions if present and rerun until PASS.
+      - checkpoint queue state and continue with next architectural task.
+   - Progress:
+      - executed full `scripts/docker_e2e.sh` on current queue state.
+      - all runtime/design/milestone/HTTP ingress/e2e checks passed.
+      - generated gate report:
+        `logs/gates/docker_e2e_20260305T104258Z.json`.
+
+38. `IN_PROGRESS` - Extend followup-seed linkage into slash-skill execution path.
+   - Deliverables:
+      - when `/skill` produces executable artifacts with deferred-action types,
+        seed followups and attach refs into step/session outcomes.
+      - keep synthetic-preview skill outcomes neutral for broker scoring.
+      - add smoke coverage for slash-skill followup linkage and neutral scoring.
 
 ## Validation Command
 - Host gate: `EA_SKIP_FULL_GATES=1 bash scripts/run_v120_smoke.sh`

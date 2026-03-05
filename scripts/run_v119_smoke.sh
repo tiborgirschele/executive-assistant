@@ -70,6 +70,7 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_22_world_model_seed.py" \
   "$ROOT/tests/smoke_v1_22_memory_candidates.py" \
   "$ROOT/tests/smoke_v1_22_memory_promotion_pipeline.py" \
+  "$ROOT/tests/smoke_v1_22_followup_seed_from_execute.py" \
   "$ROOT/tests/smoke_v1_22_approval_callback_guard.py" \
   "$ROOT/tests/smoke_v1_22_sim_user_harness.py" \
   "$ROOT/tests/smoke_v1_22_route_signal_router.py" \
@@ -149,6 +150,7 @@ python3 "$ROOT/tests/smoke_v1_21_doc_alignment.py"
 python3 "$ROOT/tests/smoke_v1_22_world_model_seed.py"
 python3 "$ROOT/tests/smoke_v1_22_memory_candidates.py"
 python3 "$ROOT/tests/smoke_v1_22_memory_promotion_pipeline.py"
+python3 "$ROOT/tests/smoke_v1_22_followup_seed_from_execute.py"
 python3 "$ROOT/tests/smoke_v1_22_approval_callback_guard.py"
 python3 "$ROOT/tests/smoke_v1_22_sim_user_harness.py"
 python3 "$ROOT/tests/smoke_v1_22_route_signal_router.py"

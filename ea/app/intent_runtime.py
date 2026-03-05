@@ -29,7 +29,16 @@ from app.planner.step_executor import (
     run_reasoning_step,
 )
 from app.planner.world_model import create_artifact as _create_artifact
+from app.planner.world_model import create_followup as _create_followup
+from app.planner.world_model import upsert_commitment as _upsert_commitment
 from app.poll_ui import build_dynamic_ui, clean_html_for_telegram
+
+_FOLLOWUP_ARTIFACT_TYPES = {
+    "decision_pack",
+    "strategy_pack",
+    "evidence_pack",
+    "travel_decision_pack",
+}
 
 
 def _run_planner_pre_execution_steps(
@@ -91,6 +100,60 @@ def _persist_execution_artifact(
         )
     except Exception:
         return ""
+
+
+def _seed_execution_followups(
+    *,
+    tenant_key: str,
+    session_id: str | None,
+    intent_spec: dict[str, Any] | None,
+    execute_meta: dict[str, Any] | None,
+    artifact_id: str,
+    rendered_text: str,
+) -> list[str]:
+    tenant = str(tenant_key or "").strip()
+    if not tenant or not artifact_id:
+        return []
+    artifact_type = str((execute_meta or {}).get("output_artifact_type") or "").strip().lower()
+    if artifact_type not in _FOLLOWUP_ARTIFACT_TYPES:
+        return []
+    session = str(session_id or "").strip()
+    spec = dict(intent_spec or {})
+    commitment_key = str(spec.get("commitment_key") or "").strip()
+    domain = str(spec.get("domain") or "").strip().lower() or str(
+        (execute_meta or {}).get("task_type") or "general"
+    ).strip().lower()
+    if not commitment_key:
+        suffix = (session[:12] if session else "seed").strip() or "seed"
+        commitment_key = f"{domain}:{tenant}:{suffix}"
+    _upsert_commitment(
+        tenant_key=tenant,
+        commitment_key=commitment_key,
+        domain=domain or "general",
+        title=str(spec.get("objective") or "Follow-up commitment"),
+        status="open",
+        metadata={
+            "source": "execute_intent",
+            "artifact_type": artifact_type,
+            "session_id": session,
+        },
+    )
+    plain = re.sub("<[^>]+>", "", str(rendered_text or "")).strip()
+    if len(plain) > 240:
+        plain = plain[:240]
+    notes = f"Review {artifact_type.replace('_', ' ')} and decide next action."
+    if plain:
+        notes = f"{notes} Context: {plain}"
+    followup_id = str(
+        _create_followup(
+            tenant_key=tenant,
+            commitment_key=commitment_key,
+            artifact_id=str(artifact_id or ""),
+            notes=notes,
+        )
+        or ""
+    )
+    return [followup_id] if followup_id else []
 
 
 async def execute_approved_intent_action(
@@ -234,11 +297,28 @@ async def execute_approved_intent_action(
                 rendered_text=clean_rep,
                 execute_meta=exec_meta,
             )
+            followup_ids = _seed_execution_followups(
+                tenant_key=tenant_key,
+                session_id=session_id,
+                intent_spec={"task_type": str(payload.get("task_type") or "")},
+                execute_meta=exec_meta,
+                artifact_id=artifact_id,
+                rendered_text=clean_rep,
+            )
+            render_output_refs = ([f"artifact:{artifact_id}"] if artifact_id else []) + [
+                f"followup:{fid}" for fid in followup_ids if str(fid or "").strip()
+            ]
             mark_execution_step_status(
                 session_id,
                 "render_reply",
                 "completed",
-                result={"payload_chars": len(str(clean_rep or "")), "artifact_id": artifact_id},
+                result={
+                    "payload_chars": len(str(clean_rep or "")),
+                    "artifact_id": artifact_id,
+                    "followup_ids": followup_ids,
+                },
+                output_refs=render_output_refs,
+                step_kind="render",
             )
             if artifact_id:
                 append_execution_event(
@@ -258,6 +338,8 @@ async def execute_approved_intent_action(
                     "payload_chars": len(str(clean_rep or "")),
                     "report_chars": len(str(report or "")),
                     "approval_mode": "explicit_callback",
+                    "artifact_id": artifact_id,
+                    "followup_ids": followup_ids,
                 },
             )
         return {
@@ -593,11 +675,28 @@ async def handle_free_text_intent(
                 rendered_text=clean_rep,
                 execute_meta=exec_meta,
             )
+            followup_ids = _seed_execution_followups(
+                tenant_key=tenant_key,
+                session_id=session_id,
+                intent_spec=dict(intent_spec or {}),
+                execute_meta=exec_meta,
+                artifact_id=artifact_id,
+                rendered_text=clean_rep,
+            )
+            render_output_refs = ([f"artifact:{artifact_id}"] if artifact_id else []) + [
+                f"followup:{fid}" for fid in followup_ids if str(fid or "").strip()
+            ]
             mark_execution_step_status(
                 session_id,
                 "render_reply",
                 "completed",
-                result={"payload_chars": len(str(clean_rep or "")), "artifact_id": artifact_id},
+                result={
+                    "payload_chars": len(str(clean_rep or "")),
+                    "artifact_id": artifact_id,
+                    "followup_ids": followup_ids,
+                },
+                output_refs=render_output_refs,
+                step_kind="render",
             )
             if artifact_id:
                 append_execution_event(
@@ -616,6 +715,8 @@ async def handle_free_text_intent(
                     "result": "delivered",
                     "payload_chars": len(str(clean_rep or "")),
                     "report_chars": len(str(report or "")),
+                    "artifact_id": artifact_id,
+                    "followup_ids": followup_ids,
                 },
             )
     except Exception as task_err:
