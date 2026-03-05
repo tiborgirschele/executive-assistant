@@ -10,7 +10,7 @@ Usage:
 
 Runs end-to-end HTTP smoke checks for liveness/readiness/version,
 rewrite/session/policy/approvals, observations, delivery outbox, channel adapters,
-tool/connector registry endpoints, and task-contract endpoints.
+tool/connector registry endpoints, task-contract endpoints, and plan compile endpoint.
 
 Auth:
   If EA_API_TOKEN is set, the script sends Authorization: Bearer <token>.
@@ -140,5 +140,10 @@ curl -fsS -X POST "${BASE}/v1/tasks/contracts" "${AUTH_ARGS[@]}" -H 'content-typ
 curl -fsS "${BASE}/v1/tasks/contracts?limit=5" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/tasks/contracts/rewrite_text" "${AUTH_ARGS[@]}" >/dev/null
 echo "task contracts ok"
+
+echo "== smoke: plans =="
+curl -fsS -X POST "${BASE}/v1/plans/compile" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"task_key":"rewrite_text","principal_id":"exec-1","goal":"rewrite this text"}' >/dev/null
+echo "plans ok"
 
 echo "smoke complete"

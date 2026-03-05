@@ -3,6 +3,7 @@ from app.api.routes.connectors import router as connectors_router
 from app.api.routes.delivery import router as delivery_router
 from app.api.routes.health import router as health_router
 from app.api.routes.observations import router as observations_router
+from app.api.routes.plans import router as plans_router
 from app.api.routes.policy import router as policy_router
 from app.api.routes.task_contracts import router as task_contracts_router
 from app.api.routes.rewrite import router as rewrite_router
@@ -14,6 +15,7 @@ __all__ = [
     "delivery_router",
     "health_router",
     "observations_router",
+    "plans_router",
     "policy_router",
     "task_contracts_router",
     "rewrite_router",

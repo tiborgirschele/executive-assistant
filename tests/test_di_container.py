@@ -87,6 +87,11 @@ class _FakeTaskContracts:
         return []
 
 
+class _FakePlanner:
+    def build_plan(self, *, task_key: str, principal_id: str, goal: str):
+        return None
+
+
 class _FakeContainer:
     def __init__(self) -> None:
         self.settings = _Settings()
@@ -94,6 +99,7 @@ class _FakeContainer:
         self.channel_runtime = _FakeRuntime()
         self.tool_runtime = _FakeToolRuntime()
         self.task_contracts = _FakeTaskContracts()
+        self.planner = _FakePlanner()
         self.readiness = _FakeReadiness()
 
 

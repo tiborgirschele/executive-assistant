@@ -236,3 +236,13 @@ GET {{host}}/v1/tasks/contracts?limit=20
 
 ### Task Contracts -> get by key
 GET {{host}}/v1/tasks/contracts/rewrite_text
+
+### Plans -> compile from task contract
+POST {{host}}/v1/plans/compile
+Content-Type: application/json
+
+{
+  "task_key": "rewrite_text",
+  "principal_id": "exec-1",
+  "goal": "rewrite this text for board notes"
+}

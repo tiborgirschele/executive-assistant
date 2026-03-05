@@ -330,6 +330,14 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
     assert fetched.status_code == 200
     assert fetched.json()["default_approval_class"] == "manager"
 
+    compiled = client.post(
+        "/v1/plans/compile",
+        json={"task_key": "rewrite_text", "principal_id": "exec-1", "goal": "rewrite this"},
+    )
+    assert compiled.status_code == 200
+    assert compiled.json()["intent"]["task_type"] == "rewrite_text"
+    assert compiled.json()["plan"]["steps"][0]["approval_required"] is True
+
     rewrite = client.post("/v1/rewrite/artifact", json={"text": "short rewrite input"})
     assert rewrite.status_code == 409
     assert rewrite.json()["error"]["code"] == "policy_denied:approval_required"

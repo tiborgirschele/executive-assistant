@@ -136,6 +136,27 @@ class TaskContract:
 
 
 @dataclass(frozen=True)
+class PlanStepSpec:
+    step_key: str
+    step_kind: str
+    tool_name: str
+    evidence_required: tuple[str, ...]
+    approval_required: bool
+    reversible: bool
+    expected_artifact: str
+    fallback: str
+
+
+@dataclass(frozen=True)
+class PlanSpec:
+    plan_id: str
+    task_key: str
+    principal_id: str
+    created_at: str
+    steps: tuple[PlanStepSpec, ...]
+
+
+@dataclass(frozen=True)
 class ApprovalRequest:
     approval_id: str
     session_id: str

@@ -9,6 +9,7 @@ from app.repositories.observation import InMemoryObservationEventRepository
 from app.repositories.tool_registry import InMemoryToolRegistryRepository
 from app.services.channel_runtime import ChannelRuntimeService, build_channel_runtime
 from app.services.orchestrator import RewriteOrchestrator, build_default_orchestrator
+from app.services.planner import PlannerService
 from app.services.policy import PolicyDecisionService
 from app.services.task_contracts import TaskContractService, build_task_contract_service
 from app.services.tool_runtime import ToolRuntimeService, build_tool_runtime
@@ -54,6 +55,7 @@ class AppContainer:
     channel_runtime: ChannelRuntimeService
     tool_runtime: ToolRuntimeService
     task_contracts: TaskContractService
+    planner: PlannerService
     readiness: ReadinessService
 
 
@@ -93,11 +95,13 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         from app.repositories.task_contracts import InMemoryTaskContractRepository
 
         task_contracts = TaskContractService(InMemoryTaskContractRepository())
+    planner = PlannerService(task_contracts)
     return AppContainer(
         settings=resolved,
         orchestrator=orchestrator,
         channel_runtime=channel_runtime,
         tool_runtime=tool_runtime,
         task_contracts=task_contracts,
+        planner=planner,
         readiness=ReadinessService(resolved),
     )

@@ -14,7 +14,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
 | Q-044 | P2 | Keep queue log current as slices are added/closed | codex | queued | Use this file as the default intake point for new tasks |
-| Q-122 | P0 | Continue Milestone 4 with generic intent compilation + plan DSL scaffolding | codex | queued | Chain after task-contract kernel slice commit |
+| Q-123 | P0 | Continue Milestone 4 with executable plan-step state machine integration into orchestrator | codex | queued | Chain after planner DSL compile slice commit |
 
 ## In Progress
 
@@ -153,6 +153,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | D-119 | P0 | Complete Milestone 3 reliability primitives for observations/outbox | codex | done | Added `v0_8`, observation dedupe/attribution fields, delivery idempotency/retry/dead-letter fields, and API route/test updates |
 | D-120 | P0 | Complete Milestone 3 tool/connector kernel slice | codex | done | Added `v0_9`, tool registry + connector binding repositories/services/routes, and smoke/unit coverage |
 | D-121 | P0 | Complete Milestone 4 task-contract kernel slice | codex | done | Added `v0_10`, task-contract repositories/service/routes, rewrite intent compilation via contracts, and coverage |
+| D-122 | P0 | Complete Milestone 4 planner DSL compile slice | codex | done | Added planner service, `/v1/plans/compile`, typed plan step models, and contract-driven plan test coverage |
 
 ## Intake Template
 

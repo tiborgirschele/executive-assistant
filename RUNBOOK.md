@@ -37,6 +37,7 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | POST | `/v1/tasks/contracts` | `200` | validation `422` |
 | GET | `/v1/tasks/contracts` | `200` | validation `422` |
 | GET | `/v1/tasks/contracts/{task_key}` | `200` | `404 task_contract_not_found` |
+| POST | `/v1/plans/compile` | `200` | validation `422` |
 
 Error envelope for failures:
 - `{ "error": { "code": "...", "message": "...", "details": ..., "correlation_id": "..." } }`
