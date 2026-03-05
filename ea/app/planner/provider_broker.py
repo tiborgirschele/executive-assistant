@@ -5,6 +5,7 @@ import os
 from typing import Any
 
 from app.planner.provider_outcomes import recent_provider_adjustments
+from app.planner.provider_outcomes import recent_provider_performance
 from app.planner.provider_registry import provider_or_raise
 from app.planner.task_registry import task_or_none
 
@@ -67,6 +68,7 @@ def rank_task_capabilities(
     task_priority = tuple(contract.provider_priority if contract else tuple())
     history_scores = _history_adjustment_map()
     outcome_scores = recent_provider_adjustments(task_type=task) if task else {}
+    performance_scores = recent_provider_performance(task_type=task) if task else {}
     out: list[dict[str, Any]] = []
     for cap_key in [str(x or "").strip().lower() for x in candidates if str(x or "").strip()]:
         score = _base_score(task_priority, cap_key) + _policy_adjustment(cap_key)
@@ -86,6 +88,18 @@ def rank_task_capabilities(
         if outcome_bonus:
             score += outcome_bonus
             reasons.append(f"recent_outcome:{outcome_bonus:+d}")
+        perf = dict(performance_scores.get(cap_key) or {})
+        success_bonus = int(perf.get("success_adjustment") or 0)
+        if success_bonus:
+            score += success_bonus
+            reasons.append(f"recent_success:{success_bonus:+d}")
+        latency_bonus = int(perf.get("latency_adjustment") or 0)
+        if latency_bonus:
+            score += latency_bonus
+            reasons.append(f"recent_latency:{latency_bonus:+d}")
+        sample_count = int(perf.get("sample_count") or 0)
+        if sample_count:
+            reasons.append(f"recent_samples:{sample_count}")
         cap = provider_or_raise(cap_key)
         reasons.append(f"budget:{cap.budget_policy}")
         reasons.append(f"fallback:{cap.fallback_policy}")

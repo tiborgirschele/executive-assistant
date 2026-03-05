@@ -343,13 +343,31 @@ Owner: Codex runtime worker
       - expanded ledger-step smoke to assert ordered execution and deterministic
         output-ref propagation.
 
-34. `IN_PROGRESS` - Provider broker scoring deepening from runtime outcomes.
+34. `DONE` - Provider broker scoring deepening from runtime outcomes.
    - Deliverables:
       - enrich broker ranking with bounded historical success/latency penalties
         from `provider_outcomes`.
       - add deterministic smoke for score-delta ordering when outcomes disagree
         with static task priority.
       - ensure synthetic-preview outcomes remain neutral in broker weighting.
+   - Progress:
+      - added `recent_provider_performance(...)` with bounded
+        success/latency adjustments and sample metadata.
+      - `recent_provider_adjustments(...)` now ignores `synthetic_preview`
+        source rows.
+      - broker ranking now consumes performance bonuses/penalties with explicit
+        reason tags (`recent_success`, `recent_latency`, `recent_samples`).
+      - added/wired `smoke_v1_22_provider_broker_outcome_ordering.py`.
+      - expanded provider-outcomes/broker smokes for performance-path and
+        synthetic-neutrality assertions.
+
+35. `IN_PROGRESS` - Planner-owned execute-intent queue runner seed.
+   - Deliverables:
+      - add helper to select the queued `execute_intent` step row from ledger.
+      - mark `execute_intent` running/completed via queued-row identity and
+        persist deterministic execution output refs.
+      - add smoke coverage that execute-step queue selection works when in-memory
+        `plan_steps` is empty.
 
 ## Validation Command
 - Host gate: `EA_SKIP_FULL_GATES=1 bash scripts/run_v120_smoke.sh`

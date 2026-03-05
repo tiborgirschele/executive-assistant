@@ -50,6 +50,7 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_22_task_contract_surface.py" \
   "$ROOT/tests/smoke_v1_22_schema_manifest_gate.py" \
   "$ROOT/tests/smoke_v1_22_synthetic_preview_outcomes.py" \
+  "$ROOT/tests/smoke_v1_22_provider_broker_outcome_ordering.py" \
   "$ROOT/tests/smoke_v1_22_task_matcher.py" \
   "$ROOT/tests/smoke_v1_22_step_executor_ledger_seed.py" \
   "$ROOT/tests/smoke_v1_22_plan_store_seed.py" \
@@ -101,6 +102,7 @@ python3 "$ROOT/tests/smoke_v1_22_proactive_runtime_integration.py"
 python3 "$ROOT/tests/smoke_v1_22_task_contract_surface.py"
 python3 "$ROOT/tests/smoke_v1_22_schema_manifest_gate.py"
 python3 "$ROOT/tests/smoke_v1_22_synthetic_preview_outcomes.py"
+python3 "$ROOT/tests/smoke_v1_22_provider_broker_outcome_ordering.py"
 python3 "$ROOT/tests/smoke_v1_22_task_matcher.py"
 python3 "$ROOT/tests/smoke_v1_22_step_executor_ledger_seed.py"
 python3 "$ROOT/tests/smoke_v1_22_plan_store_seed.py"

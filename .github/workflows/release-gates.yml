@@ -90,6 +90,7 @@ jobs:
           python3 tests/smoke_v1_22_task_contract_surface.py
           python3 tests/smoke_v1_22_schema_manifest_gate.py
           python3 tests/smoke_v1_22_synthetic_preview_outcomes.py
+          python3 tests/smoke_v1_22_provider_broker_outcome_ordering.py
           python3 tests/smoke_v1_22_task_matcher.py
           python3 tests/smoke_v1_22_step_executor_ledger_seed.py
           python3 tests/smoke_v1_22_plan_store_seed.py

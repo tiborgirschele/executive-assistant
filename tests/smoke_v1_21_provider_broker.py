@@ -47,6 +47,7 @@ def test_provider_broker_module_presence() -> None:
     assert "task_or_none" in src
     assert "EA_PROVIDER_HISTORY_SCORE_JSON" in src
     assert "recent_provider_adjustments" in src
+    assert "recent_provider_performance" in src
     assert "score" in src
     _pass("v1.21 provider-broker module presence")
 
@@ -80,6 +81,7 @@ def test_provider_broker_ranking_behavior() -> None:
 
     old_hist = os.getenv("EA_PROVIDER_HISTORY_SCORE_JSON")
     orig_recent = None
+    orig_perf = None
     try:
         os.environ["EA_PROVIDER_HISTORY_SCORE_JSON"] = '{"browseract": 85, "oneair": -25}'
         hist_ranked = rank_task_capabilities(
@@ -93,7 +95,12 @@ def test_provider_broker_ranking_behavior() -> None:
         import app.planner.provider_broker as broker_mod
 
         orig_recent = broker_mod.recent_provider_adjustments
+        orig_perf = broker_mod.recent_provider_performance
         broker_mod.recent_provider_adjustments = lambda **kwargs: {"avomap": 25}
+        broker_mod.recent_provider_performance = lambda **kwargs: {
+            "avomap": {"success_adjustment": 6, "latency_adjustment": 2, "sample_count": 7},
+            "oneair": {"success_adjustment": -4, "latency_adjustment": -3, "sample_count": 7},
+        }
         os.environ["EA_PROVIDER_HISTORY_SCORE_JSON"] = "{}"
         outcome_ranked = broker_mod.rank_task_capabilities(
             task_type="travel_rescue",
@@ -102,11 +109,17 @@ def test_provider_broker_ranking_behavior() -> None:
         )
         assert outcome_ranked and str(outcome_ranked[0].get("capability") or "") == "avomap"
         assert "recent_outcome:+25" in list(outcome_ranked[0].get("reasons") or [])
+        assert "recent_success:+6" in list(outcome_ranked[0].get("reasons") or [])
+        assert "recent_latency:+2" in list(outcome_ranked[0].get("reasons") or [])
     finally:
         if orig_recent is not None:
             import app.planner.provider_broker as broker_mod
 
             broker_mod.recent_provider_adjustments = orig_recent
+        if orig_perf is not None:
+            import app.planner.provider_broker as broker_mod
+
+            broker_mod.recent_provider_performance = orig_perf
         if old_hist is None:
             os.environ.pop("EA_PROVIDER_HISTORY_SCORE_JSON", None)
         else:
