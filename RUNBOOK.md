@@ -29,6 +29,14 @@ Applies:
 - `ea/schema/20260305_v0_3_channel_runtime_kernel.sql`
 - `ea/schema/20260305_v0_4_policy_decisions_kernel.sql`
 
+Check table presence/counts:
+
+```bash
+bash scripts/db_status.sh
+# or
+make db-status
+```
+
 ## 3) Health Check
 
 ```bash

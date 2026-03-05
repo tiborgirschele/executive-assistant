@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-bootstrap bootstrap smoke-api test-api
+.PHONY: deploy deploy-bootstrap bootstrap db-status smoke-api test-api
 
 deploy:
 	bash scripts/deploy.sh
@@ -8,6 +8,9 @@ deploy-bootstrap:
 
 bootstrap:
 	bash scripts/db_bootstrap.sh
+
+db-status:
+	bash scripts/db_status.sh
 
 smoke-api:
 	bash scripts/smoke_api.sh
