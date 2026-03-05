@@ -1,6 +1,6 @@
 # EA Execution Backlog
 
-Last updated: 2026-03-04
+Last updated: 2026-03-05
 Branch: `main`
 
 ## Definition Of Done (DoD)
@@ -98,6 +98,12 @@ Branch: `main`
   - `/brief` runtime path now writes execution sessions with explicit step tracking
     (compile/build/render/persist) and deterministic completion/failure outcomes.
   - `smoke_v1_20_brief_command_sessions.py` added and wired into host/docker/CI gates.
+- [DONE] High-risk free-text approval gate hardening:
+  - free-text intents with `approval_required` autonomy are now blocked behind explicit callback approval.
+  - staged typed action `intent:approval_execute` is required before execution can proceed.
+  - parent session is finalized as `partial` while awaiting approval, then resumed on approval callback.
+  - `smoke_v1_20_free_text_approval_gate_behavior.py` and
+    `smoke_v1_20_typed_action_approval_resume.py` added and wired into host/docker/CI gates.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`
     from `runner.py` (canonical role shim path), not direct worker import.

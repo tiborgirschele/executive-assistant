@@ -6,6 +6,7 @@ import re
 import time
 from typing import Any, Callable
 
+from app.actions import create_action
 from app.briefings import get_val
 from app.chat_assist import humanize_agent_report
 from app.execution import (
@@ -20,6 +21,162 @@ from app.execution import (
 from app.gog import gog_scout
 from app.memory import save_button_context
 from app.poll_ui import build_dynamic_ui, clean_html_for_telegram
+
+
+async def execute_approved_intent_action(
+    *,
+    tg,
+    chat_id: int,
+    tenant_name: str,
+    tenant_cfg: dict[str, Any],
+    action_payload: dict[str, Any],
+    safe_err: Callable[[Any], str],
+) -> dict[str, Any]:
+    tenant_key = str(tenant_name or "")
+    payload = dict(action_payload or {})
+    session_id = str(payload.get("session_id") or "").strip()
+    prompt = str(payload.get("prompt") or "").strip()
+    intent_text = str(payload.get("intent_text") or "").strip()
+    if not prompt:
+        prompt = f"EXECUTE: Answer or execute the user request: '{intent_text}'. Be concise."
+    t_openclaw = get_val(
+        tenant_cfg,
+        "openclaw_container",
+        os.environ.get("EA_DEFAULT_OPENCLAW_CONTAINER", "openclaw-gateway"),
+    )
+    active_res = await tg.send_message(chat_id, "✅ <b>Approval received. Executing request...</b>", parse_mode="HTML")
+
+    async def _ui_updater(msg: str) -> None:
+        try:
+            await tg.edit_message_text(
+                chat_id,
+                active_res["message_id"],
+                f"▶️ <b>{msg[:80]}...</b>",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+
+    if session_id:
+        mark_execution_session_running(session_id)
+        mark_execution_step_status(
+            session_id,
+            "safety_gate",
+            "running",
+            result={"gate_mode": "explicit_callback", "decision": "approval_received"},
+        )
+        mark_execution_step_status(
+            session_id,
+            "safety_gate",
+            "completed",
+            result={"gate_mode": "explicit_callback", "decision": "approved"},
+        )
+        append_execution_event(
+            session_id,
+            event_type="approval_granted",
+            message="Explicit approval callback granted execution.",
+            payload={"tenant": tenant_key},
+        )
+
+    current_step = "execute_intent"
+    try:
+        if session_id:
+            mark_execution_step_status(session_id, "execute_intent", "running")
+        report = await asyncio.wait_for(
+            gog_scout(
+                t_openclaw,
+                prompt,
+                get_val(tenant_cfg, "google_account", ""),
+                _ui_updater,
+                task_name="Intent: Approved Free Text",
+            ),
+            timeout=240.0,
+        )
+        if session_id:
+            mark_execution_step_status(
+                session_id,
+                "execute_intent",
+                "completed",
+                result={"report_chars": len(str(report or ""))},
+            )
+        kb_dict = build_dynamic_ui(report, prompt, save_ctx=save_button_context)
+        clean_rep = clean_html_for_telegram(
+            re.sub(r"\[OPTIONS:.*?\]", "", humanize_agent_report(report)).replace("[YES/NO]", "")
+        )
+        if not clean_rep.strip() or clean_rep.strip() == "[]":
+            clean_rep = "✅ Task executed successfully!"
+        current_step = "render_reply"
+        if session_id:
+            mark_execution_step_status(session_id, "render_reply", "running")
+        try:
+            await tg.edit_message_text(
+                chat_id,
+                active_res["message_id"],
+                f"🎯 <b>Result:</b>\n\n{clean_rep[:3500]}",
+                parse_mode="HTML",
+                reply_markup=kb_dict,
+            )
+        except Exception:
+            plain_txt = (
+                re.sub("<[^>]+>", "", clean_rep)
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+            )
+            if len(plain_txt) > 4000:
+                plain_txt = plain_txt[:4000] + "\n...[truncated]"
+            await tg.edit_message_text(
+                chat_id,
+                active_res["message_id"],
+                f"🎯 <b>Result:</b>\n\n{plain_txt}",
+                parse_mode=None,
+                reply_markup=kb_dict,
+            )
+        if session_id:
+            mark_execution_step_status(
+                session_id,
+                "render_reply",
+                "completed",
+                result={"payload_chars": len(str(clean_rep or ""))},
+            )
+            finalize_execution_session(
+                session_id,
+                status="completed",
+                outcome={
+                    "result": "delivered",
+                    "payload_chars": len(str(clean_rep or "")),
+                    "report_chars": len(str(report or "")),
+                    "approval_mode": "explicit_callback",
+                },
+            )
+        return {
+            "ok": True,
+            "status": "completed",
+            "text": f"🎯 <b>Result:</b>\n\n{clean_rep[:3500]}",
+            "report_chars": len(str(report or "")),
+        }
+    except Exception as task_err:
+        if session_id:
+            mark_execution_step_status(
+                session_id,
+                current_step,
+                "failed",
+                error_text=safe_err(task_err),
+            )
+            append_execution_event(
+                session_id,
+                level="error",
+                event_type="session_failed",
+                message="Approved free-text execution failed.",
+                payload={"step": current_step},
+            )
+            finalize_execution_session(
+                session_id,
+                status="failed",
+                last_error=safe_err(task_err),
+                outcome={"result": "failed", "failed_step": current_step, "approval_mode": "explicit_callback"},
+            )
+        return {"ok": False, "status": "failed", "text": f"❌ Agent Failed: {safe_err(task_err)}"}
 
 
 async def handle_free_text_intent(
@@ -131,20 +288,84 @@ async def handle_free_text_intent(
         except Exception:
             pass
 
-    try:
-        if session_id and any(str((row or {}).get("step_key") or "") == "safety_gate" for row in plan_steps):
+    requires_approval = bool((intent_spec or {}).get("autonomy_level") == "approval_required")
+    if requires_approval:
+        action_id = ""
+        if session_id:
             mark_execution_step_status(
                 session_id,
                 "safety_gate",
                 "running",
-                result={"gate_mode": "passive", "reason": "assistive free-text execution"},
+                result={"gate_mode": "explicit_callback", "reason": "high_risk_intent"},
             )
+        try:
+            action_id = create_action(
+                tenant=tenant_key,
+                action_type="intent:approval_execute",
+                payload={
+                    "session_id": str(session_id or ""),
+                    "intent_text": str(text or "")[:2000],
+                    "prompt": str(prompt or "")[:8000],
+                    "tenant": tenant_key,
+                    "chat_id": int(chat_id),
+                },
+                days=1,
+            )
+        except Exception:
+            action_id = ""
+        if session_id:
             mark_execution_step_status(
                 session_id,
                 "safety_gate",
                 "completed",
-                result={"gate_mode": "passive", "decision": "continue"},
+                result={
+                    "gate_mode": "explicit_callback",
+                    "decision": "awaiting_approval",
+                    "action_id": action_id,
+                },
             )
+            mark_execution_step_status(
+                session_id,
+                "execute_intent",
+                "queued",
+                result={"blocked_reason": "awaiting_approval", "action_id": action_id},
+            )
+            append_execution_event(
+                session_id,
+                event_type="approval_requested",
+                message="High-risk free-text intent staged for explicit approval callback.",
+                payload={"action_id": action_id, "tenant": tenant_key},
+            )
+            finalize_execution_session(
+                session_id,
+                status="partial",
+                outcome={
+                    "result": "awaiting_approval",
+                    "action_id": action_id,
+                    "approval_mode": "explicit_callback",
+                },
+            )
+        kb = (
+            {"inline_keyboard": [[{"text": "✅ Approve & Run", "callback_data": f"act:{action_id}"}]]}
+            if action_id
+            else None
+        )
+        prompt_txt = (
+            "🔐 <b>Approval required.</b>\n\n"
+            "This request includes high-risk intent. Tap <b>Approve & Run</b> to execute."
+        )
+        if not action_id:
+            prompt_txt += "\n\n⚠️ Could not stage approval action. Please retry."
+        await tg.edit_message_text(
+            chat_id,
+            active_res["message_id"],
+            prompt_txt,
+            parse_mode="HTML",
+            reply_markup=kb,
+        )
+        return
+
+    try:
         current_step = "execute_intent"
         if session_id:
             mark_execution_step_status(session_id, "execute_intent", "running")
@@ -244,3 +465,6 @@ async def handle_free_text_intent(
             f"❌ Agent Failed: {safe_err(task_err)}",
             parse_mode="HTML",
         )
+
+
+__all__ = ["handle_free_text_intent", "execute_approved_intent_action"]

@@ -26,6 +26,8 @@ def test_v120_doc_and_runtime_alignment() -> None:
     assert "smoke_v1_20_gog_session_id_uniqueness.py" in guide
     assert "button_context_action" in guide
     assert "smoke_v1_20_brief_command_sessions.py" in guide
+    assert "smoke_v1_20_free_text_approval_gate_behavior.py" in guide
+    assert "intent:approval_execute" in guide
     assert "slash_command_brief" in guide
     _pass("v1.20 doc/runtime alignment")
 

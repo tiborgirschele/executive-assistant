@@ -36,7 +36,7 @@ be tracked as deterministic steps.
      - records step states for:
        - `compile_intent`
        - `gather_evidence` (when URL scrape is used)
-       - `safety_gate` (passive marker for approval-required intents)
+       - `safety_gate` (explicit callback approval gate for high-risk intents)
        - `execute_intent`
        - `render_reply`
      - finalizes session with `completed` / `failed` outcome
@@ -85,6 +85,8 @@ be tracked as deterministic steps.
    - `tests/smoke_v1_20_teable_memory_boundary.py`
    - `tests/smoke_v1_20_slash_command_behavior.py`
    - `tests/smoke_v1_20_typed_action_behavior.py`
+   - `tests/smoke_v1_20_typed_action_approval_resume.py`
+   - `tests/smoke_v1_20_free_text_approval_gate_behavior.py`
    - `tests/smoke_v1_20_gog_session_id_uniqueness.py`
    - `tests/smoke_v1_20_legacy_button_action_sessions.py`
    - `tests/smoke_v1_20_brief_command_sessions.py`
@@ -96,7 +98,8 @@ be tracked as deterministic steps.
    - behavior-level contract checks now validate:
      - external-event session outcomes across MetaSurvey/ApproveThis/BrowserAct,
      - slash-command planning-task consistency,
-     - typed-action callback session finalization.
+     - typed-action callback session finalization,
+     - high-risk free-text intents are blocked behind explicit approval callbacks.
 
 ## Why this matters
 
@@ -115,6 +118,10 @@ foundation for broader v1.20 planner/session unification across slash commands, 
 
 - `ea/app/gog.py` now generates a unique execution session id per run (no fixed `ea-exec` id),
   reducing collision risk under concurrent free-text/agent runs.
+- `ea/app/intent_runtime.py` now stages high-risk free-text requests as typed approval actions
+  (`intent:approval_execute`) and finalizes the initial session as `partial` until explicit callback approval.
+- approved callbacks now resume and complete the same parent free-text execution session
+  through `execute_approved_intent_action(...)`.
 - `ea/app/callback_commands.py` now sessionizes legacy `act:*` button-context execution
   (the `gog_scout` runtime path) under execution source `button_context_action`, not just typed actions.
 - `ea/app/brief_runtime.py` now sessionizes `/brief` command execution under source

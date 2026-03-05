@@ -23,7 +23,7 @@ from app.intake.calendar_import_result import build_calendar_import_response
 from app.memory import get_button_context, save_button_context
 from app.open_loops import OpenLoops
 from app.poll_ui import build_dynamic_ui, clean_html_for_telegram
-from app.skills.runtime_action_exec import execute_typed_action
+from app.skills.runtime_action_exec import execute_typed_action, payload_to_dict
 
 
 def _safe_err(err: Any) -> str:
@@ -54,6 +54,7 @@ async def _execute_typed_action_callback(
     tg,
     chat_id: int,
     tenant_name: str,
+    tenant_cfg: dict[str, Any] | None,
     action_row: dict[str, Any],
 ) -> None:
     action = dict(action_row or {})
@@ -108,14 +109,26 @@ async def _execute_typed_action_callback(
                 "running",
                 evidence={"action_type": action_type},
             )
-        executed = execute_typed_action(
-            tenant_name=str(tenant_name or ""),
-            chat_id=int(chat_id),
-            action_row=action,
-            dispatch_skill=_dispatch_skill,
-        )
+        if action_type == "intent:approval_execute":
+            from app.intent_runtime import execute_approved_intent_action
+
+            executed = await execute_approved_intent_action(
+                tg=tg,
+                chat_id=int(chat_id),
+                tenant_name=str(tenant_name or ""),
+                tenant_cfg=dict(tenant_cfg or {}),
+                action_payload=payload_to_dict(action.get("payload_json")),
+                safe_err=_safe_err,
+            )
+        else:
+            executed = execute_typed_action(
+                tenant_name=str(tenant_name or ""),
+                chat_id=int(chat_id),
+                action_row=action,
+                dispatch_skill=_dispatch_skill,
+            )
         result = executed.get("result") if isinstance(executed.get("result"), dict) else {}
-        exec_ok = bool((result or {}).get("ok"))
+        exec_ok = bool((result or {}).get("ok")) if result else bool(executed.get("ok"))
         exec_status = "completed" if exec_ok else "failed"
         if session_id:
             mark_execution_step_status(
@@ -141,7 +154,8 @@ async def _execute_typed_action_callback(
                 "running",
                 result={"payload_chars": len(text)},
             )
-        await tg.send_message(chat_id, text, parse_mode="HTML")
+        if action_type != "intent:approval_execute":
+            await tg.send_message(chat_id, text, parse_mode="HTML")
         if session_id:
             mark_execution_step_status(
                 session_id,
@@ -354,6 +368,7 @@ async def handle_callback_command(
                     tg=tg,
                     chat_id=int(chat_id),
                     tenant_name=str(tenant_name or ""),
+                    tenant_cfg=dict(tenant_cfg or {}),
                     action_row=dict(typed_action if isinstance(typed_action, dict) else {}),
                 )
             return await tg.answer_callback_query(cb["id"], text="⚠️ Action expired.", show_alert=True)
