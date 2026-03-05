@@ -13,6 +13,7 @@ from app.execution import (
     build_plan_steps,
     compile_intent_spec,
     create_execution_session,
+    evaluate_approval_gate,
     finalize_execution_session,
     mark_execution_session_running,
     mark_execution_step_status,
@@ -353,12 +354,45 @@ async def handle_callback_command(
 
     if cb["data"].startswith("act:"):
         action_id = cb["data"][4:]
-        rich_prompt = get_button_context(action_id)
-        if not rich_prompt:
-            from app.actions import consume_action
+        from app.actions import consume_action, peek_action
 
+        try:
+            preview_action = peek_action(str(tenant_name or ""), str(action_id or ""))
+        except Exception:
+            preview_action = None
+        if preview_action:
+            if str((preview_action or {}).get("action_type") or "") == "intent:approval_execute":
+                gate_id = str((preview_action or {}).get("approval_gate_id") or "").strip()
+                allowed, reason = evaluate_approval_gate(gate_id)
+                if not allowed:
+                    if reason == "expired":
+                        return await tg.answer_callback_query(
+                            cb["id"], text="⚠️ Approval window expired.", show_alert=True
+                        )
+                    if reason.startswith("already_"):
+                        return await tg.answer_callback_query(
+                            cb["id"], text="⚠️ Approval already processed.", show_alert=True
+                        )
+                    return await tg.answer_callback_query(
+                        cb["id"], text="⚠️ Approval gate unavailable.", show_alert=True
+                    )
             typed_action = consume_action(str(tenant_name or ""), str(action_id or ""))
             if typed_action:
+                if str((typed_action or {}).get("action_type") or "") == "intent:approval_execute":
+                    gate_id = str((typed_action or {}).get("approval_gate_id") or "").strip()
+                    allowed, reason = evaluate_approval_gate(gate_id)
+                    if not allowed:
+                        if reason == "expired":
+                            return await tg.answer_callback_query(
+                                cb["id"], text="⚠️ Approval window expired.", show_alert=True
+                            )
+                        if reason.startswith("already_"):
+                            return await tg.answer_callback_query(
+                                cb["id"], text="⚠️ Approval already processed.", show_alert=True
+                            )
+                        return await tg.answer_callback_query(
+                            cb["id"], text="⚠️ Approval gate unavailable.", show_alert=True
+                        )
                 try:
                     await tg.edit_message_reply_markup(chat_id, cb["message"]["message_id"], reply_markup={"inline_keyboard": []})
                 except Exception:
@@ -371,6 +405,10 @@ async def handle_callback_command(
                     tenant_cfg=dict(tenant_cfg or {}),
                     action_row=dict(typed_action if isinstance(typed_action, dict) else {}),
                 )
+            return await tg.answer_callback_query(cb["id"], text="⚠️ Action expired.", show_alert=True)
+
+        rich_prompt = get_button_context(action_id)
+        if not rich_prompt:
             return await tg.answer_callback_query(cb["id"], text="⚠️ Action expired.", show_alert=True)
         btn_txt = "Task"
         for row in cb.get("message", {}).get("reply_markup", {}).get("inline_keyboard", []):

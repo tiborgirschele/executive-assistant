@@ -27,6 +27,7 @@ from app.planner.step_executor import (
     run_pre_execution_steps,
     run_reasoning_step,
 )
+from app.planner.world_model import create_artifact as _create_artifact
 from app.poll_ui import build_dynamic_ui, clean_html_for_telegram
 
 
@@ -44,6 +45,43 @@ def _run_planner_pre_execution_steps(
         mark_step=mark_execution_step_status,
         append_event=append_execution_event,
     )
+
+
+def _persist_execution_artifact(
+    *,
+    tenant_key: str,
+    session_id: str | None,
+    intent_spec: dict[str, Any] | None,
+    rendered_text: str,
+    execute_meta: dict[str, Any] | None = None,
+) -> str:
+    artifact_type = (
+        str((execute_meta or {}).get("output_artifact_type") or "chat_response").strip().lower() or "chat_response"
+    )
+    task_type = str((execute_meta or {}).get("task_type") or (intent_spec or {}).get("task_type") or "").strip().lower()
+    commitment_key = str((intent_spec or {}).get("commitment_key") or "").strip()
+    summary_plain = re.sub("<[^>]+>", "", str(rendered_text or "")).strip()
+    if len(summary_plain) > 240:
+        summary_plain = summary_plain[:240]
+    payload = {
+        "text": str(rendered_text or "")[:4000],
+        "task_type": task_type,
+        "provider_candidates": list((execute_meta or {}).get("provider_candidates") or []),
+    }
+    try:
+        return str(
+            _create_artifact(
+                tenant_key=str(tenant_key or ""),
+                artifact_type=artifact_type,
+                summary=summary_plain,
+                content=payload,
+                session_id=str(session_id or "") if session_id else None,
+                commitment_key=commitment_key or None,
+            )
+            or ""
+        )
+    except Exception:
+        return ""
 
 
 async def execute_approved_intent_action(
@@ -91,6 +129,9 @@ async def execute_approved_intent_action(
                     "chat_id": int(chat_id),
                     "tenant": tenant_key,
                 },
+                decision_source="typed_action_callback",
+                decision_actor=str(chat_id),
+                decision_ref=str(approval_gate_id),
             )
         mark_execution_session_running(session_id)
         mark_execution_step_status(
@@ -113,6 +154,7 @@ async def execute_approved_intent_action(
         )
 
     current_step = "execute_intent"
+    exec_meta: dict[str, Any] = {"output_artifact_type": "chat_response", "task_type": "free_text_response"}
     try:
         if session_id:
             exec_result = await execute_planned_reasoning_step(
@@ -130,6 +172,7 @@ async def execute_approved_intent_action(
                 reasoning_runner=gog_scout,
                 timeout_sec=240.0,
             )
+            exec_meta = dict(exec_result or {})
             report = str(exec_result.get("report") or "")
         else:
             report = await run_reasoning_step(
@@ -175,12 +218,29 @@ async def execute_approved_intent_action(
                 reply_markup=kb_dict,
             )
         if session_id:
+            artifact_id = _persist_execution_artifact(
+                tenant_key=tenant_key,
+                session_id=session_id,
+                intent_spec={"task_type": str(payload.get("task_type") or "")},
+                rendered_text=clean_rep,
+                execute_meta=exec_meta,
+            )
             mark_execution_step_status(
                 session_id,
                 "render_reply",
                 "completed",
-                result={"payload_chars": len(str(clean_rep or ""))},
+                result={"payload_chars": len(str(clean_rep or "")), "artifact_id": artifact_id},
             )
+            if artifact_id:
+                append_execution_event(
+                    session_id,
+                    event_type="artifact_persisted",
+                    message="Execution artifact persisted.",
+                    payload={
+                        "artifact_id": artifact_id,
+                        "artifact_type": str(exec_meta.get("output_artifact_type") or ""),
+                    },
+                )
             finalize_execution_session(
                 session_id,
                 status="completed",
@@ -385,6 +445,8 @@ async def handle_free_text_intent(
                 approval_gate_id,
                 decision_status="staging_failed",
                 decision_payload={"reason": "typed_action_create_failed"},
+                decision_source="runtime_staging",
+                decision_ref=str(approval_gate_id),
             )
         if session_id:
             mark_execution_step_status(
@@ -446,6 +508,10 @@ async def handle_free_text_intent(
 
     try:
         current_step = "execute_intent"
+        exec_meta: dict[str, Any] = {
+            "output_artifact_type": "chat_response",
+            "task_type": str((intent_spec or {}).get("task_type") or "free_text_response"),
+        }
         if session_id:
             exec_result = await execute_planned_reasoning_step(
                 session_id=session_id,
@@ -462,6 +528,7 @@ async def handle_free_text_intent(
                 reasoning_runner=gog_scout,
                 timeout_sec=240.0,
             )
+            exec_meta = dict(exec_result or {})
             report = str(exec_result.get("report") or "")
         else:
             report = await run_reasoning_step(
@@ -510,12 +577,29 @@ async def handle_free_text_intent(
             except Exception:
                 pass
         if session_id:
+            artifact_id = _persist_execution_artifact(
+                tenant_key=tenant_key,
+                session_id=session_id,
+                intent_spec=dict(intent_spec or {}),
+                rendered_text=clean_rep,
+                execute_meta=exec_meta,
+            )
             mark_execution_step_status(
                 session_id,
                 "render_reply",
                 "completed",
-                result={"payload_chars": len(str(clean_rep or ""))},
+                result={"payload_chars": len(str(clean_rep or "")), "artifact_id": artifact_id},
             )
+            if artifact_id:
+                append_execution_event(
+                    session_id,
+                    event_type="artifact_persisted",
+                    message="Execution artifact persisted.",
+                    payload={
+                        "artifact_id": artifact_id,
+                        "artifact_type": str(exec_meta.get("output_artifact_type") or ""),
+                    },
+                )
             finalize_execution_session(
                 session_id,
                 status="completed",

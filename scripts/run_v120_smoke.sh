@@ -42,7 +42,10 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_22_world_model_seed.py" \
   "$ROOT/tests/smoke_v1_22_memory_candidates.py" \
   "$ROOT/tests/smoke_v1_22_memory_promotion_pipeline.py" \
+  "$ROOT/tests/smoke_v1_22_approval_callback_guard.py" \
   "$ROOT/tests/smoke_v1_22_sim_user_harness.py" \
+  "$ROOT/tests/smoke_v1_22_route_signal_router.py" \
+  "$ROOT/tests/smoke_v1_22_proactive_role_wiring.py" \
   "$ROOT/tests/smoke_work_tasks_contract.py"
 
 echo "[SMOKE][v1.20] Host smoke"
@@ -78,7 +81,10 @@ python3 "$ROOT/tests/smoke_v1_21_doc_alignment.py"
 python3 "$ROOT/tests/smoke_v1_22_world_model_seed.py"
 python3 "$ROOT/tests/smoke_v1_22_memory_candidates.py"
 python3 "$ROOT/tests/smoke_v1_22_memory_promotion_pipeline.py"
+python3 "$ROOT/tests/smoke_v1_22_approval_callback_guard.py"
 python3 "$ROOT/tests/smoke_v1_22_sim_user_harness.py"
+python3 "$ROOT/tests/smoke_v1_22_route_signal_router.py"
+python3 "$ROOT/tests/smoke_v1_22_proactive_role_wiring.py"
 python3 "$ROOT/tests/smoke_work_tasks_contract.py"
 
 if [[ "${EA_SKIP_FULL_GATES:-0}" != "1" ]]; then

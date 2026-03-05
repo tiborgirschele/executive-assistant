@@ -102,6 +102,7 @@ def test_intent_runtime_executes_pre_steps_before_execute_intent() -> None:
     orig_append = ir.append_execution_event
     orig_run_reasoning = ir.run_reasoning_step
     orig_build_ui = ir.build_dynamic_ui
+    orig_create_artifact = ir._create_artifact
 
     try:
         ir.create_execution_session = lambda **kwargs: "sess-planner-1"
@@ -116,6 +117,7 @@ def test_intent_runtime_executes_pre_steps_before_execute_intent() -> None:
         )
         ir.append_execution_event = lambda *args, **kwargs: None
         ir.build_dynamic_ui = lambda report, prompt, save_ctx=None: {"inline_keyboard": []}
+        ir._create_artifact = lambda **kwargs: "artifact-1"
 
         async def _fake_reasoning_step(**kwargs):
             return "Polish complete."
@@ -146,6 +148,12 @@ def test_intent_runtime_executes_pre_steps_before_execute_intent() -> None:
         exec_result = dict(execute_completed[-1].get("result") or {})
         assert str(exec_result.get("task_type") or "") == "polish_human_tone"
         assert str(exec_result.get("output_artifact_type") or "") == "polished_draft"
+        render_completed = [
+            kwargs for (step, status, kwargs) in captured["steps"] if step == "render_reply" and status == "completed"
+        ]
+        assert render_completed, "expected render_reply completion payload"
+        render_result = dict(render_completed[-1].get("result") or {})
+        assert str(render_result.get("artifact_id") or "") == "artifact-1"
         assert captured["finalized"], "session should finalize after response render"
         assert captured["finalized"][0]["status"] == "completed"
         _pass("v1.21 intent-runtime planner-step behavior")
@@ -157,6 +165,7 @@ def test_intent_runtime_executes_pre_steps_before_execute_intent() -> None:
         ir.append_execution_event = orig_append
         ir.run_reasoning_step = orig_run_reasoning
         ir.build_dynamic_ui = orig_build_ui
+        ir._create_artifact = orig_create_artifact
 
 
 if __name__ == "__main__":

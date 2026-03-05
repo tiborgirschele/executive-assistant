@@ -78,7 +78,7 @@ Owner: Codex runtime worker
       - `poll_listener.py` now delegates auth flow through `_trigger_auth_flow(...)`.
       - decomposition smoke updated and passing (`smoke_v1_19_3_control_plane_decomposition.py`).
 
-9. `IN_PROGRESS` - Planner-owned free-text execution handoff.
+9. `DONE` - Planner-owned free-text execution handoff.
    - Deliverables:
       - move free-text runtime to execute persisted plan steps through planner runtime.
       - keep `gog_scout` as provider-backed step, not top-level control flow.
@@ -91,11 +91,73 @@ Owner: Codex runtime worker
       - step results now include stable metadata (`task_type`,
         `output_artifact_type`, `provider_candidates`) on `execute_intent`.
 
-10. `PENDING` - Approval runtime hardening.
+10. `DONE` - Approval runtime hardening.
    - Deliverables:
       - add explicit approval gate expiry/deadline semantics.
       - persist approval decisions with richer provenance.
       - add smoke coverage for expired/replayed approval callbacks.
+   - Progress:
+      - approval gates now carry deadline/provenance columns.
+      - callback path blocks expired and replayed approval callbacks.
+      - added dedicated smoke coverage for expired/replayed callbacks.
+
+11. `DONE` - Route-signal intelligence seed.
+   - Deliverables:
+      - attach deterministic route metadata before command/intent dispatch.
+      - expose intent preview (`domain`, `task_type`) for downstream routing.
+      - add smoke coverage for wiring and behavior.
+   - Progress:
+      - added `router_signals.py` and `_ea_route_signal` attachment in `update_router.py`.
+      - route signal now includes deterministic intent preview fields.
+      - added `smoke_v1_22_route_signal_router.py` and wired host/docker/CI gates.
+
+12. `DONE` - Artifact persistence for planner-owned execute_intent results.
+   - Deliverables:
+      - persist `chat_response` artifacts from free-text completion into `artifacts`.
+      - link artifacts to execution sessions.
+      - add smoke coverage for artifact creation path.
+   - Progress:
+      - free-text + approved-callback success paths now persist artifacts and attach
+        `artifact_id` to `render_reply` step result.
+      - artifact payload includes planner metadata (`task_type`,
+        `output_artifact_type`, `provider_candidates`).
+      - planner-step smoke expanded to assert artifact propagation.
+
+13. `DONE` - Proactive role wiring seed.
+   - Deliverables:
+      - runner support for `EA_ROLE=proactive`.
+      - compose service wiring for proactive lane.
+      - smoke guard for role wiring.
+   - Progress:
+      - added `ea/app/roles/proactive.py` and runner dispatch branch.
+      - added `ea-proactive` compose service behind `proactive` profile.
+      - added `smoke_v1_22_proactive_role_wiring.py`.
+
+14. `DONE` - v1.22 release/gate naming alignment.
+   - Deliverables:
+      - add `run_v122_smoke.sh` alias.
+      - document v1.22 gate entrypoint in README/change guide.
+      - keep existing v1.19/v1.20/v1.21 gates backward compatible.
+   - Progress:
+      - added executable alias script `scripts/run_v122_smoke.sh`.
+      - updated README + change guide + gate-alias smoke to include v1.22 alias.
+      - existing `run_v119_smoke.sh`/`run_v120_smoke.sh`/`run_v121_smoke.sh` remain unchanged.
+
+15. `DONE` - Approval action pre-consume validation.
+   - Deliverables:
+      - validate approval-gate status before consuming typed action rows.
+      - avoid consuming stale approval actions when gate already expired/decided.
+      - add smoke coverage for pre-consume guard behavior.
+   - Progress:
+      - callback path now peeks typed action and validates gate before consume.
+      - stale approval callbacks are blocked without consuming typed action rows.
+      - guard smoke enforces no button-context fallback and zero consume calls for invalid gates.
+
+16. `IN_PROGRESS` - Proactive runtime integration hardening.
+   - Deliverables:
+      - add deterministic smoke for proactive role loop tenant selection.
+      - add docs/readme note for enabling `proactive` compose profile.
+      - verify schema migration coverage includes proactive + approval deadline files.
 
 ## Validation Command
 - Host gate: `EA_SKIP_FULL_GATES=1 bash scripts/run_v120_smoke.sh`

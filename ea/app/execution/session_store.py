@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from typing import Any, Sequence
 
@@ -218,12 +219,15 @@ def create_approval_gate(
     approval_class: str = "explicit_callback_required",
     action_id: str | None = None,
     decision_payload: dict[str, Any] | None = None,
+    ttl_sec: int | None = None,
 ) -> str | None:
     if not session_id:
         return None
     try:
         db = get_db()
         gate_id = str(uuid.uuid4())
+        ttl_raw = int(ttl_sec) if ttl_sec is not None else int(os.environ.get("EA_APPROVAL_GATE_TTL_SEC") or 86400)
+        ttl = max(60, min(int(ttl_raw), 7 * 24 * 3600))
         db.execute(
             """
             INSERT INTO approval_gates (
@@ -234,9 +238,11 @@ def create_approval_gate(
                 approval_class,
                 decision_status,
                 action_id,
-                decision_payload_json
+                decision_payload_json,
+                expires_at,
+                decision_source
             )
-            VALUES (%s, %s, %s, %s, %s, 'pending', %s, %s::jsonb)
+            VALUES (%s, %s, %s, %s, %s, 'pending', %s, %s::jsonb, NOW() + (%s * INTERVAL '1 second'), %s)
             """,
             (
                 gate_id,
@@ -246,6 +252,8 @@ def create_approval_gate(
                 str(approval_class or "explicit_callback_required"),
                 str(action_id or "") if action_id else None,
                 _safe_json(decision_payload or {}),
+                ttl,
+                "runtime_create",
             ),
         )
         return gate_id
@@ -276,6 +284,9 @@ def mark_approval_gate_decision(
     *,
     decision_status: str,
     decision_payload: dict[str, Any] | None = None,
+    decision_source: str = "",
+    decision_actor: str = "",
+    decision_ref: str = "",
 ) -> None:
     if not approval_gate_id:
         return
@@ -294,19 +305,82 @@ def mark_approval_gate_decision(
                     WHEN %s IN ('approved','rejected','cancelled','expired','staging_failed') THEN COALESCE(decided_at, NOW())
                     ELSE decided_at
                 END,
+                decision_source = CASE
+                    WHEN %s <> '' THEN %s
+                    ELSE decision_source
+                END,
+                decision_actor = CASE
+                    WHEN %s <> '' THEN %s
+                    ELSE decision_actor
+                END,
+                decision_ref = CASE
+                    WHEN %s <> '' THEN %s
+                    ELSE decision_ref
+                END,
                 updated_at = NOW()
             WHERE approval_gate_id = %s
+              AND decision_status = 'pending'
             """,
             (
                 status,
                 _safe_json(decision_payload or {}),
                 _safe_json(decision_payload or {}),
                 status,
+                str(decision_source or ""),
+                str(decision_source or ""),
+                str(decision_actor or ""),
+                str(decision_actor or ""),
+                str(decision_ref or ""),
+                str(decision_ref or ""),
                 str(approval_gate_id),
             ),
         )
     except Exception:
         return
+
+
+def get_approval_gate(approval_gate_id: str) -> dict[str, Any] | None:
+    if not approval_gate_id:
+        return None
+    try:
+        db = get_db()
+        if not hasattr(db, "fetchone"):
+            return None
+        row = db.fetchone(
+            """
+            SELECT approval_gate_id, session_id, tenant, chat_id, approval_class,
+                   decision_status, action_id, decision_payload_json, expires_at,
+                   decision_source, decision_actor, decision_ref, decided_at,
+                   (expires_at IS NULL OR expires_at > NOW()) AS not_expired
+            FROM approval_gates
+            WHERE approval_gate_id = %s
+            LIMIT 1
+            """,
+            (str(approval_gate_id),),
+        )
+        return dict(row or {}) if row else None
+    except Exception:
+        return None
+
+
+def evaluate_approval_gate(approval_gate_id: str) -> tuple[bool, str]:
+    row = get_approval_gate(approval_gate_id)
+    if not row:
+        return False, "missing"
+    status = str((row or {}).get("decision_status") or "").strip().lower() or "pending"
+    if status != "pending":
+        return False, f"already_{status}"
+    not_expired = bool((row or {}).get("not_expired"))
+    if not not_expired:
+        mark_approval_gate_decision(
+            approval_gate_id,
+            decision_status="expired",
+            decision_payload={"reason": "approval_gate_expired"},
+            decision_source="runtime_expiry_check",
+            decision_ref=str(approval_gate_id),
+        )
+        return False, "expired"
+    return True, "ok"
 
 
 def create_execution_session(
@@ -529,7 +603,9 @@ __all__ = [
     "compile_intent_spec",
     "create_approval_gate",
     "create_execution_session",
+    "evaluate_approval_gate",
     "finalize_execution_session",
+    "get_approval_gate",
     "mark_approval_gate_decision",
     "mark_execution_session_running",
     "mark_execution_step_status",

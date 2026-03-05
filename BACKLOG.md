@@ -273,8 +273,7 @@ Branch: `main`
 - None.
 
 ## Next Queue (on new feedback)
-- [IN_PROGRESS] Planner-owned free-text execution handoff
-- [PENDING] Approval runtime hardening
+- [IN_PROGRESS] Proactive runtime integration hardening
 
 ## In-Progress Detail
 - Planner-owned free-text execution handoff:
@@ -285,3 +284,20 @@ Branch: `main`
     through planner-owned step execution helpers.
   - `execute_intent` completion payload now persists stable metadata:
     `task_type`, `output_artifact_type`, `provider_candidates`.
+- Approval runtime hardening:
+  - approval gates now include deadlines/provenance.
+  - callback path now blocks expired/replayed approval callbacks.
+- Route-signal intelligence seed:
+  - `update_router.py` now attaches `_ea_route_signal` metadata from
+    `router_signals.py` before dispatch.
+- Planner artifact persistence seed:
+  - free-text and approved-callback completion paths now persist artifacts and
+    attach `artifact_id` to `render_reply` results.
+- Proactive role wiring seed:
+  - `EA_ROLE=proactive` is now wired in `runner.py` with role module and
+    `ea-proactive` compose service (profile `proactive`).
+- v1.22 gate naming alignment:
+  - added `scripts/run_v122_smoke.sh` alias and README/docs alignment.
+- Approval action pre-consume validation:
+  - callback now validates approval gate status before consuming typed action rows.
+  - invalid approval callbacks no longer consume typed actions.

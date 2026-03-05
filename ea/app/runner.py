@@ -24,6 +24,9 @@ def main() -> None:
     elif r == "event_worker":
         from app.roles.event_worker import run_event_worker
         import asyncio; asyncio.run(run_event_worker())
+    elif r == "proactive":
+        from app.roles.proactive import run_proactive
+        import asyncio; asyncio.run(run_proactive())
     elif r == "monolith":
         uvicorn.run("app.main:app", host="0.0.0.0", port=8090, log_level="warning")
     else:

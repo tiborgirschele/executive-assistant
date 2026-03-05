@@ -114,8 +114,11 @@ existing capability routing behavior.
 11. Gate naming drift cleanup (v1.21 alias):
    - Added `scripts/run_v121_smoke.sh` as an explicit v1.21 alias over
      `scripts/run_v120_smoke.sh` for operational readability.
+   - Added `scripts/run_v122_smoke.sh` as explicit v1.22 alias over
+     `scripts/run_v120_smoke.sh` (same gate surface, clearer release naming).
    - Added `tests/smoke_v1_21_gate_alias.py` and wired it into host/docker/CI gates.
-   - Updated README smoke command list to include `run_v121_smoke.sh`.
+   - Updated README smoke command list to include `run_v121_smoke.sh` and
+     `run_v122_smoke.sh`.
 
 12. Formal approval-gate ledger seed:
    - Added approval-gate store helpers in `ea/app/execution/session_store.py`:
@@ -293,6 +296,54 @@ existing capability routing behavior.
      - `provider_candidates`
    - Expanded `tests/smoke_v1_21_intent_runtime_planner_steps.py`
      assertions for metadata persistence.
+
+26. Approval runtime hardening (deadline + replay guards):
+   - Added approval-gate deadline/provenance schema fields:
+     - `expires_at`
+     - `decision_source`
+     - `decision_actor`
+     - `decision_ref`
+   - Added migration:
+     - `ea/schema/20260305_v1_22_approval_gate_deadlines.sql`
+   - `create_approval_gate(...)` now seeds `expires_at` (bounded TTL).
+   - `mark_approval_gate_decision(...)` now:
+     - updates only pending gates
+     - records decision provenance fields.
+   - Added gate-evaluation helpers in `session_store.py`:
+     - `get_approval_gate(...)`
+     - `evaluate_approval_gate(...)`
+   - `callback_commands.py` now blocks typed-action approval callbacks when
+     gate is expired or already decided (replay guard).
+   - Added `tests/smoke_v1_22_approval_callback_guard.py`.
+
+27. Route-signal intelligence seed:
+   - Added `ea/app/router_signals.py` with deterministic per-message route signals.
+   - `update_router.py` now attaches `_ea_route_signal` metadata to message payloads
+     before routing to command/intent handlers.
+   - Route signal includes:
+     - `surface_type`
+     - `has_url`
+     - `is_command`
+     - intent preview fields (`domain`, `task_type`, `intent_type`)
+   - Added `tests/smoke_v1_22_route_signal_router.py`.
+
+28. Planner artifact persistence seed:
+   - `intent_runtime.py` now persists output artifacts on successful
+     `render_reply` completion for free-text and approved-callback paths.
+   - Artifact records are linked to `execution_sessions` and use planner step
+     metadata (`output_artifact_type`, `task_type`) when available.
+   - `render_reply` step result now carries `artifact_id` when persistence succeeds.
+   - Expanded `tests/smoke_v1_21_intent_runtime_planner_steps.py` to assert
+     artifact id propagation.
+
+29. Proactive role wiring seed:
+   - Added runner role support:
+     - `EA_ROLE=proactive` in `runner.py`.
+   - Added proactive role module:
+     - `ea/app/roles/proactive.py`
+   - Added compose service:
+     - `ea-proactive` (profile: `proactive`)
+   - Added `tests/smoke_v1_22_proactive_role_wiring.py`.
 
 ## Why this matters
 

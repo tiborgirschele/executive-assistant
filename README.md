@@ -50,3 +50,4 @@ This repository also carries EA OS design/runtime artifacts used by release gate
 - `docs/EA_OS_Change_Guide_for_Dev_v1_21_Task_Contracts.md`
 - `scripts/run_v120_smoke.sh`
 - `scripts/run_v121_smoke.sh`
+- `scripts/run_v122_smoke.sh`

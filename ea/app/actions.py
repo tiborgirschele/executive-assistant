@@ -55,3 +55,11 @@ def consume_action(tenant: str, act_id: str):
         db.execute("UPDATE typed_actions SET is_consumed = TRUE WHERE id = %s", (act_id,))
         return action
     return None
+
+
+def peek_action(tenant: str, act_id: str):
+    db = get_db()
+    return db.fetchone(
+        "SELECT * FROM typed_actions WHERE id = %s AND tenant = %s AND is_consumed = FALSE AND expires_at > NOW()",
+        (act_id, tenant),
+    )

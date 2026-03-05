@@ -9,6 +9,7 @@ SCHEMA_FILES=(
   "${EA_ROOT}/ea/schema/20260305_v1_21_provider_outcomes.sql"
   "${EA_ROOT}/ea/schema/20260305_v1_22_commitment_runtime_seed.sql"
   "${EA_ROOT}/ea/schema/20260305_v1_22_memory_candidates.sql"
+  "${EA_ROOT}/ea/schema/20260305_v1_22_approval_gate_deadlines.sql"
 )
 HOST_PORT="$(grep -E '^EA_HOST_PORT=' "${EA_ROOT}/.env" | tail -n1 | cut -d= -f2- || true)"
 HOST_PORT="${HOST_PORT:-8090}"
@@ -176,7 +177,10 @@ run_step "smoke_v1_21_doc_alignment" python3 tests/smoke_v1_21_doc_alignment.py
 run_step "smoke_v1_22_world_model_seed" python3 tests/smoke_v1_22_world_model_seed.py
 run_step "smoke_v1_22_memory_candidates" python3 tests/smoke_v1_22_memory_candidates.py
 run_step "smoke_v1_22_memory_promotion_pipeline" python3 tests/smoke_v1_22_memory_promotion_pipeline.py
+run_step "smoke_v1_22_approval_callback_guard" python3 tests/smoke_v1_22_approval_callback_guard.py
 run_step "smoke_v1_22_sim_user_harness" python3 tests/smoke_v1_22_sim_user_harness.py
+run_step "smoke_v1_22_route_signal_router" python3 tests/smoke_v1_22_route_signal_router.py
+run_step "smoke_v1_22_proactive_role_wiring" python3 tests/smoke_v1_22_proactive_role_wiring.py
 run_step "smoke_work_tasks_contract" python3 tests/smoke_work_tasks_contract.py
 run_step "smoke_v1_19_3_control_plane_decomposition" python3 tests/smoke_v1_19_3_control_plane_decomposition.py
 run_step "smoke_v1_19_3_source_acquisition_split" python3 tests/smoke_v1_19_3_source_acquisition_split.py

@@ -43,19 +43,32 @@ def _pass(name: str) -> None:
 class _FakeDB:
     def __init__(self) -> None:
         self.calls: list[tuple[str, object]] = []
+        self.fetchone_calls: list[tuple[str, object]] = []
+        self.gate_row: dict[str, object] | None = None
 
     def execute(self, query: str, vars=None) -> None:
         self.calls.append((str(query), vars))
+
+    def fetchone(self, query: str, vars=None):
+        self.fetchone_calls.append((str(query), vars))
+        if "FROM approval_gates" in str(query or ""):
+            return dict(self.gate_row or {})
+        return None
 
 
 def test_approval_gate_schema_contracts_present() -> None:
     db_src = (ROOT / "ea/app/db.py").read_text(encoding="utf-8")
     store_src = (ROOT / "ea/app/execution/session_store.py").read_text(encoding="utf-8")
+    migration = ROOT / "ea/schema/20260305_v1_22_approval_gate_deadlines.sql"
     assert "CREATE TABLE IF NOT EXISTS approval_gates" in db_src
     assert "ADD COLUMN IF NOT EXISTS approval_gate_id" in db_src
+    assert "ADD COLUMN IF NOT EXISTS expires_at" in db_src
+    assert "ADD COLUMN IF NOT EXISTS decision_source" in db_src
     assert "def create_approval_gate(" in store_src
     assert "def attach_approval_gate_action(" in store_src
     assert "def mark_approval_gate_decision(" in store_src
+    assert "def evaluate_approval_gate(" in store_src
+    assert migration.exists(), "missing approval-gate deadline migration"
     _pass("v1.21 approval-gate schema contracts")
 
 
@@ -80,13 +93,24 @@ def test_approval_gate_store_behavior_with_stubbed_db() -> None:
             str(gate_id),
             decision_status="approved",
             decision_payload={"source": "callback"},
+            decision_source="callback",
+            decision_actor="123",
         )
+        fake.gate_row = {
+            "approval_gate_id": str(gate_id),
+            "decision_status": "pending",
+            "not_expired": False,
+        }
+        allowed, reason = store.evaluate_approval_gate(str(gate_id))
     finally:
         store.get_db = original_get_db
 
     joined = "\n".join(query for (query, _vars) in fake.calls)
     assert "INSERT INTO approval_gates" in joined
     assert "UPDATE approval_gates" in joined
+    assert allowed is False
+    assert reason == "expired"
+    assert fake.fetchone_calls, "expected approval gate fetch for evaluate"
     _pass("v1.21 approval-gate store behavior")
 
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from app.router_signals import build_route_signal
+
 
 CallbackHandler = Callable[[dict[str, Any]], Awaitable[None]]
 CommandHandler = Callable[[int, str, dict[str, Any]], Awaitable[None]]
@@ -34,6 +36,7 @@ async def route_update(
     if not chat_id:
         return
 
+    msg["_ea_route_signal"] = build_route_signal(msg)
     cmd_text = str(msg.get("text") or msg.get("caption") or "").strip()
     if cmd_text.startswith("/"):
         await on_command(int(chat_id), cmd_text, msg)

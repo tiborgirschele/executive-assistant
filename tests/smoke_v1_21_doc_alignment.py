@@ -35,7 +35,10 @@ def test_v121_doc_alignment() -> None:
     assert "smoke_v1_22_world_model_seed.py" in guide
     assert "smoke_v1_22_memory_candidates.py" in guide
     assert "smoke_v1_22_memory_promotion_pipeline.py" in guide
+    assert "smoke_v1_22_approval_callback_guard.py" in guide
     assert "smoke_v1_22_sim_user_harness.py" in guide
+    assert "smoke_v1_22_route_signal_router.py" in guide
+    assert "smoke_v1_22_proactive_role_wiring.py" in guide
     assert "smoke_v1_20_execution_sessions.py" in guide
     assert "smoke_v1_20_slash_command_sessions.py" in guide
     assert "smoke_v1_20_slash_command_behavior.py" in guide
@@ -58,8 +61,17 @@ def test_v121_doc_alignment() -> None:
     assert "send_budgets" in guide
     assert "smoke_v1_18.py" in guide
     assert "run_v121_smoke.sh" in guide
+    assert "run_v122_smoke.sh" in guide
     assert "approval_gates" in guide
     assert "20260305_v1_21_approval_gates.sql" in guide
+    assert "20260305_v1_22_approval_gate_deadlines.sql" in guide
+    assert "evaluate_approval_gate" in guide
+    assert "router_signals.py" in guide
+    assert "_ea_route_signal" in guide
+    assert "artifact_id" in guide
+    assert "output_artifact_type" in guide
+    assert "EA_ROLE=proactive" in guide
+    assert "roles/proactive.py" in guide
     assert "provider_outcomes" in guide
     assert "20260305_v1_21_provider_outcomes.sql" in guide
     assert "world_model.py" in guide
@@ -72,6 +84,7 @@ def test_v121_doc_alignment() -> None:
     assert "ea-sim-user" in guide
     assert "run_sim_user_eval.sh" in guide
     assert "run_v121_smoke.sh" in readme
+    assert "run_v122_smoke.sh" in readme
     _pass("v1.21 doc/code alignment")
 
 

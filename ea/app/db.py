@@ -188,12 +188,26 @@ def init_db_sync() -> None:
             decision_payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            decided_at TIMESTAMPTZ
+            decided_at TIMESTAMPTZ,
+            expires_at TIMESTAMPTZ,
+            decision_source TEXT,
+            decision_actor TEXT,
+            decision_ref TEXT
         );
+        ALTER TABLE IF EXISTS approval_gates
+            ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+        ALTER TABLE IF EXISTS approval_gates
+            ADD COLUMN IF NOT EXISTS decision_source TEXT;
+        ALTER TABLE IF EXISTS approval_gates
+            ADD COLUMN IF NOT EXISTS decision_actor TEXT;
+        ALTER TABLE IF EXISTS approval_gates
+            ADD COLUMN IF NOT EXISTS decision_ref TEXT;
         CREATE INDEX IF NOT EXISTS idx_approval_gates_session
             ON approval_gates(session_id, decision_status, created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_approval_gates_action
             ON approval_gates(action_id);
+        CREATE INDEX IF NOT EXISTS idx_approval_gates_expiry
+            ON approval_gates(decision_status, expires_at);
 
         CREATE TABLE IF NOT EXISTS planner_jobs (
             planner_job_id SERIAL PRIMARY KEY,
