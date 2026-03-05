@@ -14,7 +14,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
 | Q-044 | P2 | Keep queue log current as slices are added/closed | codex | queued | Use this file as the default intake point for new tasks |
-| Q-139 | P0 | Continue kernel operations hardening (`db_retention.sh` table policy profile presets + docs contract) | codex | queued | Chain after support-bundle DB-size snapshot slice commit |
+| Q-140 | P1 | Continue kernel ops hardening (`db_retention.sh` table whitelist/skip list controls + docs contract) | codex | queued | Chain after retention profile-presets slice commit |
 
 ## In Progress
 
@@ -170,6 +170,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | D-136 | P0 | Continue kernel operations hardening (`db_size.sh` table/index size visibility + docs/runbook linkage) | codex | done | Added `scripts/db_size.sh`, `make db-size`, script-help/asset coverage, and runbook/readme/operator linkage |
 | D-137 | P0 | Continue kernel operations hardening (`db_retention.sh` archival/prune baseline for runtime tables) | codex | done | Added dry-run/apply retention script, `make db-retention`, and operator docs/help/asset verification wiring |
 | D-138 | P0 | Continue kernel operations hardening (support-bundle optional DB-size snapshot hook + docs linkage) | codex | done | Added support-bundle DB-size snapshot toggles/limits and updated operator docs + milestone/task tracking |
+| D-139 | P0 | Continue kernel operations hardening (`db_retention.sh` table policy profile presets + docs contract) | codex | done | Added retention profile presets (`aggressive|standard|conservative`) with per-table day-window overrides and docs/milestone linkage |
 
 ## Intake Template
 

@@ -207,6 +207,12 @@ bash scripts/db_retention.sh
 # or
 make db-retention
 
+# optional retention profile
+EA_RETENTION_PROFILE=aggressive bash scripts/db_retention.sh
+
+# optional per-table override
+EA_RETENTION_DELIVERY_SENT_DAYS=14 bash scripts/db_retention.sh
+
 # apply deletions
 bash scripts/db_retention.sh --apply
 ```
