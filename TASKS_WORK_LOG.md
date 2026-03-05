@@ -6,7 +6,7 @@ Use this file as the execution queue and progress ledger.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-034 | P3 | Add smoke script exit-code matrix section to runbook | codex | queued | Clarify failure interpretation quickly |
+| Q-035 | P3 | Add support bundle redaction note for sensitive env values | codex | queued | Keep incident artifacts safe by default |
 
 ## In Progress
 
@@ -53,6 +53,7 @@ Use this file as the execution queue and progress ledger.
 | D-033 | P3 | Add release asset verification script + make target | codex | done | Added `scripts/verify_release_assets.sh` and `make verify-release-assets` |
 | D-034 | P3 | Add `make all-local` aggregate readiness target | codex | done | Chains `ci-local` and `verify-release-assets` |
 | D-035 | P3 | Add shellcheck baseline config | codex | done | Added `.shellcheckrc` |
+| D-036 | P3 | Add smoke-script explicit exit codes and runbook matrix | codex | done | Added failure codes `11/12/13` docs |
 
 ## Intake Template
 

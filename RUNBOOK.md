@@ -215,3 +215,13 @@ Combined local readiness check:
 ```bash
 make all-local
 ```
+
+## Smoke Exit Codes
+
+`scripts/smoke_api.sh` uses these explicit non-zero codes for contract failures:
+
+- `11`: rewrite response missing `execution_session_id`
+- `12`: blocked-policy path did not return expected `403`
+- `13`: delivery enqueue response missing `delivery_id`
+
+Other transport failures (for example `curl`) return their native non-zero exit codes.
