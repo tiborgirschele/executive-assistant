@@ -102,3 +102,11 @@ bash scripts/export_openapi.sh
 # or
 make openapi-export
 ```
+
+Compare the latest two snapshots:
+
+```bash
+bash scripts/diff_openapi.sh
+# or
+make openapi-diff
+```

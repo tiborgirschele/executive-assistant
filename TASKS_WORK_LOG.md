@@ -6,7 +6,7 @@ Use this file as the execution queue and progress ledger.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-018 | P2 | Add sample diff workflow for comparing OpenAPI snapshots | codex | queued | Keep API drift visible in PRs |
+| Q-019 | P3 | Add maintenance script to prune old OpenAPI snapshots | codex | queued | Keep artifact directory bounded |
 
 ## In Progress
 
@@ -37,6 +37,7 @@ Use this file as the execution queue and progress ledger.
 | D-017 | P2 | Add machine-readable milestone checkpoint file | codex | done | Added `MILESTONE.json` |
 | D-018 | P2 | Add release checklist for baseline shipping | codex | done | Added `RELEASE_CHECKLIST.md` |
 | D-019 | P2 | Add OpenAPI export script + make target | codex | done | Added `scripts/export_openapi.sh` and `make openapi-export` |
+| D-020 | P2 | Add OpenAPI diff script + make target | codex | done | Added `scripts/diff_openapi.sh` and `make openapi-diff` |
 
 ## Intake Template
 
