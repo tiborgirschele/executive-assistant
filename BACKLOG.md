@@ -119,6 +119,10 @@ Branch: `main`
     `smoke_v1_21_provider_broker.py`, `smoke_v1_21_generic_skill_execution.py`,
     and `smoke_v1_21_doc_alignment.py`
     added and wired into host/docker/CI gates.
+- [DONE] Task-aware plan-template routing (v1.21):
+  - added `ea/app/planner/plan_builder.py` with deterministic task-aware plan-step templates.
+  - `build_plan_steps(...)` in `ea/app/execution/session_store.py` now delegates to planner templates.
+  - added `tests/smoke_v1_21_plan_builder.py` and wired it into host/docker/CI gates.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`
     from `runner.py` (canonical role shim path), not direct worker import.

@@ -78,6 +78,20 @@ existing capability routing behavior.
      (`generate`) now return deterministic `executed` outcomes with lightweight artifacts.
    - `ea/app/skills/runtime_action_exec.py` now renders `executed` skill outcomes with artifact preview.
 
+8. Task-aware session plan templates:
+   - Added `ea/app/planner/plan_builder.py` with deterministic task-aware step construction.
+   - `ea/app/execution/session_store.py::build_plan_steps(...)` now delegates to
+     `build_task_plan_steps(...)` so free-text, slash-command, callback, and event sessionization
+     paths share the same plan-template behavior.
+   - Added smoke coverage:
+     - `tests/smoke_v1_21_plan_builder.py`
+   - v1.21 template behaviors include domain/task-specific enrichment steps:
+     - travel: `analyze_trip_commitment`, `compare_travel_options`
+     - finance: `verify_payment_context`
+     - project: `gather_project_context`
+     - health: `review_health_context`
+     - gated autonomy: `safety_gate`
+
 ## Why this matters
 
 This keeps provider contracts (`CapabilityContract`) but introduces a stable task layer the
@@ -90,5 +104,5 @@ planner can build on next:
 ## Next expansion
 
 1. Introduce `IntentSpecV2` compilation into task contracts.
-2. Move fixed step planning to task-template planning.
-3. Add broker scoring (fit/privacy/cost/latency/history) on top of task contract defaults.
+2. Add broker scoring (fit/privacy/cost/latency/history) on top of task contract defaults.
+3. Persist task-template step metadata (budget/evidence/approval class) in richer execution ledgers.

@@ -8,6 +8,7 @@ import hashlib
 from typing import Any, Sequence
 
 from app.db import get_db
+from app.planner.plan_builder import build_task_plan_steps
 
 _STATUS_VALUES = {"queued", "running", "completed", "failed", "skipped"}
 
@@ -117,51 +118,7 @@ def compile_intent_spec(
 
 
 def build_plan_steps(*, intent_spec: dict[str, Any]) -> list[dict[str, Any]]:
-    has_url = bool((intent_spec or {}).get("has_url"))
-    autonomy = str((intent_spec or {}).get("autonomy_level") or "").strip().lower()
-    steps: list[dict[str, Any]] = [
-        {
-            "step_key": "compile_intent",
-            "step_title": "Compile Intent",
-            "preconditions_json": {},
-            "evidence_json": {},
-        }
-    ]
-    if has_url:
-        steps.append(
-            {
-                "step_key": "gather_evidence",
-                "step_title": "Gather URL Evidence",
-                "preconditions_json": {"requires_url": True},
-                "evidence_json": {},
-            }
-        )
-    if autonomy == "approval_required":
-        steps.append(
-            {
-                "step_key": "safety_gate",
-                "step_title": "Safety Gate",
-                "preconditions_json": {"approval_required": True},
-                "evidence_json": {},
-            }
-        )
-    steps.extend(
-        [
-            {
-                "step_key": "execute_intent",
-                "step_title": "Execute Intent",
-                "preconditions_json": {},
-                "evidence_json": {},
-            },
-            {
-                "step_key": "render_reply",
-                "step_title": "Render Reply",
-                "preconditions_json": {},
-                "evidence_json": {},
-            },
-        ]
-    )
-    return steps
+    return build_task_plan_steps(intent_spec=dict(intent_spec or {}))
 
 
 def append_execution_event(

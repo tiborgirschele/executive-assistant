@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+import pathlib
+import sys
+import types
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+EA_DIR = ROOT / "ea"
+for path in (str(ROOT), str(EA_DIR)):
+    if path not in sys.path:
+        sys.path.insert(0, path)
+
+
+def _install_psycopg2_stub() -> None:
+    if "psycopg2" in sys.modules:
+        return
+    fake_psycopg2 = types.ModuleType("psycopg2")
+    fake_pool_mod = types.ModuleType("psycopg2.pool")
+    fake_extras_mod = types.ModuleType("psycopg2.extras")
+
+    class _ThreadedConnectionPool:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def getconn(self):
+            raise RuntimeError("psycopg2 stub: no db connection available")
+
+        def putconn(self, conn) -> None:
+            return None
+
+    fake_pool_mod.ThreadedConnectionPool = _ThreadedConnectionPool
+    fake_psycopg2.pool = fake_pool_mod
+    fake_extras_mod.RealDictCursor = object
+    sys.modules["psycopg2"] = fake_psycopg2
+    sys.modules["psycopg2.pool"] = fake_pool_mod
+    sys.modules["psycopg2.extras"] = fake_extras_mod
+
+
+def _pass(name: str) -> None:
+    print(f"[SMOKE][HOST][PASS] {name}")
+
+
+def _step_keys(plan: list[dict[str, object]]) -> list[str]:
+    return [str(row.get("step_key") or "") for row in (plan or [])]
+
+
+def test_plan_builder_module_and_session_store_wiring() -> None:
+    planner_src = (ROOT / "ea/app/planner/plan_builder.py").read_text(encoding="utf-8")
+    store_src = (ROOT / "ea/app/execution/session_store.py").read_text(encoding="utf-8")
+    assert "def build_task_plan_steps(" in planner_src
+    assert "analyze_trip_commitment" in planner_src
+    assert "verify_payment_context" in planner_src
+    assert "gather_project_context" in planner_src
+    assert "return build_task_plan_steps(intent_spec=dict(intent_spec or {}))" in store_src
+    _pass("v1.21 plan builder module/wiring")
+
+
+def test_task_aware_plan_steps() -> None:
+    _install_psycopg2_stub()
+    from app.execution.session_store import build_plan_steps, compile_intent_spec
+
+    travel_spec = compile_intent_spec(
+        text="Please book my trip to Zurich and review route options.",
+        tenant="chat_100284",
+        chat_id=123,
+        has_url=False,
+    )
+    travel_keys = _step_keys(build_plan_steps(intent_spec=travel_spec))
+    assert "compile_intent" in travel_keys
+    assert "analyze_trip_commitment" in travel_keys
+    assert "compare_travel_options" in travel_keys
+    assert "safety_gate" in travel_keys
+
+    project_spec = compile_intent_spec(
+        text="Summarize project deadline risk before tomorrow's meeting.",
+        tenant="chat_100284",
+        chat_id=123,
+        has_url=False,
+    )
+    project_keys = _step_keys(build_plan_steps(intent_spec=project_spec))
+    assert "gather_project_context" in project_keys
+    assert "analyze_trip_commitment" not in project_keys
+
+    finance_spec = compile_intent_spec(
+        text="Check invoice due date and budget exposure.",
+        tenant="chat_100284",
+        chat_id=123,
+        has_url=False,
+    )
+    finance_keys = _step_keys(build_plan_steps(intent_spec=finance_spec))
+    assert "verify_payment_context" in finance_keys
+    _pass("v1.21 task-aware plan builder behavior")
+
+
+if __name__ == "__main__":
+    test_plan_builder_module_and_session_store_wiring()
+    test_task_aware_plan_steps()
