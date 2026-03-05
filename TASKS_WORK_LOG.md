@@ -6,7 +6,7 @@ Use this file as the execution queue and progress ledger.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-033 | P3 | Add shellcheck-ready formatting pass for scripts (non-functional) | codex | queued | Improve script consistency/readability |
+| Q-034 | P3 | Add smoke script exit-code matrix section to runbook | codex | queued | Clarify failure interpretation quickly |
 
 ## In Progress
 
@@ -52,6 +52,7 @@ Use this file as the execution queue and progress ledger.
 | D-032 | P3 | Add `make ci-local` preflight target | codex | done | Chains compile + test-module syntax checks |
 | D-033 | P3 | Add release asset verification script + make target | codex | done | Added `scripts/verify_release_assets.sh` and `make verify-release-assets` |
 | D-034 | P3 | Add `make all-local` aggregate readiness target | codex | done | Chains `ci-local` and `verify-release-assets` |
+| D-035 | P3 | Add shellcheck baseline config | codex | done | Added `.shellcheckrc` |
 
 ## Intake Template
 

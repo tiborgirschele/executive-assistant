@@ -79,3 +79,4 @@ Task archive rotation is available via `scripts/archive_tasks.sh` or `make tasks
 Local CI-parity compile checks can be run via `make ci-local`.
 Release asset integrity can be checked via `scripts/verify_release_assets.sh` or `make verify-release-assets`.
 One-command local readiness check: `make all-local`.
+Shell script lint config is tracked in `.shellcheckrc`.
