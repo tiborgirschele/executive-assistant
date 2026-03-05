@@ -137,6 +137,15 @@ class _FakeMemoryRuntime:
     def get_authority_binding(self, binding_id: str, **_: object):
         return None
 
+    def upsert_delivery_preference(self, **_: object):
+        raise AssertionError("not expected in this test")
+
+    def list_delivery_preferences(self, **_: object):
+        return []
+
+    def get_delivery_preference(self, preference_id: str, **_: object):
+        return None
+
 
 class _FakeTaskContracts:
     def list_contracts(self, limit: int = 100):

@@ -149,6 +149,30 @@ class AuthorityBindingOut(BaseModel):
     updated_at: str
 
 
+class DeliveryPreferenceIn(BaseModel):
+    principal_id: str = Field(min_length=1, max_length=200)
+    channel: str = Field(min_length=1, max_length=120)
+    recipient_ref: str = Field(min_length=1, max_length=200)
+    cadence: str = Field(default="normal", max_length=100)
+    quiet_hours_json: dict[str, object] = Field(default_factory=dict)
+    format_json: dict[str, object] = Field(default_factory=dict)
+    status: str = Field(default="active", max_length=80)
+    preference_id: str | None = Field(default=None, max_length=200)
+
+
+class DeliveryPreferenceOut(BaseModel):
+    preference_id: str
+    principal_id: str
+    channel: str
+    recipient_ref: str
+    cadence: str
+    quiet_hours_json: dict[str, object]
+    format_json: dict[str, object]
+    status: str
+    created_at: str
+    updated_at: str
+
+
 class PromoteCandidateIn(BaseModel):
     reviewer: str = Field(min_length=1, max_length=200)
     sharing_policy: str = Field(default="private", max_length=100)
@@ -258,6 +282,21 @@ def _authority_binding_out(row) -> AuthorityBindingOut:
         approval_level=row.approval_level,
         channel_scope=list(row.channel_scope),
         policy_json=row.policy_json,
+        status=row.status,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _delivery_preference_out(row) -> DeliveryPreferenceOut:
+    return DeliveryPreferenceOut(
+        preference_id=row.preference_id,
+        principal_id=row.principal_id,
+        channel=row.channel,
+        recipient_ref=row.recipient_ref,
+        cadence=row.cadence,
+        quiet_hours_json=row.quiet_hours_json,
+        format_json=row.format_json,
         status=row.status,
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -523,3 +562,48 @@ def get_memory_authority_binding(
     if not row:
         raise HTTPException(status_code=404, detail="authority_binding_not_found")
     return _authority_binding_out(row)
+
+
+@router.post("/delivery-preferences")
+def upsert_memory_delivery_preference(
+    body: DeliveryPreferenceIn,
+    container: AppContainer = Depends(get_container),
+) -> DeliveryPreferenceOut:
+    row = container.memory_runtime.upsert_delivery_preference(
+        principal_id=body.principal_id,
+        channel=body.channel,
+        recipient_ref=body.recipient_ref,
+        cadence=body.cadence,
+        quiet_hours_json=body.quiet_hours_json,
+        format_json=body.format_json,
+        status=body.status,
+        preference_id=body.preference_id,
+    )
+    return _delivery_preference_out(row)
+
+
+@router.get("/delivery-preferences")
+def list_memory_delivery_preferences(
+    principal_id: str = Query(min_length=1, max_length=200),
+    limit: int = Query(default=100, ge=1, le=500),
+    status: str | None = Query(default=None),
+    container: AppContainer = Depends(get_container),
+) -> list[DeliveryPreferenceOut]:
+    rows = container.memory_runtime.list_delivery_preferences(
+        principal_id=principal_id,
+        limit=limit,
+        status=status,
+    )
+    return [_delivery_preference_out(row) for row in rows]
+
+
+@router.get("/delivery-preferences/{preference_id}")
+def get_memory_delivery_preference(
+    preference_id: str,
+    principal_id: str = Query(min_length=1, max_length=200),
+    container: AppContainer = Depends(get_container),
+) -> DeliveryPreferenceOut:
+    row = container.memory_runtime.get_delivery_preference(preference_id, principal_id=principal_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="delivery_preference_not_found")
+    return _delivery_preference_out(row)

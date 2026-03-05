@@ -10,6 +10,8 @@ from app.repositories.connector_bindings import ConnectorBindingRepository, InMe
 from app.repositories.connector_bindings_postgres import PostgresConnectorBindingRepository
 from app.repositories.delivery_outbox import DeliveryOutboxRepository, InMemoryDeliveryOutboxRepository
 from app.repositories.delivery_outbox_postgres import PostgresDeliveryOutboxRepository
+from app.repositories.delivery_preferences import DeliveryPreferenceRepository, InMemoryDeliveryPreferenceRepository
+from app.repositories.delivery_preferences_postgres import PostgresDeliveryPreferenceRepository
 from app.repositories.entities import EntityRepository, InMemoryEntityRepository
 from app.repositories.entities_postgres import PostgresEntityRepository
 from app.repositories.ledger import ExecutionLedgerRepository, InMemoryExecutionLedgerRepository
@@ -38,10 +40,12 @@ __all__ = [
     "CommitmentRepository",
     "AuthorityBindingRepository",
     "DeliveryOutboxRepository",
+    "DeliveryPreferenceRepository",
     "EntityRepository",
     "ExecutionLedgerRepository",
     "ArtifactRepository",
     "InMemoryDeliveryOutboxRepository",
+    "InMemoryDeliveryPreferenceRepository",
     "InMemoryArtifactRepository",
     "InMemoryAuthorityBindingRepository",
     "InMemoryCommitmentRepository",
@@ -62,6 +66,7 @@ __all__ = [
     "PostgresCommitmentRepository",
     "PostgresConnectorBindingRepository",
     "PostgresDeliveryOutboxRepository",
+    "PostgresDeliveryPreferenceRepository",
     "PostgresObservationEventRepository",
     "PostgresPolicyDecisionRepository",
     "PostgresEntityRepository",

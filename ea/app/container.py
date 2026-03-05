@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from app.repositories.connector_bindings import InMemoryConnectorBindingRepository
 from app.repositories.commitments import InMemoryCommitmentRepository
 from app.repositories.delivery_outbox import InMemoryDeliveryOutboxRepository
+from app.repositories.delivery_preferences import InMemoryDeliveryPreferenceRepository
 from app.repositories.entities import InMemoryEntityRepository
 from app.repositories.authority_bindings import InMemoryAuthorityBindingRepository
 from app.repositories.memory_candidates import InMemoryMemoryCandidateRepository
@@ -107,6 +108,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
             relationships=InMemoryRelationshipRepository(),
             commitments=InMemoryCommitmentRepository(),
             authority_bindings=InMemoryAuthorityBindingRepository(),
+            delivery_preferences=InMemoryDeliveryPreferenceRepository(),
         )
     try:
         task_contracts = build_task_contract_service(settings=resolved)

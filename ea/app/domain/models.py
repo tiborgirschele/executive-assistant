@@ -189,6 +189,20 @@ class AuthorityBinding:
 
 
 @dataclass(frozen=True)
+class DeliveryPreference:
+    preference_id: str
+    principal_id: str
+    channel: str
+    recipient_ref: str
+    cadence: str
+    quiet_hours_json: dict[str, Any]
+    format_json: dict[str, Any]
+    status: str
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
 class ToolDefinition:
     tool_name: str
     version: str

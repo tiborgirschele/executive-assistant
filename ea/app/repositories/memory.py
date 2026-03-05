@@ -2,6 +2,8 @@ from app.repositories.authority_bindings import AuthorityBindingRepository, InMe
 from app.repositories.authority_bindings_postgres import PostgresAuthorityBindingRepository
 from app.repositories.commitments import CommitmentRepository, InMemoryCommitmentRepository
 from app.repositories.commitments_postgres import PostgresCommitmentRepository
+from app.repositories.delivery_preferences import DeliveryPreferenceRepository, InMemoryDeliveryPreferenceRepository
+from app.repositories.delivery_preferences_postgres import PostgresDeliveryPreferenceRepository
 from app.repositories.entities import EntityRepository, InMemoryEntityRepository
 from app.repositories.entities_postgres import PostgresEntityRepository
 from app.repositories.memory_candidates import InMemoryMemoryCandidateRepository, MemoryCandidateRepository
@@ -21,6 +23,9 @@ __all__ = [
     "CommitmentRepository",
     "InMemoryCommitmentRepository",
     "PostgresCommitmentRepository",
+    "DeliveryPreferenceRepository",
+    "InMemoryDeliveryPreferenceRepository",
+    "PostgresDeliveryPreferenceRepository",
     "MemoryCandidateRepository",
     "InMemoryMemoryCandidateRepository",
     "PostgresMemoryCandidateRepository",

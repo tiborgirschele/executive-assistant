@@ -513,6 +513,37 @@ def test_memory_authority_bindings_principal_scope_flow() -> None:
     assert wrong_scope.json()["error"]["code"] == "authority_binding_not_found"
 
 
+def test_memory_delivery_preferences_principal_scope_flow() -> None:
+    client = _client(storage_backend="memory")
+
+    created = client.post(
+        "/v1/memory/delivery-preferences",
+        json={
+            "principal_id": "exec-1",
+            "channel": "email",
+            "recipient_ref": "ceo@example.com",
+            "cadence": "urgent_only",
+            "quiet_hours_json": {"start": "22:00", "end": "07:00"},
+            "format_json": {"style": "concise"},
+            "status": "active",
+        },
+    )
+    assert created.status_code == 200
+    preference_id = created.json()["preference_id"]
+
+    listed = client.get("/v1/memory/delivery-preferences", params={"principal_id": "exec-1", "limit": 10})
+    assert listed.status_code == 200
+    assert any(row["preference_id"] == preference_id for row in listed.json())
+
+    fetched = client.get(f"/v1/memory/delivery-preferences/{preference_id}", params={"principal_id": "exec-1"})
+    assert fetched.status_code == 200
+    assert fetched.json()["channel"] == "email"
+
+    wrong_scope = client.get(f"/v1/memory/delivery-preferences/{preference_id}", params={"principal_id": "exec-2"})
+    assert wrong_scope.status_code == 404
+    assert wrong_scope.json()["error"]["code"] == "delivery_preference_not_found"
+
+
 def test_auth_allow_and_deny() -> None:
     token = "secret-token"
     client = _client(storage_backend="memory", auth_token=token)

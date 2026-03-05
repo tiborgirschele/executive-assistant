@@ -11,7 +11,7 @@ Usage:
 Runs end-to-end HTTP smoke checks for liveness/readiness/version,
 rewrite/session/policy/approvals, observations, delivery outbox, channel adapters,
 tool/connector registry endpoints, task-contract endpoints, plan compile endpoint,
-and memory candidate/item/entity/relationship/commitment/authority-binding endpoints.
+and memory candidate/item/entity/relationship/commitment/authority-binding/delivery-preference endpoints.
 
 Auth:
   If EA_API_TOKEN is set, the script sends Authorization: Bearer <token>.
@@ -193,6 +193,12 @@ BINDING_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).ge
 if [[ -z "${BINDING_ID}" ]]; then
   fail 13 "missing binding_id from authority binding response"
 fi
+PREF_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/delivery-preferences" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"principal_id":"exec-1","channel":"email","recipient_ref":"ceo@example.com","cadence":"urgent_only","quiet_hours_json":{"start":"22:00","end":"07:00"},"format_json":{"style":"concise"},"status":"active"}')"
+PREF_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("preference_id",""))' <<<"${PREF_JSON}")"
+if [[ -z "${PREF_ID}" ]]; then
+  fail 13 "missing preference_id from delivery preference response"
+fi
 curl -fsS "${BASE}/v1/memory/entities?limit=5&principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/memory/entities/${ENTITY_EXEC_ID}" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/memory/relationships?limit=5&principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
@@ -201,6 +207,8 @@ curl -fsS "${BASE}/v1/memory/commitments?principal_id=exec-1&limit=5" "${AUTH_AR
 curl -fsS "${BASE}/v1/memory/commitments/${COMMITMENT_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/memory/authority-bindings?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/memory/authority-bindings/${BINDING_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/delivery-preferences?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/delivery-preferences/${PREF_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
 echo "memory ok"
 
 echo "smoke complete"

@@ -22,6 +22,7 @@ Applies kernel migrations in order:
   - v0_12 entities/relationships kernel
   - v0_13 commitments kernel
   - v0_14 authority bindings kernel
+  - v0_15 delivery preferences kernel
 EOF
   exit 0
 fi
@@ -50,6 +51,7 @@ SQL_FILES=(
   "ea/schema/20260305_v0_12_entities_relationships_kernel.sql"
   "ea/schema/20260305_v0_13_commitments_kernel.sql"
   "ea/schema/20260305_v0_14_authority_bindings_kernel.sql"
+  "ea/schema/20260305_v0_15_delivery_preferences_kernel.sql"
 )
 
 echo "== EA DB bootstrap =="

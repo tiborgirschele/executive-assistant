@@ -2,11 +2,22 @@ from __future__ import annotations
 
 import logging
 
-from app.domain.models import AuthorityBinding, Commitment, Entity, MemoryCandidate, MemoryItem, RelationshipEdge, now_utc_iso
+from app.domain.models import (
+    AuthorityBinding,
+    Commitment,
+    DeliveryPreference,
+    Entity,
+    MemoryCandidate,
+    MemoryItem,
+    RelationshipEdge,
+    now_utc_iso,
+)
 from app.repositories.authority_bindings import AuthorityBindingRepository, InMemoryAuthorityBindingRepository
 from app.repositories.authority_bindings_postgres import PostgresAuthorityBindingRepository
 from app.repositories.commitments import CommitmentRepository, InMemoryCommitmentRepository
 from app.repositories.commitments_postgres import PostgresCommitmentRepository
+from app.repositories.delivery_preferences import DeliveryPreferenceRepository, InMemoryDeliveryPreferenceRepository
+from app.repositories.delivery_preferences_postgres import PostgresDeliveryPreferenceRepository
 from app.repositories.entities import EntityRepository, InMemoryEntityRepository
 from app.repositories.entities_postgres import PostgresEntityRepository
 from app.repositories.memory_candidates import InMemoryMemoryCandidateRepository, MemoryCandidateRepository
@@ -27,6 +38,7 @@ class MemoryRuntimeService:
         relationships: RelationshipRepository,
         commitments: CommitmentRepository,
         authority_bindings: AuthorityBindingRepository,
+        delivery_preferences: DeliveryPreferenceRepository,
     ) -> None:
         self._candidates = candidates
         self._items = items
@@ -34,6 +46,7 @@ class MemoryRuntimeService:
         self._relationships = relationships
         self._commitments = commitments
         self._authority_bindings = authority_bindings
+        self._delivery_preferences = delivery_preferences
 
     def stage_candidate(
         self,
@@ -295,6 +308,50 @@ class MemoryRuntimeService:
             return None
         return found
 
+    def upsert_delivery_preference(
+        self,
+        *,
+        principal_id: str,
+        channel: str,
+        recipient_ref: str,
+        cadence: str = "normal",
+        quiet_hours_json: dict[str, object] | None = None,
+        format_json: dict[str, object] | None = None,
+        status: str = "active",
+        preference_id: str | None = None,
+    ) -> DeliveryPreference:
+        return self._delivery_preferences.upsert_preference(
+            principal_id=principal_id,
+            channel=channel,
+            recipient_ref=recipient_ref,
+            cadence=cadence,
+            quiet_hours_json=quiet_hours_json,
+            format_json=format_json,
+            status=status,
+            preference_id=preference_id,
+        )
+
+    def list_delivery_preferences(
+        self,
+        *,
+        principal_id: str,
+        limit: int = 100,
+        status: str | None = None,
+    ) -> list[DeliveryPreference]:
+        return self._delivery_preferences.list_preferences(
+            principal_id=principal_id,
+            limit=limit,
+            status=status,
+        )
+
+    def get_delivery_preference(self, preference_id: str, *, principal_id: str) -> DeliveryPreference | None:
+        found = self._delivery_preferences.get(preference_id)
+        if not found:
+            return None
+        if found.principal_id != str(principal_id or "").strip():
+            return None
+        return found
+
 
 def _backend_mode(settings: Settings) -> str:
     return str(settings.storage.backend or "auto").strip().lower()
@@ -402,6 +459,23 @@ def _build_authority_binding_repo(settings: Settings) -> AuthorityBindingReposit
     return InMemoryAuthorityBindingRepository()
 
 
+def _build_delivery_preference_repo(settings: Settings) -> DeliveryPreferenceRepository:
+    backend = _backend_mode(settings)
+    log = logging.getLogger("ea.delivery_preferences")
+    if backend == "memory":
+        return InMemoryDeliveryPreferenceRepository()
+    if backend == "postgres":
+        if not settings.database_url:
+            raise RuntimeError("EA_STORAGE_BACKEND=postgres requires DATABASE_URL")
+        return PostgresDeliveryPreferenceRepository(settings.database_url)
+    if settings.database_url:
+        try:
+            return PostgresDeliveryPreferenceRepository(settings.database_url)
+        except Exception as exc:
+            log.warning("postgres delivery-preference backend unavailable in auto mode; falling back to memory: %s", exc)
+    return InMemoryDeliveryPreferenceRepository()
+
+
 def build_memory_runtime(settings: Settings | None = None) -> MemoryRuntimeService:
     resolved = settings or get_settings()
     return MemoryRuntimeService(
@@ -411,4 +485,5 @@ def build_memory_runtime(settings: Settings | None = None) -> MemoryRuntimeServi
         relationships=_build_relationship_repo(resolved),
         commitments=_build_commitment_repo(resolved),
         authority_bindings=_build_authority_binding_repo(resolved),
+        delivery_preferences=_build_delivery_preference_repo(resolved),
     )

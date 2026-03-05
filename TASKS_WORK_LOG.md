@@ -14,7 +14,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
 | Q-044 | P2 | Keep queue log current as slices are added/closed | codex | queued | Use this file as the default intake point for new tasks |
-| Q-128 | P0 | Continue Milestone 5 memory layer (`delivery_preferences` seed table + API stubs + principal scoping) | codex | queued | Chain after authority-bindings slice commit |
+| Q-129 | P0 | Continue Milestone 5 memory layer (`follow_ups` seed table + API stubs + principal scoping) | codex | queued | Chain after delivery-preferences slice commit |
 
 ## In Progress
 
@@ -159,6 +159,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | D-125 | P0 | Continue Milestone 5 memory layer (`entities` + `relationships` seed tables and API stubs) | codex | done | Added `v0_12`, semantic entity/relationship repositories + API stubs, and smoke/unit coverage updates |
 | D-126 | P0 | Continue Milestone 5 memory layer (`commitments` seed table + API stubs + principal scoping) | codex | done | Added `v0_13`, commitment repositories + API stubs, and principal-scoped list/get behavior with test coverage |
 | D-127 | P0 | Continue Milestone 5 memory layer (`authority_bindings` seed table + API stubs + principal scoping) | codex | done | Added `v0_14`, authority-binding repositories + API stubs, and principal-scoped list/get behavior with test coverage |
+| D-128 | P0 | Continue Milestone 5 memory layer (`delivery_preferences` seed table + API stubs + principal scoping) | codex | done | Added `v0_15`, delivery-preference repositories + API stubs, and principal-scoped list/get behavior with test coverage |
 
 ## Intake Template
 

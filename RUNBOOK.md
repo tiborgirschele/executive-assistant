@@ -56,6 +56,9 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | POST | `/v1/memory/authority-bindings` | `200` | validation `422` |
 | GET | `/v1/memory/authority-bindings` | `200` | validation `422` |
 | GET | `/v1/memory/authority-bindings/{binding_id}` | `200` | `404 authority_binding_not_found` |
+| POST | `/v1/memory/delivery-preferences` | `200` | validation `422` |
+| GET | `/v1/memory/delivery-preferences` | `200` | validation `422` |
+| GET | `/v1/memory/delivery-preferences/{preference_id}` | `200` | `404 delivery_preference_not_found` |
 
 Error envelope for failures:
 - `{ "error": { "code": "...", "message": "...", "details": ..., "correlation_id": "..." } }`
@@ -149,6 +152,7 @@ Applies:
 - `ea/schema/20260305_v0_12_entities_relationships_kernel.sql`
 - `ea/schema/20260305_v0_13_commitments_kernel.sql`
 - `ea/schema/20260305_v0_14_authority_bindings_kernel.sql`
+- `ea/schema/20260305_v0_15_delivery_preferences_kernel.sql`
 
 Check table presence/counts:
 
@@ -269,6 +273,16 @@ curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/memory/authority-bin
   -d '{"principal_id":"exec-1","subject_ref":"assistant","action_scope":"calendar.write","approval_level":"manager","channel_scope":["email","slack"],"policy_json":{"quiet_hours_enforced":true},"status":"active"}'
 curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/authority-bindings?principal_id=exec-1&limit=10"
 curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/authority-bindings/<binding_id>?principal_id=exec-1"
+```
+
+Principal-scoped delivery preferences:
+
+```bash
+curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/memory/delivery-preferences \
+  -H 'content-type: application/json' \
+  -d '{"principal_id":"exec-1","channel":"email","recipient_ref":"ceo@example.com","cadence":"urgent_only","quiet_hours_json":{"start":"22:00","end":"07:00"},"format_json":{"style":"concise"},"status":"active"}'
+curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/delivery-preferences?principal_id=exec-1&limit=10"
+curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/delivery-preferences/<preference_id>?principal_id=exec-1"
 ```
 ## 9) Script Help Smoke
 
