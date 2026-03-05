@@ -12,9 +12,12 @@ from app.domain.models import (
     ExecutionSession,
     ExecutionStep,
     IntentSpecV3,
+    PlanSpec,
+    PlanStepSpec,
     RewriteRequest,
     RunCost,
     ToolReceipt,
+    now_utc_iso,
 )
 from app.repositories.approvals import ApprovalRepository, InMemoryApprovalRepository
 from app.repositories.approvals_postgres import PostgresApprovalRepository
@@ -25,6 +28,7 @@ from app.repositories.ledger_postgres import PostgresExecutionLedgerRepository
 from app.repositories.policy_decisions import InMemoryPolicyDecisionRepository, PolicyDecisionRepository
 from app.repositories.policy_decisions_postgres import PostgresPolicyDecisionRepository
 from app.settings import Settings, get_settings
+from app.services.planner import PlannerService
 from app.services.policy import PolicyDecisionService, PolicyDeniedError
 from app.services.task_contracts import TaskContractService, build_task_contract_service
 
@@ -48,6 +52,7 @@ class RewriteOrchestrator:
         approvals: ApprovalRepository | None = None,
         policy: PolicyDecisionService | None = None,
         task_contracts: TaskContractService | None = None,
+        planner: PlannerService | None = None,
     ) -> None:
         self._artifacts = artifacts or InMemoryArtifactRepository()
         self._ledger = ledger or InMemoryExecutionLedgerRepository()
@@ -55,37 +60,104 @@ class RewriteOrchestrator:
         self._approvals = approvals or InMemoryApprovalRepository()
         self._policy = policy or PolicyDecisionService()
         self._task_contracts = task_contracts
+        self._planner = planner
+
+    def _fallback_rewrite_intent(self) -> IntentSpecV3:
+        return IntentSpecV3(
+            principal_id="local-user",
+            goal="rewrite supplied text into an artifact",
+            task_type="rewrite_text",
+            deliverable_type="rewrite_note",
+            risk_class="low",
+            approval_class="none",
+            budget_class="low",
+            allowed_tools=("rewrite_store",),
+            desired_artifact="rewrite_note",
+            memory_write_policy="reviewed_only",
+        )
+
+    def _fallback_plan(self, intent: IntentSpecV3) -> PlanSpec:
+        step = PlanStepSpec(
+            step_key="step_rewrite_fallback",
+            step_kind="tool_call",
+            tool_name="artifact_repository",
+            evidence_required=intent.evidence_requirements,
+            approval_required=intent.approval_class not in {"", "none"},
+            reversible=False,
+            expected_artifact=intent.deliverable_type,
+            fallback="request_human_intervention",
+        )
+        return PlanSpec(
+            plan_id=str(uuid.uuid4()),
+            task_key=intent.task_type,
+            principal_id=intent.principal_id,
+            created_at=now_utc_iso(),
+            steps=(step,),
+        )
 
     def build_artifact(self, req: RewriteRequest) -> Artifact:
-        if self._task_contracts:
-            intent = self._task_contracts.compile_rewrite_intent(principal_id="local-user")
-        else:
-            intent = IntentSpecV3(
+        if self._planner:
+            intent, plan = self._planner.build_plan(
+                task_key="rewrite_text",
                 principal_id="local-user",
                 goal="rewrite supplied text into an artifact",
-                task_type="rewrite_text",
-                deliverable_type="rewrite_note",
-                risk_class="low",
-                approval_class="none",
-                budget_class="low",
-                allowed_tools=("rewrite_store",),
-                desired_artifact="rewrite_note",
-                memory_write_policy="reviewed_only",
             )
+        elif self._task_contracts:
+            intent = self._task_contracts.compile_rewrite_intent(principal_id="local-user")
+            plan = self._fallback_plan(intent)
+        else:
+            intent = self._fallback_rewrite_intent()
+            plan = self._fallback_plan(intent)
         session = self._ledger.start_session(intent)
         correlation_id = str(uuid.uuid4())
         self._ledger.append_event(
             session.session_id,
             "intent_compiled",
-            {"task_type": intent.task_type, "risk_class": intent.risk_class},
+            {
+                "task_type": intent.task_type,
+                "risk_class": intent.risk_class,
+                "approval_class": intent.approval_class,
+            },
+        )
+        self._ledger.append_event(
+            session.session_id,
+            "plan_compiled",
+            {
+                "plan_id": plan.plan_id,
+                "task_key": plan.task_key,
+                "step_count": len(plan.steps),
+                "primary_step": plan.steps[0].step_key if plan.steps else "",
+            },
         )
         normalized_text = str(req.text or "").strip()
+        primary_step = (
+            plan.steps[0]
+            if plan.steps
+            else PlanStepSpec(
+                step_key="step_rewrite_fallback",
+                step_kind="tool_call",
+                tool_name="artifact_repository",
+                evidence_required=(),
+                approval_required=False,
+                reversible=False,
+                expected_artifact=intent.deliverable_type,
+                fallback="request_human_intervention",
+            )
+        )
         rewrite_step = self._ledger.start_step(
             session.session_id,
-            "rewrite_flow",
-            input_json={"text_length": len(normalized_text)},
+            primary_step.step_kind or "tool_call",
+            input_json={
+                "text_length": len(normalized_text),
+                "plan_id": plan.plan_id,
+                "plan_step_key": primary_step.step_key,
+                "plan_step_kind": primary_step.step_kind,
+                "tool_name": primary_step.tool_name,
+                "expected_artifact": primary_step.expected_artifact,
+                "fallback": primary_step.fallback,
+            },
             correlation_id=correlation_id,
-            causation_id="rewrite_request",
+            causation_id=plan.plan_id,
             actor_type="assistant",
             actor_id="orchestrator",
         )
@@ -123,6 +195,9 @@ class RewriteOrchestrator:
                     "action": "artifact.save",
                     "artifact_kind": "rewrite_note",
                     "text_length": len(normalized_text),
+                    "plan_id": plan.plan_id,
+                    "plan_step_key": primary_step.step_key,
+                    "tool_name": primary_step.tool_name,
                 },
             )
             self._ledger.update_step(
@@ -152,10 +227,10 @@ class RewriteOrchestrator:
         self._ledger.append_tool_receipt(
             session.session_id,
             rewrite_step.step_id,
-            tool_name="artifact_repository",
+            tool_name=primary_step.tool_name or "artifact_repository",
             action_kind="artifact.save",
             target_ref=artifact.artifact_id,
-            receipt_json={"artifact_kind": artifact.kind},
+            receipt_json={"artifact_kind": artifact.kind, "plan_id": plan.plan_id, "plan_step_key": primary_step.step_key},
         )
         self._ledger.append_run_cost(
             session.session_id,
@@ -167,12 +242,22 @@ class RewriteOrchestrator:
         self._ledger.update_step(
             rewrite_step.step_id,
             state="completed",
-            output_json={"artifact_id": artifact.artifact_id, "artifact_kind": artifact.kind},
+            output_json={
+                "artifact_id": artifact.artifact_id,
+                "artifact_kind": artifact.kind,
+                "plan_id": plan.plan_id,
+                "plan_step_key": primary_step.step_key,
+            },
         )
         self._ledger.append_event(
             session.session_id,
             "artifact_persisted",
-            {"artifact_id": artifact.artifact_id, "artifact_kind": artifact.kind},
+            {
+                "artifact_id": artifact.artifact_id,
+                "artifact_kind": artifact.kind,
+                "plan_id": plan.plan_id,
+                "plan_step_key": primary_step.step_key,
+            },
         )
         self._ledger.complete_session(session.session_id, status="completed")
         self._ledger.append_event(session.session_id, "session_completed", {"status": "completed"})
@@ -363,6 +448,7 @@ def build_default_orchestrator(settings: Settings | None = None) -> RewriteOrche
     approvals = build_approval_repo(resolved)
     artifacts = build_artifact_repo(resolved)
     task_contracts = build_task_contract_service(resolved)
+    planner = PlannerService(task_contracts)
     policy = PolicyDecisionService(
         max_rewrite_chars=resolved.policy.max_rewrite_chars,
         approval_required_chars=resolved.policy.approval_required_chars,
@@ -374,4 +460,5 @@ def build_default_orchestrator(settings: Settings | None = None) -> RewriteOrche
         approvals=approvals,
         policy=policy,
         task_contracts=task_contracts,
+        planner=planner,
     )

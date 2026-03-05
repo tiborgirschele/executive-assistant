@@ -25,6 +25,7 @@ Removed:
 - `/v1/connectors/bindings*` manages external connector bindings and status transitions
 - `/v1/tasks/contracts*` manages typed task contracts used by intent compilation
 - `/v1/plans/compile` emits a typed plan DSL projection from task contracts
+- rewrite execution now records `plan_compiled` and executes the primary typed plan step in the ledger
 - observation intake supports `source_id`/`external_id`/`dedupe_key` attribution and auth/raw-payload pointers
 - delivery outbox supports idempotency keys plus retry/dead-letter state fields
 - `/v1/channels/telegram/ingest` maps raw Telegram updates into normalized observation events

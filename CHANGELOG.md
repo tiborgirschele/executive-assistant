@@ -41,6 +41,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Planner DSL primitives:
   - `PlannerService` compiles `IntentSpecV3` + typed `PlanSpec`/`PlanStepSpec`
   - `POST /v1/plans/compile` emits plan projections from task contracts
+  - rewrite orchestration now executes with compiled plan metadata and writes `plan_compiled` events
 - Postgres + in-memory repository backends for kernel stores.
 - Kernel SQL migrations:
   - `v0_2` execution ledger
@@ -75,6 +76,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - API/runtime now includes first-class tool registry and connector binding management surfaces.
 - Rewrite orchestration now supports contract-driven intent compilation via task contracts.
 - Added plan compilation surface for contract-driven typed step output.
+- Rewrite execution now references typed plan-step metadata in step input/output and receipts.
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.

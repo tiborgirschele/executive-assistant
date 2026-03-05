@@ -61,9 +61,11 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert session.status_code == 200
     body = session.json()
     event_names = [e["name"] for e in body["events"]]
+    assert "plan_compiled" in event_names
     assert "policy_decision" in event_names
     assert len(body["steps"]) >= 1
     assert body["steps"][0]["state"] in {"completed", "running", "blocked", "waiting_approval"}
+    assert body["steps"][0]["input_json"]["plan_step_key"]
     assert len(body["receipts"]) >= 1
     assert body["artifacts"][0]["artifact_id"] == payload["artifact_id"]
 

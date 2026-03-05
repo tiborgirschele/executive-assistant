@@ -14,7 +14,7 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | GET | `/health/ready` | `200` | `503 not_ready:*` |
 | GET | `/version` | `200` | n/a |
 | POST | `/v1/rewrite/artifact` | `200` | `400 text is required`, `403 policy_denied:*`, `409 policy_denied:approval_required` |
-| GET | `/v1/rewrite/sessions/{session_id}` | `200` | `404 session not found` (returns events + steps + receipts + artifacts + costs) |
+| GET | `/v1/rewrite/sessions/{session_id}` | `200` | `404 session not found` (returns events + steps + receipts + artifacts + costs, including `plan_compiled` event) |
 | GET | `/v1/policy/decisions/recent` | `200` | n/a |
 | GET | `/v1/policy/approvals/pending` | `200` | n/a |
 | GET | `/v1/policy/approvals/history` | `200` | n/a |

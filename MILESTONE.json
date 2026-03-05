@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "date": "2026-03-05",
   "features": [
     "execution_ledger",
@@ -30,6 +30,7 @@
     "task_contracts_kernel",
     "contract_driven_rewrite_intent",
     "plan_compiler_dsl",
+    "plan_step_execution_kernel",
     "script_help_contracts",
     "ci_gate_bundle",
     "release_preflight_bundle",
