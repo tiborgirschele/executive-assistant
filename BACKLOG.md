@@ -189,6 +189,14 @@ Branch: `main`
     `EA_PROVIDER_HISTORY_SCORE_JSON` score adjustments per provider key.
   - ranking reasons now emit explicit `history_adjustment:+N/-N` markers.
   - `tests/smoke_v1_21_provider_broker.py` expanded with env-driven ranking override checks.
+- [DONE] Provider outcome telemetry + broker outcome scoring:
+  - added `provider_outcomes` schema in bootstrap and migration
+    (`ea/schema/20260305_v1_21_provider_outcomes.sql`).
+  - added `ea/app/planner/provider_outcomes.py` with persistence + recent adjustment aggregation.
+  - `provider_broker.py` now consumes recent outcome adjustments and emits
+    `recent_outcome:+N/-N` scoring reasons.
+  - `ea/app/skills/generic.py` now records provider outcomes on runtime success/failure.
+  - added `tests/smoke_v1_21_provider_outcomes.py` and wired it into host/docker/CI gates.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`
     from `runner.py` (canonical role shim path), not direct worker import.

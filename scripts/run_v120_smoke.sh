@@ -7,6 +7,7 @@ echo "[SMOKE][v1.20] Host compile"
 python3 -m py_compile \
   "$ROOT/ea/app/execution/session_store.py" \
   "$ROOT/ea/app/planner/task_registry.py" \
+  "$ROOT/ea/app/planner/provider_outcomes.py" \
   "$ROOT/ea/app/intent_runtime.py" \
   "$ROOT/tests/smoke_python_compile_tree.py" \
   "$ROOT/tests/smoke_v1_20_execution_sessions.py" \
@@ -27,6 +28,7 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_21_task_contract_registry.py" \
   "$ROOT/tests/smoke_v1_21_intent_spec_v2_shape.py" \
   "$ROOT/tests/smoke_v1_21_provider_broker.py" \
+  "$ROOT/tests/smoke_v1_21_provider_outcomes.py" \
   "$ROOT/tests/smoke_v1_21_provider_registry.py" \
   "$ROOT/tests/smoke_v1_21_approval_gate_store.py" \
   "$ROOT/tests/smoke_v1_21_step_executor_path.py" \
@@ -56,6 +58,7 @@ python3 "$ROOT/tests/smoke_v1_20_brief_command_sessions.py"
 python3 "$ROOT/tests/smoke_v1_21_task_contract_registry.py"
 python3 "$ROOT/tests/smoke_v1_21_intent_spec_v2_shape.py"
 python3 "$ROOT/tests/smoke_v1_21_provider_broker.py"
+python3 "$ROOT/tests/smoke_v1_21_provider_outcomes.py"
 python3 "$ROOT/tests/smoke_v1_21_provider_registry.py"
 python3 "$ROOT/tests/smoke_v1_21_approval_gate_store.py"
 python3 "$ROOT/tests/smoke_v1_21_step_executor_path.py"

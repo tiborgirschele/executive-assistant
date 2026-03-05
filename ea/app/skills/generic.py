@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from app.planner.provider_outcomes import record_provider_outcome
 from app.skills.capability_router import build_capability_plan
 
 
@@ -48,6 +49,26 @@ def build_generic_skill_handler(
                     "preview": notes[:220] if notes else f"{key}:{op} executed",
                 }
             )
+        primary = str((plan or {}).get("primary") or "").strip().lower()
+        if primary:
+            if status == "executed" and ok:
+                record_provider_outcome(
+                    tenant_key=str(tenant or ""),
+                    provider_key=primary,
+                    task_type=task_type,
+                    outcome_status="success",
+                    score_delta=3,
+                    source="skill_runtime",
+                )
+            elif status in {"not_implemented"} or not ok:
+                record_provider_outcome(
+                    tenant_key=str(tenant or ""),
+                    provider_key=primary,
+                    task_type=task_type,
+                    outcome_status="failed",
+                    score_delta=-3,
+                    source="skill_runtime",
+                )
         message = (
             "Skill orchestration plan generated."
             if status == "planned"

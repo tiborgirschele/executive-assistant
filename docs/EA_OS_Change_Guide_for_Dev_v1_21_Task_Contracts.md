@@ -191,6 +191,19 @@ existing capability routing behavior.
      for auditability.
    - `tests/smoke_v1_21_provider_broker.py` expanded with env override behavior checks.
 
+19. Provider outcome telemetry + broker outcome scoring:
+   - Added `provider_outcomes` schema to:
+     - db bootstrap (`ea/app/db.py`)
+     - migration file `ea/schema/20260305_v1_21_provider_outcomes.sql`
+   - Added planner module `ea/app/planner/provider_outcomes.py`:
+     - `record_provider_outcome(...)`
+     - `recent_provider_adjustments(...)`
+   - Broker now consumes recent persisted outcome adjustments in
+     `ea/app/planner/provider_broker.py`, emitting `recent_outcome:+N/-N` reasons.
+   - Generic skill runtime now records provider outcomes on execution success/failure
+     in `ea/app/skills/generic.py`.
+   - Added `tests/smoke_v1_21_provider_outcomes.py` and wired it into host/docker/CI gates.
+
 ## Why this matters
 
 This keeps provider contracts (`CapabilityContract`) but introduces a stable task layer the

@@ -46,6 +46,7 @@ def test_provider_broker_module_presence() -> None:
     assert "def rank_task_capabilities(" in src
     assert "task_or_none" in src
     assert "EA_PROVIDER_HISTORY_SCORE_JSON" in src
+    assert "recent_provider_adjustments" in src
     assert "score" in src
     _pass("v1.21 provider-broker module presence")
 
@@ -78,6 +79,7 @@ def test_provider_broker_ranking_behavior() -> None:
     assert ranking and str(ranking[0].get("capability")) == "avomap"
 
     old_hist = os.getenv("EA_PROVIDER_HISTORY_SCORE_JSON")
+    orig_recent = None
     try:
         os.environ["EA_PROVIDER_HISTORY_SCORE_JSON"] = '{"browseract": 85, "oneair": -25}'
         hist_ranked = rank_task_capabilities(
@@ -87,7 +89,24 @@ def test_provider_broker_ranking_behavior() -> None:
         )
         assert hist_ranked and str(hist_ranked[0].get("capability") or "") == "browseract"
         assert "history_adjustment:+85" in list(hist_ranked[0].get("reasons") or [])
+
+        import app.planner.provider_broker as broker_mod
+
+        orig_recent = broker_mod.recent_provider_adjustments
+        broker_mod.recent_provider_adjustments = lambda **kwargs: {"avomap": 25}
+        os.environ["EA_PROVIDER_HISTORY_SCORE_JSON"] = "{}"
+        outcome_ranked = broker_mod.rank_task_capabilities(
+            task_type="travel_rescue",
+            candidates=["browseract", "avomap", "oneair"],
+            preferred=None,
+        )
+        assert outcome_ranked and str(outcome_ranked[0].get("capability") or "") == "avomap"
+        assert "recent_outcome:+25" in list(outcome_ranked[0].get("reasons") or [])
     finally:
+        if orig_recent is not None:
+            import app.planner.provider_broker as broker_mod
+
+            broker_mod.recent_provider_adjustments = orig_recent
         if old_hist is None:
             os.environ.pop("EA_PROVIDER_HISTORY_SCORE_JSON", None)
         else:

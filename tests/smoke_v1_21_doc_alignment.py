@@ -23,6 +23,7 @@ def test_v121_doc_alignment() -> None:
     assert "smoke_v1_21_task_contract_registry.py" in guide
     assert "smoke_v1_21_intent_spec_v2_shape.py" in guide
     assert "smoke_v1_21_provider_broker.py" in guide
+    assert "smoke_v1_21_provider_outcomes.py" in guide
     assert "smoke_v1_21_provider_registry.py" in guide
     assert "smoke_v1_21_approval_gate_store.py" in guide
     assert "smoke_v1_21_step_executor_path.py" in guide
@@ -35,6 +36,7 @@ def test_v121_doc_alignment() -> None:
     assert "smoke_python_compile_tree.py" in guide
     assert "approval_class" in guide
     assert "provider_broker.py" in guide
+    assert "provider_outcomes.py" in guide
     assert "EA_PROVIDER_HISTORY_SCORE_JSON" in guide
     assert "provider_registry.py" in guide
     assert "runtime_execution_ops" in guide
@@ -49,6 +51,8 @@ def test_v121_doc_alignment() -> None:
     assert "run_v121_smoke.sh" in guide
     assert "approval_gates" in guide
     assert "20260305_v1_21_approval_gates.sql" in guide
+    assert "provider_outcomes" in guide
+    assert "20260305_v1_21_provider_outcomes.sql" in guide
     assert "run_v121_smoke.sh" in readme
     _pass("v1.21 doc/code alignment")
 

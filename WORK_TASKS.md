@@ -22,14 +22,14 @@ Owner: Codex runtime worker
      - this file with ordered work queue.
      - smoke gate enforcing queue file presence/structure.
 
-2. `PENDING` - Persist provider outcome telemetry for broker scoring.
+2. `DONE` - Persist provider outcome telemetry for broker scoring.
    - Deliverables:
      - `provider_outcomes` table bootstrap + migration.
      - helper(s) to write provider success/failure outcomes from runtime steps.
      - broker scoring consumes recent outcome quality (with safe fallback).
      - smoke coverage for persistence + score influence.
 
-3. `PENDING` - Planner step execution ownership in runtime.
+3. `IN_PROGRESS` - Planner step execution ownership in runtime.
    - Deliverables:
      - `intent_runtime` executes through planner step contract, not ad hoc branching.
      - explicit step handling for non-travel task templates.

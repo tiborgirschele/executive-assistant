@@ -69,6 +69,7 @@ jobs:
           python3 tests/smoke_v1_21_task_contract_registry.py
           python3 tests/smoke_v1_21_intent_spec_v2_shape.py
           python3 tests/smoke_v1_21_provider_broker.py
+          python3 tests/smoke_v1_21_provider_outcomes.py
           python3 tests/smoke_v1_21_provider_registry.py
           python3 tests/smoke_v1_21_approval_gate_store.py
           python3 tests/smoke_v1_21_step_executor_path.py

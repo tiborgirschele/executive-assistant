@@ -4,6 +4,7 @@ import json
 import os
 from typing import Any
 
+from app.planner.provider_outcomes import recent_provider_adjustments
 from app.planner.provider_registry import provider_or_raise
 from app.planner.task_registry import task_or_none
 
@@ -65,6 +66,7 @@ def rank_task_capabilities(
     contract = task_or_none(task)
     task_priority = tuple(contract.provider_priority if contract else tuple())
     history_scores = _history_adjustment_map()
+    outcome_scores = recent_provider_adjustments(task_type=task) if task else {}
     out: list[dict[str, Any]] = []
     for cap_key in [str(x or "").strip().lower() for x in candidates if str(x or "").strip()]:
         score = _base_score(task_priority, cap_key) + _policy_adjustment(cap_key)
@@ -80,6 +82,10 @@ def rank_task_capabilities(
         if history_bonus:
             score += history_bonus
             reasons.append(f"history_adjustment:{history_bonus:+d}")
+        outcome_bonus = int(outcome_scores.get(cap_key, 0))
+        if outcome_bonus:
+            score += outcome_bonus
+            reasons.append(f"recent_outcome:{outcome_bonus:+d}")
         cap = provider_or_raise(cap_key)
         reasons.append(f"budget:{cap.budget_policy}")
         reasons.append(f"fallback:{cap.fallback_policy}")

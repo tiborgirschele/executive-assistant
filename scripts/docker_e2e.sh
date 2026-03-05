@@ -6,6 +6,7 @@ SCHEMA_FILES=(
   "${EA_ROOT}/ea/schema/20260303_v1_18_1_runtime_alignment.sql"
   "${EA_ROOT}/ea/schema/20260304_v1_20_execution_sessions.sql"
   "${EA_ROOT}/ea/schema/20260305_v1_21_approval_gates.sql"
+  "${EA_ROOT}/ea/schema/20260305_v1_21_provider_outcomes.sql"
 )
 HOST_PORT="$(grep -E '^EA_HOST_PORT=' "${EA_ROOT}/.env" | tail -n1 | cut -d= -f2- || true)"
 HOST_PORT="${HOST_PORT:-8090}"
@@ -160,6 +161,7 @@ run_step "smoke_v1_20_brief_command_sessions" python3 tests/smoke_v1_20_brief_co
 run_step "smoke_v1_21_task_contract_registry" python3 tests/smoke_v1_21_task_contract_registry.py
 run_step "smoke_v1_21_intent_spec_v2_shape" python3 tests/smoke_v1_21_intent_spec_v2_shape.py
 run_step "smoke_v1_21_provider_broker" python3 tests/smoke_v1_21_provider_broker.py
+run_step "smoke_v1_21_provider_outcomes" python3 tests/smoke_v1_21_provider_outcomes.py
 run_step "smoke_v1_21_provider_registry" python3 tests/smoke_v1_21_provider_registry.py
 run_step "smoke_v1_21_approval_gate_store" python3 tests/smoke_v1_21_approval_gate_store.py
 run_step "smoke_v1_21_step_executor_path" python3 tests/smoke_v1_21_step_executor_path.py
