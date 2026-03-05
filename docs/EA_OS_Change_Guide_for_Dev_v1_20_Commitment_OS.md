@@ -80,6 +80,7 @@ be tracked as deterministic steps.
    - `tests/smoke_v1_20_typed_action_sessions.py`
    - `tests/smoke_v1_20_browseract_event_sessions.py`
    - `tests/smoke_v1_20_external_event_sessions.py`
+   - `tests/smoke_v1_20_external_event_behavior.py`
    - `tests/smoke_v1_20_slash_command_sessions.py`
    - `tests/smoke_v1_20_teable_memory_boundary.py`
    - `tests/smoke_v1_20_slash_command_behavior.py`
@@ -89,8 +90,10 @@ be tracked as deterministic steps.
      - `scripts/run_v120_smoke.sh`
      - `scripts/docker_e2e.sh`
      - `.github/workflows/release-gates.yml`
-   - behavior-level contract checks now validate session finalization and
-     planning-task consistency in runtime paths (not only source markers).
+   - behavior-level contract checks now validate:
+     - external-event session outcomes across MetaSurvey/ApproveThis/BrowserAct,
+     - slash-command planning-task consistency,
+     - typed-action callback session finalization.
 
 ## Why this matters
 

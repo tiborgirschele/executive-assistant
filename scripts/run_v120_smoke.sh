@@ -12,6 +12,7 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_20_typed_action_sessions.py" \
   "$ROOT/tests/smoke_v1_20_browseract_event_sessions.py" \
   "$ROOT/tests/smoke_v1_20_external_event_sessions.py" \
+  "$ROOT/tests/smoke_v1_20_external_event_behavior.py" \
   "$ROOT/tests/smoke_v1_20_slash_command_sessions.py" \
   "$ROOT/tests/smoke_v1_20_teable_memory_boundary.py" \
   "$ROOT/tests/smoke_v1_20_slash_command_behavior.py" \
@@ -23,6 +24,7 @@ python3 "$ROOT/tests/smoke_v1_20_doc_alignment.py"
 python3 "$ROOT/tests/smoke_v1_20_typed_action_sessions.py"
 python3 "$ROOT/tests/smoke_v1_20_browseract_event_sessions.py"
 python3 "$ROOT/tests/smoke_v1_20_external_event_sessions.py"
+python3 "$ROOT/tests/smoke_v1_20_external_event_behavior.py"
 python3 "$ROOT/tests/smoke_v1_20_slash_command_sessions.py"
 python3 "$ROOT/tests/smoke_v1_20_teable_memory_boundary.py"
 python3 "$ROOT/tests/smoke_v1_20_slash_command_behavior.py"

@@ -82,6 +82,10 @@ Branch: `main`
   - added behavior tests for `/skill` command runtime flow and typed-action callback finalization.
   - validates planning-task consistency (`planning_task_type`) and session outcome logging at runtime.
   - `smoke_v1_20_slash_command_behavior.py` + `smoke_v1_20_typed_action_behavior.py` wired into host/docker/CI gates.
+- [DONE] External-event behavior smoke expansion:
+  - added runtime behavior tests for MetaSurvey, ApproveThis, and BrowserAct event handlers.
+  - validates processed/discarded outcomes and execution-session finalization behavior with stubbed DB.
+  - `smoke_v1_20_external_event_behavior.py` wired into host/docker/CI gates.
 - [DONE] Auditor LTD inventory hardening:
   - `LTD_INVENTORY.md` now explicitly separates capability-backed LTD tier declarations
     from non-tiered runtime dependencies.

@@ -145,6 +145,7 @@ run_step "smoke_v1_20_doc_alignment" python3 tests/smoke_v1_20_doc_alignment.py
 run_step "smoke_v1_20_typed_action_sessions" python3 tests/smoke_v1_20_typed_action_sessions.py
 run_step "smoke_v1_20_browseract_event_sessions" python3 tests/smoke_v1_20_browseract_event_sessions.py
 run_step "smoke_v1_20_external_event_sessions" python3 tests/smoke_v1_20_external_event_sessions.py
+run_step "smoke_v1_20_external_event_behavior" python3 tests/smoke_v1_20_external_event_behavior.py
 run_step "smoke_v1_20_slash_command_sessions" python3 tests/smoke_v1_20_slash_command_sessions.py
 run_step "smoke_v1_20_teable_memory_boundary" python3 tests/smoke_v1_20_teable_memory_boundary.py
 run_step "smoke_v1_20_slash_command_behavior" python3 tests/smoke_v1_20_slash_command_behavior.py
