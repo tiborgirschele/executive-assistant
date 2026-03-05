@@ -361,13 +361,31 @@ Owner: Codex runtime worker
       - expanded provider-outcomes/broker smokes for performance-path and
         synthetic-neutrality assertions.
 
-35. `IN_PROGRESS` - Planner-owned execute-intent queue runner seed.
+35. `DONE` - Planner-owned execute-intent queue runner seed.
    - Deliverables:
       - add helper to select the queued `execute_intent` step row from ledger.
       - mark `execute_intent` running/completed via queued-row identity and
         persist deterministic execution output refs.
       - add smoke coverage that execute-step queue selection works when in-memory
         `plan_steps` is empty.
+   - Progress:
+      - added `select_queued_execute_step(...)` in `plan_store`.
+      - execute step runner now selects queued `execute_intent` row identity and
+        propagates `step_id` / `step_order`.
+      - `mark_execution_step_status(...)` now supports `step_id` row targeting.
+      - execute-intent completion now persists deterministic output refs (including
+        queue-step-derived refs) through step updates/events.
+      - added/wired `smoke_v1_22_execute_step_queue_seed.py`.
+      - expanded planner export/runtime/plan-store smokes for queue-step selection.
+
+36. `IN_PROGRESS` - Planner world-model linkage from execute outputs.
+   - Deliverables:
+      - emit `followups` seed rows from execute-intent completion when output
+        artifact type implies deferred action (`decision_pack`, `strategy_pack`,
+        `evidence_pack`, `travel_decision_pack`).
+      - attach generated followup ids into execution step `output_refs_json` and
+        session finalize outcome payload.
+      - add smoke coverage for followup seed emission and output-ref linkage.
 
 ## Validation Command
 - Host gate: `EA_SKIP_FULL_GATES=1 bash scripts/run_v120_smoke.sh`

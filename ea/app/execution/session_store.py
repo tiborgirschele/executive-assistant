@@ -600,6 +600,7 @@ def mark_execution_step_status(
     output_refs: list[str] | None = None,
     provider_key: str | None = None,
     step_kind: str | None = None,
+    step_id: str | None = None,
 ) -> None:
     if not session_id or not step_key:
         return
@@ -616,6 +617,8 @@ def mark_execution_step_status(
         has_provider = bool(provider_val)
         step_kind_val = str(step_kind or "").strip().lower()
         has_step_kind = bool(step_kind_val)
+        step_id_val = str(step_id or "").strip()
+        has_step_id = bool(step_id_val)
         db.execute(
             """
             UPDATE execution_steps
@@ -630,7 +633,9 @@ def mark_execution_step_status(
                 started_at = CASE WHEN %s = 'running' AND started_at IS NULL THEN NOW() ELSE started_at END,
                 finished_at = CASE WHEN %s IN ('completed','failed','skipped') THEN NOW() ELSE finished_at END,
                 updated_at = NOW()
-            WHERE session_id = %s AND step_key = %s
+            WHERE session_id = %s
+              AND step_key = %s
+              AND (%s = FALSE OR step_id = %s)
             """,
             (
                 st,
@@ -651,6 +656,8 @@ def mark_execution_step_status(
                 st,
                 str(session_id),
                 str(step_key),
+                has_step_id,
+                step_id_val,
             ),
         )
     except Exception:

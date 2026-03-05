@@ -46,6 +46,7 @@ def test_plan_store_module_presence() -> None:
     step_src = (ROOT / "ea/app/planner/step_executor.py").read_text(encoding="utf-8")
     assert "def fetch_session_plan_steps(" in src
     assert "def resolve_execute_step_metadata(" in src
+    assert "def select_queued_execute_step(" in src
     assert "resolve_execute_step_metadata" in step_src
     _pass("v1.22 plan-store module presence")
 
@@ -203,6 +204,42 @@ def test_plan_store_behavior_and_step_executor_fallback() -> None:
     _pass("v1.22 plan-store behavior and step-executor fallback")
 
 
+def test_plan_store_select_queued_execute_step_behavior() -> None:
+    _install_psycopg2_stub()
+    import app.planner.plan_store as store
+
+    class _FakeDB:
+        def fetchone(self, query: str, vars=None):
+            return {
+                "step_id": "step-123",
+                "step_order": 4,
+                "step_key": "execute_intent",
+                "step_kind": "execution",
+                "status": "queued",
+                "provider_key": "oneair",
+                "evidence_json": {
+                    "task_type": "travel_rescue",
+                    "output_artifact_type": "travel_decision_pack",
+                },
+                "output_refs_json": ["travel_decision_pack"],
+            }
+
+    orig_get_db = store._get_db
+    store._get_db = lambda: _FakeDB()
+    try:
+        row = store.select_queued_execute_step("sess-queued")
+    finally:
+        store._get_db = orig_get_db
+
+    assert str(row.get("step_id") or "") == "step-123"
+    assert int(row.get("step_order") or 0) == 4
+    assert str(row.get("step_key") or "") == "execute_intent"
+    assert str(row.get("provider_key") or "") == "oneair"
+    assert "travel_decision_pack" in list(row.get("output_refs_json") or [])
+    _pass("v1.22 plan-store queued execute-step selection")
+
+
 if __name__ == "__main__":
     test_plan_store_module_presence()
     test_plan_store_behavior_and_step_executor_fallback()
+    test_plan_store_select_queued_execute_step_behavior()

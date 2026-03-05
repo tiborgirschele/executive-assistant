@@ -44,6 +44,19 @@ def _deterministic_output_refs(*, step_key: str, step_order: int = 0) -> list[st
     return [f"planner_context:{key}"]
 
 
+def _deterministic_execute_output_refs(
+    *,
+    step_order: int,
+    artifact_type: str,
+    existing_refs: list[str] | None = None,
+) -> list[str]:
+    out: list[str] = [str(x) for x in list(existing_refs or []) if str(x or "").strip()]
+    ref = f"execute_output:{max(0, int(step_order or 0))}:{str(artifact_type or 'chat_response').strip().lower()}"
+    if ref not in out:
+        out.append(ref)
+    return out
+
+
 async def run_reasoning_step(
     *,
     container: str,
@@ -310,6 +323,31 @@ async def execute_planned_reasoning_step(
     timeout_sec: float = 240.0,
 ) -> dict[str, Any]:
     metadata = _execute_step_metadata(session_id=session_id, plan_steps=plan_steps, intent_spec=intent_spec)
+    execute_step_id = ""
+    execute_step_order = 0
+    execute_provider_key = ""
+    execute_output_refs: list[str] = []
+    try:
+        from app.planner.plan_store import select_queued_execute_step
+
+        execute_row = dict(select_queued_execute_step(session_id) or {})
+        execute_step_id = str(execute_row.get("step_id") or "").strip()
+        execute_step_order = int(execute_row.get("step_order") or 0)
+        execute_provider_key = str(execute_row.get("provider_key") or "").strip().lower()
+        execute_output_refs = _deterministic_execute_output_refs(
+            step_order=execute_step_order,
+            artifact_type=str(metadata.get("output_artifact_type") or "chat_response"),
+            existing_refs=[str(x) for x in list(execute_row.get("output_refs_json") or []) if str(x or "").strip()],
+        )
+    except Exception:
+        execute_output_refs = _deterministic_execute_output_refs(
+            step_order=0,
+            artifact_type=str(metadata.get("output_artifact_type") or "chat_response"),
+            existing_refs=[],
+        )
+    if not execute_provider_key:
+        providers = [str(x) for x in list(metadata.get("provider_candidates") or []) if str(x or "").strip()]
+        execute_provider_key = str(providers[0] if providers else "").strip().lower()
     mark_step(
         session_id,
         "execute_intent",
@@ -321,6 +359,9 @@ async def execute_planned_reasoning_step(
             "metadata_source": metadata["metadata_source"],
             "metadata_provenance": metadata["metadata_provenance"],
         },
+        step_id=execute_step_id,
+        step_kind="execution",
+        provider_key=execute_provider_key,
     )
     report = await run_reasoning_step_func(
         container=str(container or ""),
@@ -343,7 +384,14 @@ async def execute_planned_reasoning_step(
             "provider_candidates": metadata["provider_candidates"],
             "metadata_source": metadata["metadata_source"],
             "metadata_provenance": metadata["metadata_provenance"],
+            "execute_step_id": execute_step_id,
+            "execute_step_order": execute_step_order,
+            "output_refs": execute_output_refs,
         },
+        step_id=execute_step_id,
+        output_refs=execute_output_refs,
+        step_kind="execution",
+        provider_key=execute_provider_key,
     )
     append_event(
         session_id,
@@ -356,9 +404,15 @@ async def execute_planned_reasoning_step(
             "metadata_source": metadata["metadata_source"],
             "metadata_provenance": metadata["metadata_provenance"],
             "report_chars": report_chars,
+            "execute_step_id": execute_step_id,
+            "execute_step_order": execute_step_order,
+            "output_refs": execute_output_refs,
         },
     )
     payload = dict(metadata)
+    payload["execute_step_id"] = execute_step_id
+    payload["execute_step_order"] = execute_step_order
+    payload["output_refs"] = execute_output_refs
     payload["report"] = report
     return payload
 

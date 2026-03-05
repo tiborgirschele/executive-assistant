@@ -18,7 +18,7 @@ def fetch_session_plan_steps(session_id: str) -> list[dict[str, Any]]:
         rows = list(
             db.fetchall(
                 """
-                SELECT step_order, step_key, step_title, step_kind, status,
+                SELECT step_id, step_order, step_key, step_title, step_kind, status,
                        preconditions_json, evidence_json, result_json,
                        provider_key, input_refs_json, output_refs_json,
                        attempt_count, deadline_at, approval_gate_id
@@ -36,6 +36,7 @@ def fetch_session_plan_steps(session_id: str) -> list[dict[str, Any]]:
     for row in rows:
         out.append(
             {
+                "step_id": str((row or {}).get("step_id") or ""),
                 "step_order": int((row or {}).get("step_order") or 0),
                 "step_key": str((row or {}).get("step_key") or ""),
                 "step_title": str((row or {}).get("step_title") or ""),
@@ -114,4 +115,39 @@ def resolve_execute_step_metadata(
     }
 
 
-__all__ = ["fetch_session_plan_steps", "resolve_execute_step_metadata"]
+def select_queued_execute_step(session_id: str) -> dict[str, Any]:
+    sid = str(session_id or "").strip()
+    if not sid:
+        return {}
+    try:
+        db = _get_db()
+        row = db.fetchone(
+            """
+            SELECT step_id, step_order, step_key, step_kind, status,
+                   evidence_json, provider_key, output_refs_json
+            FROM execution_steps
+            WHERE session_id = %s
+              AND step_key = 'execute_intent'
+              AND status = 'queued'
+            ORDER BY step_order ASC
+            LIMIT 1
+            """,
+            (sid,),
+        )
+    except Exception:
+        return {}
+    if not row:
+        return {}
+    return {
+        "step_id": str((row or {}).get("step_id") or ""),
+        "step_order": int((row or {}).get("step_order") or 0),
+        "step_key": str((row or {}).get("step_key") or "execute_intent"),
+        "step_kind": str((row or {}).get("step_kind") or "execution"),
+        "status": str((row or {}).get("status") or "queued"),
+        "provider_key": str((row or {}).get("provider_key") or ""),
+        "evidence_json": dict((row or {}).get("evidence_json") or {}),
+        "output_refs_json": list((row or {}).get("output_refs_json") or []),
+    }
+
+
+__all__ = ["fetch_session_plan_steps", "resolve_execute_step_metadata", "select_queued_execute_step"]

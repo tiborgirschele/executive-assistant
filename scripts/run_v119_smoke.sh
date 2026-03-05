@@ -81,6 +81,7 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_22_provider_broker_outcome_ordering.py" \
   "$ROOT/tests/smoke_v1_22_task_matcher.py" \
   "$ROOT/tests/smoke_v1_22_step_executor_ledger_seed.py" \
+  "$ROOT/tests/smoke_v1_22_execute_step_queue_seed.py" \
   "$ROOT/tests/smoke_v1_22_plan_store_seed.py" \
   "$ROOT/tests/smoke_v1_22_pre_step_parity.py" \
   "$ROOT/tests/smoke_v1_22_planner_exports.py" \
@@ -159,6 +160,7 @@ python3 "$ROOT/tests/smoke_v1_22_synthetic_preview_outcomes.py"
 python3 "$ROOT/tests/smoke_v1_22_provider_broker_outcome_ordering.py"
 python3 "$ROOT/tests/smoke_v1_22_task_matcher.py"
 python3 "$ROOT/tests/smoke_v1_22_step_executor_ledger_seed.py"
+python3 "$ROOT/tests/smoke_v1_22_execute_step_queue_seed.py"
 python3 "$ROOT/tests/smoke_v1_22_plan_store_seed.py"
 python3 "$ROOT/tests/smoke_v1_22_pre_step_parity.py"
 python3 "$ROOT/tests/smoke_v1_22_planner_exports.py"

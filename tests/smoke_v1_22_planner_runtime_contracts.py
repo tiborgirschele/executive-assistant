@@ -22,6 +22,7 @@ def test_planner_runtime_contract_wiring() -> None:
     assert "executed = run_pre_execution_steps_from_ledger(" in runtime_src
     assert "if executed > 0:" in runtime_src
     assert "resolve_execute_step_metadata" in step_src
+    assert "select_queued_execute_step" in step_src
     assert "_execute_step_metadata(session_id=session_id" in step_src
     _pass("v1.22 planner runtime contract wiring")
 

@@ -49,6 +49,8 @@ def test_planner_exports_surface() -> None:
         "list_queued_pre_execution_steps",
         "fetch_session_plan_steps",
         "resolve_execute_step_metadata",
+        "select_queued_execute_step",
+        "recent_provider_performance",
         "infer_domain",
         "detect_high_risk_action",
         "match_task_type",
