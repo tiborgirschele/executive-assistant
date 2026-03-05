@@ -127,7 +127,7 @@ Snapshot pruning is available via `scripts/prune_openapi.sh` or `make openapi-pr
 Endpoint inventory can be printed via `scripts/list_endpoints.sh` or `make endpoints`.
 Version fingerprint can be printed via `scripts/version_info.sh` or `make version-info`.
 Operator summary can be printed via `scripts/operator_summary.sh` or `make operator-summary`.
-The operator summary includes smoke, readiness, CI parity, and release/support shortcuts.
+The operator summary includes smoke, readiness, CI parity, release/support, and task-archive shortcuts.
 `bash scripts/operator_summary.sh --help` prints the usage contract and is included in `make operator-help`.
 Operator script usage index can be printed via `make operator-help`.
 Endpoint/version/OpenAPI helper scripts also expose `--help` and are included in `make operator-help`.

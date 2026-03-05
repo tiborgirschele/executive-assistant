@@ -187,6 +187,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | D-154 | P3 | Add operator-summary help contract and include it in help-smoke/operator-help | codex | done | Added `--help` to `scripts/operator_summary.sh`, wired it into `make operator-help` and `scripts/smoke_help.sh`, and extended docs/guards/contracts |
 | D-155 | P3 | Add help contracts for endpoint/version/OpenAPI helper scripts | codex | done | Added `--help` to endpoint/version/OpenAPI scripts, wired them into `make operator-help` + `scripts/smoke_help.sh`, and extended docs/guards/contracts |
 | D-156 | P3 | Add smoke-help help contract and include it in operator-help | codex | done | Added `--help` to `scripts/smoke_help.sh`, included it in `make operator-help`, and extended docs/guards/contracts |
+| D-157 | P3 | Add task-archive shortcut visibility to operator summary | codex | done | Operator summary now includes archive/prune/dry-run commands with docs, release-asset guards, and contract coverage |
 
 ## Intake Template
 

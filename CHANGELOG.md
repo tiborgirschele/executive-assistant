@@ -163,6 +163,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Operator summary now exposes a `--help` contract and is included in `make operator-help` / `scripts/smoke_help.sh`.
 - Endpoint, version, and OpenAPI helper scripts now expose `--help` contracts and are included in `make operator-help` / `scripts/smoke_help.sh`.
 - `scripts/smoke_help.sh` now exposes its own `--help` contract and is included in `make operator-help`.
+- Operator summary output now also includes task-archive shortcuts (`make tasks-archive`, `make tasks-archive-dry-run`, `make tasks-archive-prune`).
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.

@@ -518,7 +518,7 @@ bash scripts/operator_summary.sh
 make operator-summary
 ```
 
-The operator summary includes release smoke/readiness commands plus legacy smoke/parity shortcuts and release/support commands such as `make release-preflight` and `make support-bundle`.
+The operator summary includes release smoke/readiness commands plus legacy smoke/parity shortcuts, release/support commands such as `make release-preflight` and `make support-bundle`, and task-archive shortcuts.
 
 ## 15) Generate Support Bundle
 

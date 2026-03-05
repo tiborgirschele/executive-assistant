@@ -161,7 +161,7 @@ else
   missing=1
 fi
 
-if grep -Fq "smoke, readiness, CI parity, and release/support shortcuts" "README.md"; then
+if grep -Fq "smoke, readiness, CI parity, release/support, and task-archive shortcuts" "README.md"; then
   echo "ok: README operator summary shortcut note"
 else
   echo "missing: README operator summary shortcut note" >&2
@@ -263,7 +263,7 @@ else
   missing=1
 fi
 
-if grep -Fq 'operator summary includes release smoke/readiness commands plus legacy smoke/parity shortcuts and release/support commands' "RUNBOOK.md"; then
+if grep -Fq 'operator summary includes release smoke/readiness commands plus legacy smoke/parity shortcuts, release/support commands' "RUNBOOK.md"; then
   echo "ok: RUNBOOK operator summary shortcut note"
 else
   echo "missing: RUNBOOK operator summary shortcut note" >&2
@@ -396,6 +396,13 @@ else
   missing=1
 fi
 
+if grep -Fq "Operator summary output now also includes task-archive shortcuts" "CHANGELOG.md"; then
+  echo "ok: CHANGELOG operator summary task-archive note"
+else
+  echo "missing: CHANGELOG operator summary task-archive note" >&2
+  missing=1
+fi
+
 if grep -Fq 'Operator summary output now also includes `make release-smoke` and `make all-local`' "CHANGELOG.md"; then
   echo "ok: CHANGELOG operator summary readiness note"
 else
@@ -465,10 +472,13 @@ if grep -Fq "make smoke-postgres-legacy" "scripts/operator_summary.sh" && \
    grep -Fq "make all-local" "scripts/operator_summary.sh" && \
    grep -Fq "make ci-gates-postgres-legacy" "scripts/operator_summary.sh" && \
    grep -Fq "make release-preflight" "scripts/operator_summary.sh" && \
-   grep -Fq "make support-bundle" "scripts/operator_summary.sh"; then
-  echo "ok: operator-summary includes help, readiness, legacy postgres, and release/support shortcuts"
+   grep -Fq "make support-bundle" "scripts/operator_summary.sh" && \
+   grep -Fq "make tasks-archive" "scripts/operator_summary.sh" && \
+   grep -Fq "make tasks-archive-dry-run" "scripts/operator_summary.sh" && \
+   grep -Fq "make tasks-archive-prune" "scripts/operator_summary.sh"; then
+  echo "ok: operator-summary includes help, readiness, legacy postgres, release/support, and task-archive shortcuts"
 else
-  echo "missing: operator-summary help, readiness, legacy postgres, and release/support shortcuts" >&2
+  echo "missing: operator-summary help, readiness, legacy postgres, release/support, and task-archive shortcuts" >&2
   missing=1
 fi
 
