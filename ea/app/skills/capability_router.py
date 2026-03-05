@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from app.planner.provider_broker import rank_task_capabilities
+from app.planner.provider_registry import provider_or_raise, providers_for_task
 from app.planner.task_registry import task_or_none
-from app.skills.capability_registry import capability_or_raise, capabilities_for_task
 
 
 def build_capability_plan(task_type: str, preferred: str | None = None) -> dict[str, object]:
@@ -11,7 +11,7 @@ def build_capability_plan(task_type: str, preferred: str | None = None) -> dict[
         return {"ok": False, "status": "missing_task_type"}
 
     task_contract = task_or_none(task)
-    candidates = list(capabilities_for_task(task))
+    candidates = list(providers_for_task(task))
     if not candidates:
         return {
             "ok": False,
@@ -30,7 +30,7 @@ def build_capability_plan(task_type: str, preferred: str | None = None) -> dict[
 
     primary = ranked[0]
     fallbacks = [x for x in ranked[1:] if x in candidates]
-    cap = capability_or_raise(primary)
+    cap = provider_or_raise(primary)
     return {
         "ok": True,
         "status": "planned",

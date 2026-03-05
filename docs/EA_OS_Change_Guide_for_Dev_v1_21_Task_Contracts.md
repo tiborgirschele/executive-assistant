@@ -69,6 +69,9 @@ existing capability routing behavior.
      - task-priority weighting
      - preferred capability override
      - lightweight policy adjustment from capability metadata
+   - `ea/app/planner/provider_registry.py` adds planner-facing provider contracts
+     (`ProviderContract`) and provider lookup helpers (`providers_for_task`, `provider_or_raise`),
+     decoupling planner/broker logic from direct `skills` registry imports.
    - `ea/app/skills/capability_router.py` now delegates ranking to broker output and
      emits `ranking` details with reasons.
 
@@ -85,6 +88,7 @@ existing capability routing behavior.
      paths share the same plan-template behavior.
    - Added smoke coverage:
      - `tests/smoke_v1_21_plan_builder.py`
+     - `tests/smoke_v1_21_provider_registry.py`
    - v1.21 template behaviors include domain/task-specific enrichment steps:
      - travel: `analyze_trip_commitment`, `compare_travel_options`
      - finance: `verify_payment_context`

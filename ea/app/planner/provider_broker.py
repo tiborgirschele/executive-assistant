@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.planner.provider_registry import provider_or_raise
 from app.planner.task_registry import task_or_none
-from app.skills.capability_registry import capability_or_raise
 
 
 def _base_score(task_priority: tuple[str, ...], capability_key: str) -> int:
@@ -16,7 +16,7 @@ def _base_score(task_priority: tuple[str, ...], capability_key: str) -> int:
 
 
 def _policy_adjustment(capability_key: str) -> int:
-    cap = capability_or_raise(capability_key)
+    cap = provider_or_raise(capability_key)
     bonus = 0
     if cap.blocking:
         bonus -= 10
@@ -50,7 +50,7 @@ def rank_task_capabilities(
         if pref and cap_key == pref:
             score += 120
             reasons.append("preferred_override")
-        cap = capability_or_raise(cap_key)
+        cap = provider_or_raise(cap_key)
         reasons.append(f"budget:{cap.budget_policy}")
         reasons.append(f"fallback:{cap.fallback_policy}")
         out.append(

@@ -158,6 +158,7 @@ run_step "smoke_v1_20_brief_command_sessions" python3 tests/smoke_v1_20_brief_co
 run_step "smoke_v1_21_task_contract_registry" python3 tests/smoke_v1_21_task_contract_registry.py
 run_step "smoke_v1_21_intent_spec_v2_shape" python3 tests/smoke_v1_21_intent_spec_v2_shape.py
 run_step "smoke_v1_21_provider_broker" python3 tests/smoke_v1_21_provider_broker.py
+run_step "smoke_v1_21_provider_registry" python3 tests/smoke_v1_21_provider_registry.py
 run_step "smoke_v1_21_generic_skill_execution" python3 tests/smoke_v1_21_generic_skill_execution.py
 run_step "smoke_v1_21_plan_builder" python3 tests/smoke_v1_21_plan_builder.py
 run_step "smoke_v1_21_doc_alignment" python3 tests/smoke_v1_21_doc_alignment.py

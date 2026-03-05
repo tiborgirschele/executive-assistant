@@ -54,6 +54,7 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_21_task_contract_registry.py" \
   "$ROOT/tests/smoke_v1_21_intent_spec_v2_shape.py" \
   "$ROOT/tests/smoke_v1_21_provider_broker.py" \
+  "$ROOT/tests/smoke_v1_21_provider_registry.py" \
   "$ROOT/tests/smoke_v1_21_generic_skill_execution.py" \
   "$ROOT/tests/smoke_v1_21_plan_builder.py" \
   "$ROOT/tests/smoke_v1_21_doc_alignment.py" \
@@ -103,6 +104,7 @@ python3 "$ROOT/tests/smoke_v1_20_brief_command_sessions.py"
 python3 "$ROOT/tests/smoke_v1_21_task_contract_registry.py"
 python3 "$ROOT/tests/smoke_v1_21_intent_spec_v2_shape.py"
 python3 "$ROOT/tests/smoke_v1_21_provider_broker.py"
+python3 "$ROOT/tests/smoke_v1_21_provider_registry.py"
 python3 "$ROOT/tests/smoke_v1_21_generic_skill_execution.py"
 python3 "$ROOT/tests/smoke_v1_21_plan_builder.py"
 python3 "$ROOT/tests/smoke_v1_21_doc_alignment.py"

@@ -23,10 +23,12 @@ def test_v121_doc_alignment() -> None:
     assert "smoke_v1_21_task_contract_registry.py" in guide
     assert "smoke_v1_21_intent_spec_v2_shape.py" in guide
     assert "smoke_v1_21_provider_broker.py" in guide
+    assert "smoke_v1_21_provider_registry.py" in guide
     assert "smoke_v1_21_generic_skill_execution.py" in guide
     assert "smoke_v1_21_plan_builder.py" in guide
     assert "approval_class" in guide
     assert "provider_broker.py" in guide
+    assert "provider_registry.py" in guide
     assert "runtime_execution_ops" in guide
     assert "capability_router.py" in guide
     assert "plan_builder.py" in guide

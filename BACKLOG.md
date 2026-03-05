@@ -123,6 +123,13 @@ Branch: `main`
   - added `ea/app/planner/plan_builder.py` with deterministic task-aware plan-step templates.
   - `build_plan_steps(...)` in `ea/app/execution/session_store.py` now delegates to planner templates.
   - added `tests/smoke_v1_21_plan_builder.py` and wired it into host/docker/CI gates.
+- [DONE] Planner provider-registry seed (v1.21):
+  - added `ea/app/planner/provider_registry.py` with planner-facing `ProviderContract`
+    wrappers over capability metadata (`providers_for_task`, `provider_or_raise`,
+    `list_provider_contracts`).
+  - broker/router now consume planner provider abstractions instead of direct
+    capability-registry imports.
+  - added `tests/smoke_v1_21_provider_registry.py` and wired it into host/docker/CI gates.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`
     from `runner.py` (canonical role shim path), not direct worker import.
