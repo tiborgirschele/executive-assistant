@@ -1,0 +1,16 @@
+.PHONY: deploy deploy-bootstrap bootstrap smoke-api test-api
+
+deploy:
+	bash scripts/deploy.sh
+
+deploy-bootstrap:
+	EA_BOOTSTRAP_DB=1 bash scripts/deploy.sh
+
+bootstrap:
+	bash scripts/db_bootstrap.sh
+
+smoke-api:
+	bash scripts/smoke_api.sh
+
+test-api:
+	PYTHONPATH=ea EA_LEDGER_BACKEND=memory pytest -q tests/smoke_runtime_api.py

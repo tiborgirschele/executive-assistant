@@ -4,18 +4,24 @@
 
 ```bash
 bash scripts/deploy.sh
+# or
+make deploy
 ```
 
 With schema bootstrap in one step:
 
 ```bash
 EA_BOOTSTRAP_DB=1 bash scripts/deploy.sh
+# or
+make deploy-bootstrap
 ```
 
 ## 2) Apply Kernel Migrations Manually
 
 ```bash
 bash scripts/db_bootstrap.sh
+# or
+make bootstrap
 ```
 
 Applies:
@@ -69,4 +75,12 @@ curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/delivery/outbox/pending?lim
 curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/channels/telegram/ingest \
   -H 'content-type: application/json' \
   -d '{"update":{"message":{"chat":{"id":42},"text":"hello","message_id":7,"date":123}}}'
+```
+
+## 7) Full Smoke Script
+
+```bash
+bash scripts/smoke_api.sh
+# or
+make smoke-api
 ```

@@ -6,7 +6,7 @@ Use this file as the execution queue and progress ledger.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-007 | P2 | Add Makefile shortcuts for deploy/bootstrap/smoke commands | codex | queued | Keep operator entrypoints consistent |
+| Q-008 | P2 | Add DB schema status check script (`scripts/db_status.sh`) | codex | queued | Verify presence of kernel tables |
 
 ## In Progress
 
@@ -26,6 +26,7 @@ Use this file as the execution queue and progress ledger.
 | D-006 | P1 | Add optional bootstrap chaining to deploy flow | codex | done | `EA_BOOTSTRAP_DB=1 bash scripts/deploy.sh` |
 | D-007 | P1 | Add lightweight runtime operator runbook | codex | done | Added `RUNBOOK.md` and linked from README |
 | D-008 | P1 | Add CI smoke job for runtime API tests | codex | done | Added `.github/workflows/smoke-runtime.yml` |
+| D-009 | P2 | Add Makefile shortcuts and a full smoke script | codex | done | Added `Makefile` + `scripts/smoke_api.sh` |
 
 ## Intake Template
 

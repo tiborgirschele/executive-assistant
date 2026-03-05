@@ -55,3 +55,4 @@ EA_BOOTSTRAP_DB=1 bash scripts/deploy.sh
 Then open `http://localhost:8090/health`.
 
 Operator commands are documented in `RUNBOOK.md`.
+Shortcut targets are available in `Makefile` (`make deploy`, `make bootstrap`, `make smoke-api`).
