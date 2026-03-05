@@ -135,6 +135,12 @@ Branch: `main`
     for whole-tree Python parse checks.
   - hardened invoice extraction interpolation in `ea/app/poll_listener.py` by
     precomputing nested values before caption interpolation.
+- [DONE] Proactive planner bootstrap/schema drift fix:
+  - `ea/app/db.py::init_db_sync()` now bootstraps planner/proactive tables and indexes
+    used by `ea/app/planner/proactive.py` (including `send_budgets`,
+    `planner_candidates`, `proactive_items`, and `planner_dedupe_keys`).
+  - `tests/smoke_v1_18.py` now asserts planner table presence in db bootstrap in
+    addition to schema-file contracts.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`
     from `runner.py` (canonical role shim path), not direct worker import.

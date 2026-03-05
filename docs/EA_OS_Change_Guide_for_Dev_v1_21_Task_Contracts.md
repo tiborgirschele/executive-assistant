@@ -103,6 +103,14 @@ existing capability routing behavior.
      precomputing nested values (`creditor`, `iban`, `reference`, `amount_value`)
      before caption formatting, reducing quote-fragility in f-string-heavy paths.
 
+10. Proactive planner bootstrap/schema alignment:
+   - Added planner/proactive runtime tables to `ea/app/db.py::init_db_sync()`:
+     `planner_jobs`, `planner_candidates`, `proactive_items`,
+     `proactive_muted_classes`, `send_budgets`, `planner_dedupe_keys`,
+     and related indexes.
+   - Extended `tests/smoke_v1_18.py` to assert planner table presence in db bootstrap,
+     reducing migration/bootstrap drift between planner runtime code and startup schema.
+
 ## Why this matters
 
 This keeps provider contracts (`CapabilityContract`) but introduces a stable task layer the

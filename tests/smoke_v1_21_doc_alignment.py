@@ -34,6 +34,8 @@ def test_v121_doc_alignment() -> None:
     assert "capability_router.py" in guide
     assert "plan_builder.py" in guide
     assert "poll_listener.py" in guide
+    assert "send_budgets" in guide
+    assert "smoke_v1_18.py" in guide
     _pass("v1.21 doc/code alignment")
 
 
