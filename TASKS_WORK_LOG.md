@@ -6,7 +6,7 @@ Use this file as the execution queue and progress ledger.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-030 | P3 | Add `make ci-local` target that chains compile + py_compile checks | codex | queued | Quick local parity with CI smoke prerequisites |
+| Q-031 | P3 | Add script to verify required files exist for release checklist | codex | queued | Catch missing ops docs/scripts before ship |
 
 ## In Progress
 
@@ -49,6 +49,7 @@ Use this file as the execution queue and progress ledger.
 | D-029 | P3 | Add support bundle script + make target | codex | done | Added `scripts/support_bundle.sh` and `make support-bundle` |
 | D-030 | P3 | Add task archive rotation helper + make targets | codex | done | Added `scripts/archive_tasks.sh` with prune option |
 | D-031 | P3 | Add dry-run preview mode for task archive rotation | codex | done | Added `--dry-run` and `make tasks-archive-dry-run` |
+| D-032 | P3 | Add `make ci-local` preflight target | codex | done | Chains compile + test-module syntax checks |
 
 ## Intake Template
 
