@@ -42,12 +42,25 @@ existing capability routing behavior.
 
 4. New smoke coverage:
    - `tests/smoke_v1_21_task_contract_registry.py`
+   - `tests/smoke_v1_21_intent_spec_v2_shape.py`
    - Validates module presence and task-contract-aware capability planning behavior.
    - Wired into:
-     - `scripts/run_v120_smoke.sh`
-     - `scripts/run_v119_smoke.sh`
-     - `scripts/docker_e2e.sh`
-     - `.github/workflows/release-gates.yml`
+      - `scripts/run_v120_smoke.sh`
+      - `scripts/run_v119_smoke.sh`
+      - `scripts/docker_e2e.sh`
+      - `.github/workflows/release-gates.yml`
+
+5. Intent compiler shape expansion (`IntentSpecV2`-style fields):
+   - `ea/app/execution/session_store.py` now emits additional fields from `compile_intent_spec(...)`:
+     - `deliverable_type`
+     - `approval_class`
+     - `risk_class`
+     - `budget_class`
+     - `evidence_requirements`
+     - `source_refs`
+     - `stakeholders`
+     - `output_contract`
+     - `commitment_key`
 
 ## Why this matters
 

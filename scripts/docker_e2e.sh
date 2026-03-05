@@ -156,6 +156,7 @@ run_step "smoke_v1_20_gog_session_id_uniqueness" python3 tests/smoke_v1_20_gog_s
 run_step "smoke_v1_20_legacy_button_action_sessions" python3 tests/smoke_v1_20_legacy_button_action_sessions.py
 run_step "smoke_v1_20_brief_command_sessions" python3 tests/smoke_v1_20_brief_command_sessions.py
 run_step "smoke_v1_21_task_contract_registry" python3 tests/smoke_v1_21_task_contract_registry.py
+run_step "smoke_v1_21_intent_spec_v2_shape" python3 tests/smoke_v1_21_intent_spec_v2_shape.py
 run_step "smoke_v1_21_doc_alignment" python3 tests/smoke_v1_21_doc_alignment.py
 run_step "smoke_v1_19_3_control_plane_decomposition" python3 tests/smoke_v1_19_3_control_plane_decomposition.py
 run_step "smoke_v1_19_3_source_acquisition_split" python3 tests/smoke_v1_19_3_source_acquisition_split.py
