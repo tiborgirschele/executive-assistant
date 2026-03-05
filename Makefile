@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-memory deploy-bootstrap bootstrap db-status smoke-api test-api openapi-export openapi-diff openapi-prune endpoints version-info operator-summary
+.PHONY: deploy deploy-memory deploy-bootstrap bootstrap db-status smoke-api test-api openapi-export openapi-diff openapi-prune endpoints version-info operator-summary support-bundle
 
 deploy:
 	bash scripts/deploy.sh
@@ -38,3 +38,6 @@ version-info:
 
 operator-summary:
 	bash scripts/operator_summary.sh
+
+support-bundle:
+	bash scripts/support_bundle.sh

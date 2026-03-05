@@ -176,3 +176,13 @@ bash scripts/operator_summary.sh
 # or
 make operator-summary
 ```
+
+## 13) Generate Support Bundle
+
+```bash
+bash scripts/support_bundle.sh
+# optional log tail length
+SUPPORT_LOG_TAIL_LINES=500 bash scripts/support_bundle.sh
+# or
+make support-bundle
+```
