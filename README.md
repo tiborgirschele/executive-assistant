@@ -5,7 +5,7 @@ EA OS is a Telegram-first assistant runtime with:
 - secured ingest/debug boundaries (`EA_INGEST_TOKEN`, `EA_OPERATOR_TOKEN`)
 - BrowserAct/MetaSurvey/AvoMap intake and sidecar wiring
 - capability + skill registries for controlled sidecar/tool routing
-- milestone-gated smoke + Docker E2E release checks from v1.12.x through v1.20.x
+- milestone-gated smoke + Docker E2E release checks from v1.12.x through v1.21.x
 
 This repo started as a patched deployment bundle, but current `main` is maintained as a staged assistant-OS codebase with explicit contract gates.
 
@@ -50,6 +50,7 @@ Gate reports are written to `logs/gates/*.json` and uploaded by CI.
 - v1.19 future intelligence care OS: `docs/EA_OS_Design_v1_19_Future_Intelligence_Care_OS.md`
 - v1.19.1 patch memo: `docs/EA_OS_v1_19_1_Patch_Memo.md`
 - v1.20 commitment OS foundations: `docs/EA_OS_Change_Guide_for_Dev_v1_20_Commitment_OS.md`
+- v1.21 task-first contract seed: `docs/EA_OS_Change_Guide_for_Dev_v1_21_Task_Contracts.md`
 - Teable curated-memory model: `docs/EA_OS_Teable_Memory_Model.md`
 - Product roadmap: `docs/ea_os_design_roadmap_v2026.md`
 - Auditor LTD/tier inventory: `LTD_INVENTORY.md`

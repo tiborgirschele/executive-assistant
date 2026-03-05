@@ -17,7 +17,8 @@ def _pass(name: str) -> None:
 def test_capability_router_module_presence() -> None:
     src = (ROOT / "ea/app/skills/capability_router.py").read_text(encoding="utf-8")
     assert "def build_capability_plan(" in src
-    assert "_TASK_PRIORITY" in src
+    assert "task_or_none" in src
+    assert "task_contract_key" in src
     _pass("v1.19.4 capability router module presence")
 
 
@@ -28,6 +29,8 @@ def test_capability_router_behavior() -> None:
     assert travel.get("ok") is True
     assert travel.get("primary") == "oneair"
     assert "avomap" in list(travel.get("fallbacks") or [])
+    assert travel.get("task_contract_key") == "travel_rescue"
+    assert travel.get("task_contract_output_artifact_type") == "travel_decision_pack"
 
     intake = build_capability_plan("collect_structured_intake", preferred="metasurvey")
     assert intake.get("ok") is True
@@ -38,6 +41,7 @@ def test_capability_router_behavior() -> None:
     assert trip_pack.get("ok") is True
     assert trip_pack.get("primary") == "oneair"
     assert "avomap" in list(trip_pack.get("fallbacks") or [])
+    assert trip_pack.get("task_contract_key") == "trip_context_pack"
 
     missing = build_capability_plan("unknown_task_zzz")
     assert missing.get("ok") is False

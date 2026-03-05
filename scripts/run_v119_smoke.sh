@@ -51,6 +51,8 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_20_gog_session_id_uniqueness.py" \
   "$ROOT/tests/smoke_v1_20_legacy_button_action_sessions.py" \
   "$ROOT/tests/smoke_v1_20_brief_command_sessions.py" \
+  "$ROOT/tests/smoke_v1_21_task_contract_registry.py" \
+  "$ROOT/tests/smoke_v1_21_doc_alignment.py" \
   "$ROOT/tests/smoke_v1_19_3_control_plane_decomposition.py" \
   "$ROOT/tests/smoke_v1_19_3_source_acquisition_split.py" \
   "$ROOT/tests/smoke_v1_19_3_briefing_runtime_behavior.py"
@@ -94,6 +96,8 @@ python3 "$ROOT/tests/smoke_v1_20_free_text_approval_gate_behavior.py"
 python3 "$ROOT/tests/smoke_v1_20_gog_session_id_uniqueness.py"
 python3 "$ROOT/tests/smoke_v1_20_legacy_button_action_sessions.py"
 python3 "$ROOT/tests/smoke_v1_20_brief_command_sessions.py"
+python3 "$ROOT/tests/smoke_v1_21_task_contract_registry.py"
+python3 "$ROOT/tests/smoke_v1_21_doc_alignment.py"
 python3 "$ROOT/tests/smoke_v1_19_3_control_plane_decomposition.py"
 python3 "$ROOT/tests/smoke_v1_19_3_source_acquisition_split.py"
 python3 "$ROOT/tests/smoke_v1_19_3_briefing_runtime_behavior.py"

@@ -104,6 +104,12 @@ Branch: `main`
   - parent session is finalized as `partial` while awaiting approval, then resumed on approval callback.
   - `smoke_v1_20_free_text_approval_gate_behavior.py` and
     `smoke_v1_20_typed_action_approval_resume.py` added and wired into host/docker/CI gates.
+- [DONE] Task-first planner contract seed (v1.21):
+  - added `TaskContract` registry at `ea/app/planner/task_registry.py`.
+  - capability planning now reads task contract provider priority and emits task metadata
+    (`task_contract_key`, approval default, artifact type, budget policy).
+  - `smoke_v1_21_task_contract_registry.py` and `smoke_v1_21_doc_alignment.py`
+    added and wired into host/docker/CI gates.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`
     from `runner.py` (canonical role shim path), not direct worker import.

@@ -1,17 +1,7 @@
 from __future__ import annotations
 
+from app.planner.task_registry import task_or_none
 from app.skills.capability_registry import capability_or_raise, capabilities_for_task
-
-
-_TASK_PRIORITY: dict[str, tuple[str, ...]] = {
-    "travel_rescue": ("oneair", "avomap", "browseract"),
-    "trip_context_pack": ("oneair", "avomap", "one_min_ai", "ai_magicx"),
-    "collect_structured_intake": ("involve_me", "metasurvey", "apix_drive"),
-    "guided_intake": ("involve_me", "metasurvey", "apix_drive"),
-    "compile_prompt_pack": ("prompting_systems", "paperguide", "vizologi"),
-    "polish_human_tone": ("undetectable",),
-    "generate_multimodal_support_asset": ("one_min_ai", "ai_magicx", "peekshot"),
-}
 
 
 def build_capability_plan(task_type: str, preferred: str | None = None) -> dict[str, object]:
@@ -19,6 +9,7 @@ def build_capability_plan(task_type: str, preferred: str | None = None) -> dict[
     if not task:
         return {"ok": False, "status": "missing_task_type"}
 
+    task_contract = task_or_none(task)
     candidates = list(capabilities_for_task(task))
     if not candidates:
         return {
@@ -31,7 +22,7 @@ def build_capability_plan(task_type: str, preferred: str | None = None) -> dict[
         }
 
     pref = str(preferred or "").strip().lower()
-    ranked = list(_TASK_PRIORITY.get(task, tuple(candidates)))
+    ranked = list(tuple((task_contract.provider_priority if task_contract else tuple(candidates))))
     for cap in candidates:
         if cap not in ranked:
             ranked.append(cap)
@@ -49,6 +40,10 @@ def build_capability_plan(task_type: str, preferred: str | None = None) -> dict[
         "primary_invocation_method": cap.invocation_method,
         "fallbacks": fallbacks,
         "candidates": candidates,
+        "task_contract_key": task_contract.key if task_contract else None,
+        "task_contract_approval_default": task_contract.approval_default if task_contract else None,
+        "task_contract_output_artifact_type": task_contract.output_artifact_type if task_contract else None,
+        "task_contract_budget_policy": task_contract.budget_policy if task_contract else None,
     }
 
 
