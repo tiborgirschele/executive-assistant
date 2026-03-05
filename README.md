@@ -73,3 +73,4 @@ Snapshot diff is available via `scripts/diff_openapi.sh` or `make openapi-diff`.
 Snapshot pruning is available via `scripts/prune_openapi.sh` or `make openapi-prune`.
 Endpoint inventory can be printed via `scripts/list_endpoints.sh` or `make endpoints`.
 Version fingerprint can be printed via `scripts/version_info.sh` or `make version-info`.
+Operator summary can be printed via `scripts/operator_summary.sh` or `make operator-summary`.

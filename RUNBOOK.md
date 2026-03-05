@@ -168,3 +168,11 @@ bash scripts/version_info.sh
 # or
 make version-info
 ```
+
+## 12) Print Operator Summary
+
+```bash
+bash scripts/operator_summary.sh
+# or
+make operator-summary
+```
