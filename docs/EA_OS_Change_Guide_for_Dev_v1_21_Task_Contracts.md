@@ -117,6 +117,21 @@ existing capability routing behavior.
    - Added `tests/smoke_v1_21_gate_alias.py` and wired it into host/docker/CI gates.
    - Updated README smoke command list to include `run_v121_smoke.sh`.
 
+12. Formal approval-gate ledger seed:
+   - Added approval-gate store helpers in `ea/app/execution/session_store.py`:
+     - `create_approval_gate(...)`
+     - `attach_approval_gate_action(...)`
+     - `mark_approval_gate_decision(...)`
+   - Extended typed action persistence with ledger references in `ea/app/actions.py`:
+     - `session_id`
+     - `step_id`
+     - `approval_gate_id`
+   - Added `approval_gates` + typed-action reference columns to db bootstrap in `ea/app/db.py`,
+     plus migration file `ea/schema/20260305_v1_21_approval_gates.sql`.
+   - Free-text high-risk runtime now creates approval-gate rows and links them to staged typed actions
+     in `ea/app/intent_runtime.py`; approval callback resume marks gate decision `approved`.
+   - Added `tests/smoke_v1_21_approval_gate_store.py` and updated approval-behavior smokes.
+
 ## Why this matters
 
 This keeps provider contracts (`CapabilityContract`) but introduces a stable task layer the

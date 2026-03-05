@@ -11,10 +11,13 @@ from app.briefings import get_val
 from app.chat_assist import humanize_agent_report
 from app.execution import (
     append_execution_event,
+    attach_approval_gate_action,
     build_plan_steps,
     compile_intent_spec,
+    create_approval_gate,
     create_execution_session,
     finalize_execution_session,
+    mark_approval_gate_decision,
     mark_execution_session_running,
     mark_execution_step_status,
 )
@@ -35,6 +38,7 @@ async def execute_approved_intent_action(
     tenant_key = str(tenant_name or "")
     payload = dict(action_payload or {})
     session_id = str(payload.get("session_id") or "").strip()
+    approval_gate_id = str(payload.get("approval_gate_id") or "").strip()
     prompt = str(payload.get("prompt") or "").strip()
     intent_text = str(payload.get("intent_text") or "").strip()
     if not prompt:
@@ -58,6 +62,16 @@ async def execute_approved_intent_action(
             pass
 
     if session_id:
+        if approval_gate_id:
+            mark_approval_gate_decision(
+                approval_gate_id,
+                decision_status="approved",
+                decision_payload={
+                    "source": "typed_action_callback",
+                    "chat_id": int(chat_id),
+                    "tenant": tenant_key,
+                },
+            )
         mark_execution_session_running(session_id)
         mark_execution_step_status(
             session_id,
@@ -75,7 +89,7 @@ async def execute_approved_intent_action(
             session_id,
             event_type="approval_granted",
             message="Explicit approval callback granted execution.",
-            payload={"tenant": tenant_key},
+            payload={"tenant": tenant_key, "approval_gate_id": approval_gate_id},
         )
 
     current_step = "execute_intent"
@@ -291,6 +305,7 @@ async def handle_free_text_intent(
     requires_approval = bool((intent_spec or {}).get("autonomy_level") == "approval_required")
     if requires_approval:
         action_id = ""
+        approval_gate_id = ""
         if session_id:
             mark_execution_step_status(
                 session_id,
@@ -298,21 +313,45 @@ async def handle_free_text_intent(
                 "running",
                 result={"gate_mode": "explicit_callback", "reason": "high_risk_intent"},
             )
+            approval_gate_id = str(
+                create_approval_gate(
+                    session_id=str(session_id or ""),
+                    tenant=tenant_key,
+                    chat_id=int(chat_id),
+                    approval_class=str((intent_spec or {}).get("approval_class") or "explicit_callback_required"),
+                    decision_payload={
+                        "intent_text": str(text or "")[:500],
+                        "domain": str((intent_spec or {}).get("domain") or ""),
+                    },
+                )
+                or ""
+            )
         try:
             action_id = create_action(
                 tenant=tenant_key,
                 action_type="intent:approval_execute",
                 payload={
                     "session_id": str(session_id or ""),
+                    "approval_gate_id": str(approval_gate_id or ""),
                     "intent_text": str(text or "")[:2000],
                     "prompt": str(prompt or "")[:8000],
                     "tenant": tenant_key,
                     "chat_id": int(chat_id),
                 },
                 days=1,
+                session_id=str(session_id or "") if session_id else None,
+                approval_gate_id=str(approval_gate_id or "") if approval_gate_id else None,
             )
         except Exception:
             action_id = ""
+        if approval_gate_id and action_id:
+            attach_approval_gate_action(approval_gate_id, action_id)
+        elif approval_gate_id and not action_id:
+            mark_approval_gate_decision(
+                approval_gate_id,
+                decision_status="staging_failed",
+                decision_payload={"reason": "typed_action_create_failed"},
+            )
         if session_id:
             mark_execution_step_status(
                 session_id,
@@ -322,19 +361,24 @@ async def handle_free_text_intent(
                     "gate_mode": "explicit_callback",
                     "decision": "awaiting_approval",
                     "action_id": action_id,
+                    "approval_gate_id": approval_gate_id,
                 },
             )
             mark_execution_step_status(
                 session_id,
                 "execute_intent",
                 "queued",
-                result={"blocked_reason": "awaiting_approval", "action_id": action_id},
+                result={
+                    "blocked_reason": "awaiting_approval",
+                    "action_id": action_id,
+                    "approval_gate_id": approval_gate_id,
+                },
             )
             append_execution_event(
                 session_id,
                 event_type="approval_requested",
                 message="High-risk free-text intent staged for explicit approval callback.",
-                payload={"action_id": action_id, "tenant": tenant_key},
+                payload={"action_id": action_id, "approval_gate_id": approval_gate_id, "tenant": tenant_key},
             )
             finalize_execution_session(
                 session_id,
@@ -342,6 +386,7 @@ async def handle_free_text_intent(
                 outcome={
                     "result": "awaiting_approval",
                     "action_id": action_id,
+                    "approval_gate_id": approval_gate_id,
                     "approval_mode": "explicit_callback",
                 },
             )

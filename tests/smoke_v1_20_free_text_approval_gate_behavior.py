@@ -69,6 +69,8 @@ def test_free_text_high_risk_stages_blocking_approval_gate() -> None:
         "steps": [],
         "finalized": [],
         "actions": [],
+        "approval_gates": [],
+        "approval_gate_attaches": [],
         "messages": [],
         "gog_called": False,
     }
@@ -105,6 +107,9 @@ def test_free_text_high_risk_stages_blocking_approval_gate() -> None:
     orig_finalize = ir.finalize_execution_session
     orig_append = ir.append_execution_event
     orig_create_action = ir.create_action
+    orig_create_gate = ir.create_approval_gate
+    orig_attach_gate = ir.attach_approval_gate_action
+    orig_mark_gate = ir.mark_approval_gate_decision
     orig_gog = ir.gog_scout
 
     try:
@@ -119,13 +124,23 @@ def test_free_text_high_risk_stages_blocking_approval_gate() -> None:
             )
         )
         ir.append_execution_event = lambda *args, **kwargs: None
+        ir.create_approval_gate = (
+            lambda **kwargs: captured["approval_gates"].append(dict(kwargs)) or "gate-approve-1"
+        )
+        ir.attach_approval_gate_action = (
+            lambda approval_gate_id, action_id: captured["approval_gate_attaches"].append(
+                {"approval_gate_id": str(approval_gate_id), "action_id": str(action_id)}
+            )
+        )
+        ir.mark_approval_gate_decision = lambda *args, **kwargs: None
         ir.create_action = (
-            lambda tenant, action_type, payload, days=1: captured["actions"].append(
+            lambda tenant, action_type, payload, days=1, **kwargs: captured["actions"].append(
                 {
                     "tenant": str(tenant),
                     "action_type": str(action_type),
                     "payload": dict(payload),
                     "days": int(days),
+                    "kwargs": dict(kwargs or {}),
                 }
             )
             or "act-approve-1"
@@ -153,10 +168,14 @@ def test_free_text_high_risk_stages_blocking_approval_gate() -> None:
         staged = captured["actions"][0]
         assert staged["action_type"] == "intent:approval_execute"
         assert staged["payload"].get("session_id") == "sess-highrisk-1"
+        assert staged["payload"].get("approval_gate_id") == "gate-approve-1"
+        assert captured["approval_gates"], "approval gate row must be created for high-risk intent"
+        assert captured["approval_gate_attaches"], "approval gate must be linked to staged typed action"
         assert captured["finalized"], "session should finalize as partial awaiting approval"
         fin = captured["finalized"][0]
         assert fin["status"] == "partial"
         assert fin["outcome"].get("result") == "awaiting_approval"
+        assert fin["outcome"].get("approval_gate_id") == "gate-approve-1"
         step_pairs = {(step, status) for (step, status, _kwargs) in captured["steps"]}
         assert ("safety_gate", "completed") in step_pairs
         assert ("execute_intent", "queued") in step_pairs
@@ -174,6 +193,9 @@ def test_free_text_high_risk_stages_blocking_approval_gate() -> None:
         ir.finalize_execution_session = orig_finalize
         ir.append_execution_event = orig_append
         ir.create_action = orig_create_action
+        ir.create_approval_gate = orig_create_gate
+        ir.attach_approval_gate_action = orig_attach_gate
+        ir.mark_approval_gate_decision = orig_mark_gate
         ir.gog_scout = orig_gog
 
 
@@ -182,7 +204,7 @@ def test_approved_action_executes_and_finalizes_parent_session() -> None:
     _install_httpx_stub()
     import app.intent_runtime as ir
 
-    captured: dict[str, object] = {"steps": [], "finalized": [], "messages": []}
+    captured: dict[str, object] = {"steps": [], "finalized": [], "messages": [], "gate_decisions": []}
 
     class _FakeTG:
         async def send_message(self, chat_id: int, text: str, parse_mode: str | None = None, reply_markup=None):
@@ -205,6 +227,7 @@ def test_approved_action_executes_and_finalizes_parent_session() -> None:
     orig_mark_step = ir.mark_execution_step_status
     orig_finalize = ir.finalize_execution_session
     orig_append = ir.append_execution_event
+    orig_mark_gate = ir.mark_approval_gate_decision
     orig_gog = ir.gog_scout
     orig_build_ui = ir.build_dynamic_ui
 
@@ -219,6 +242,11 @@ def test_approved_action_executes_and_finalizes_parent_session() -> None:
             )
         )
         ir.append_execution_event = lambda *args, **kwargs: None
+        ir.mark_approval_gate_decision = (
+            lambda approval_gate_id, **kwargs: captured["gate_decisions"].append(
+                {"approval_gate_id": str(approval_gate_id), **dict(kwargs)}
+            )
+        )
         ir.build_dynamic_ui = lambda report, prompt, save_ctx=None: {"inline_keyboard": []}
 
         async def _fake_gog(*args, **kwargs):
@@ -234,6 +262,7 @@ def test_approved_action_executes_and_finalizes_parent_session() -> None:
                 tenant_cfg={},
                 action_payload={
                     "session_id": "sess-highrisk-1",
+                    "approval_gate_id": "gate-approve-1",
                     "intent_text": "Please pay this invoice now",
                     "prompt": "EXECUTE: Do the approved action now.",
                 },
@@ -248,6 +277,9 @@ def test_approved_action_executes_and_finalizes_parent_session() -> None:
         assert ("safety_gate", "completed") in step_pairs
         assert ("execute_intent", "completed") in step_pairs
         assert ("render_reply", "completed") in step_pairs
+        assert captured["gate_decisions"], "approval gate should be marked approved on callback resume"
+        assert captured["gate_decisions"][0]["approval_gate_id"] == "gate-approve-1"
+        assert captured["gate_decisions"][0]["decision_status"] == "approved"
         assert captured["finalized"], "parent session should finalize completed after approval"
         assert captured["finalized"][0]["status"] == "completed"
         assert "approval_mode" in (captured["finalized"][0]["outcome"] or {})
@@ -257,6 +289,7 @@ def test_approved_action_executes_and_finalizes_parent_session() -> None:
         ir.mark_execution_step_status = orig_mark_step
         ir.finalize_execution_session = orig_finalize
         ir.append_execution_event = orig_append
+        ir.mark_approval_gate_decision = orig_mark_gate
         ir.gog_scout = orig_gog
         ir.build_dynamic_ui = orig_build_ui
 

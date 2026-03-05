@@ -150,6 +150,105 @@ def append_execution_event(
         return
 
 
+def create_approval_gate(
+    *,
+    session_id: str,
+    tenant: str,
+    chat_id: int | None,
+    approval_class: str = "explicit_callback_required",
+    action_id: str | None = None,
+    decision_payload: dict[str, Any] | None = None,
+) -> str | None:
+    if not session_id:
+        return None
+    try:
+        db = get_db()
+        gate_id = str(uuid.uuid4())
+        db.execute(
+            """
+            INSERT INTO approval_gates (
+                approval_gate_id,
+                session_id,
+                tenant,
+                chat_id,
+                approval_class,
+                decision_status,
+                action_id,
+                decision_payload_json
+            )
+            VALUES (%s, %s, %s, %s, %s, 'pending', %s, %s::jsonb)
+            """,
+            (
+                gate_id,
+                str(session_id),
+                str(tenant or ""),
+                int(chat_id) if chat_id is not None else None,
+                str(approval_class or "explicit_callback_required"),
+                str(action_id or "") if action_id else None,
+                _safe_json(decision_payload or {}),
+            ),
+        )
+        return gate_id
+    except Exception:
+        return None
+
+
+def attach_approval_gate_action(approval_gate_id: str, action_id: str) -> None:
+    if not approval_gate_id or not action_id:
+        return
+    try:
+        db = get_db()
+        db.execute(
+            """
+            UPDATE approval_gates
+            SET action_id = %s,
+                updated_at = NOW()
+            WHERE approval_gate_id = %s
+            """,
+            (str(action_id), str(approval_gate_id)),
+        )
+    except Exception:
+        return
+
+
+def mark_approval_gate_decision(
+    approval_gate_id: str,
+    *,
+    decision_status: str,
+    decision_payload: dict[str, Any] | None = None,
+) -> None:
+    if not approval_gate_id:
+        return
+    status = str(decision_status or "").strip().lower() or "pending"
+    try:
+        db = get_db()
+        db.execute(
+            """
+            UPDATE approval_gates
+            SET decision_status = %s,
+                decision_payload_json = CASE
+                    WHEN %s::jsonb = '{}'::jsonb THEN decision_payload_json
+                    ELSE %s::jsonb
+                END,
+                decided_at = CASE
+                    WHEN %s IN ('approved','rejected','cancelled','expired','staging_failed') THEN COALESCE(decided_at, NOW())
+                    ELSE decided_at
+                END,
+                updated_at = NOW()
+            WHERE approval_gate_id = %s
+            """,
+            (
+                status,
+                _safe_json(decision_payload or {}),
+                _safe_json(decision_payload or {}),
+                status,
+                str(approval_gate_id),
+            ),
+        )
+    except Exception:
+        return
+
+
 def create_execution_session(
     *,
     tenant: str,
@@ -343,10 +442,13 @@ def finalize_execution_session(
 
 __all__ = [
     "append_execution_event",
+    "attach_approval_gate_action",
     "build_plan_steps",
     "compile_intent_spec",
+    "create_approval_gate",
     "create_execution_session",
     "finalize_execution_session",
+    "mark_approval_gate_decision",
     "mark_execution_session_running",
     "mark_execution_step_status",
 ]

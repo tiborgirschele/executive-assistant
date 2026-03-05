@@ -145,6 +145,15 @@ Branch: `main`
   - added `scripts/run_v121_smoke.sh` as a v1.21 alias over the existing gate runner.
   - added `tests/smoke_v1_21_gate_alias.py` and wired it into host/docker/CI gates.
   - README smoke command list now includes `run_v121_smoke.sh`.
+- [DONE] Formal approval-gate ledger seed:
+  - added approval-gate helpers in `ea/app/execution/session_store.py` and exported via
+    `ea/app/execution/__init__.py`.
+  - `ea/app/intent_runtime.py` now writes/links approval-gate rows for high-risk free-text,
+    and marks gate decision approved on callback resume.
+  - extended `typed_actions` persistence references (`session_id`, `step_id`,
+    `approval_gate_id`) in `ea/app/actions.py` and bootstrap schema.
+  - added migration `ea/schema/20260305_v1_21_approval_gates.sql`.
+  - added `tests/smoke_v1_21_approval_gate_store.py` and expanded approval behavior smokes.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`
     from `runner.py` (canonical role shim path), not direct worker import.
