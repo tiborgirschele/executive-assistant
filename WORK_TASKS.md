@@ -53,6 +53,9 @@ Owner: Codex runtime worker
      - runtime emit on session finalize (bounded, policy-safe).
      - sync worker ingests approved candidates only.
      - smoke for promotion + filtering rules.
+   - Progress:
+     - seed schema + planner memory-candidate module + smoke gates are implemented.
+     - finalize-session emit and Teable approved-candidate ingestion remain.
 
 7. `PENDING` - Synthetic-user eval harness container (qa profile only).
    - Deliverables:

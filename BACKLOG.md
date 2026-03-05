@@ -220,6 +220,15 @@ Branch: `main`
     - `create_decision_window(...)`
   - exported world-model helpers via `ea/app/planner/__init__.py`.
   - added `tests/smoke_v1_22_world_model_seed.py` and wired it into host/docker/CI gates.
+- [DONE] Memory-candidate promotion seed:
+  - added bootstrap + migration schema for `memory_candidates`
+    (`ea/schema/20260305_v1_22_memory_candidates.sql`).
+  - added `ea/app/planner/memory_candidates.py`:
+    - `emit_memory_candidate(...)`
+    - `mark_memory_candidate_review(...)`
+    - `list_memory_candidates(...)`
+  - exported memory-candidate helpers via `ea/app/planner/__init__.py`.
+  - added `tests/smoke_v1_22_memory_candidates.py` and wired it into host/docker/CI gates.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`
     from `runner.py` (canonical role shim path), not direct worker import.

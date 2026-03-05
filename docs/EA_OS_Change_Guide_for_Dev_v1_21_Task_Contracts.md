@@ -240,6 +240,17 @@ existing capability routing behavior.
    - Exported world-model helpers via `ea/app/planner/__init__.py`.
    - Added `tests/smoke_v1_22_world_model_seed.py` and wired it into host/docker/CI gates.
 
+23. Memory-candidate promotion seed (local-first memory lane):
+   - Added bootstrap + migration schema for `memory_candidates`
+     (`ea/schema/20260305_v1_22_memory_candidates.sql`).
+   - Added planner memory candidate module:
+     - `ea/app/planner/memory_candidates.py`
+       - `emit_memory_candidate(...)`
+       - `mark_memory_candidate_review(...)`
+       - `list_memory_candidates(...)`
+   - Exported memory-candidate helpers via `ea/app/planner/__init__.py`.
+   - Added `tests/smoke_v1_22_memory_candidates.py` and wired it into host/docker/CI gates.
+
 ## Why this matters
 
 This keeps provider contracts (`CapabilityContract`) but introduces a stable task layer the

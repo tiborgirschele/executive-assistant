@@ -5,6 +5,7 @@ from .plan_builder import build_task_plan_steps
 from .provider_registry import list_provider_contracts, provider_or_raise, providers_for_task
 from .provider_broker import rank_task_capabilities
 from .provider_outcomes import record_provider_outcome, recent_provider_adjustments
+from .memory_candidates import emit_memory_candidate, list_memory_candidates, mark_memory_candidate_review
 from .step_executor import run_reasoning_step
 from .task_registry import TaskContract, list_task_contracts, task_or_none, task_or_raise
 from .world_model import create_artifact, create_decision_window, create_followup, upsert_commitment
@@ -21,6 +22,9 @@ __all__ = [
     "rank_task_capabilities",
     "record_provider_outcome",
     "recent_provider_adjustments",
+    "emit_memory_candidate",
+    "mark_memory_candidate_review",
+    "list_memory_candidates",
     "upsert_commitment",
     "create_artifact",
     "create_followup",
