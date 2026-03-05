@@ -40,6 +40,15 @@ def _pass(name: str) -> None:
     print(f"[SMOKE][HOST][PASS] {name}")
 
 
+def test_intent_compiler_module_and_shim_wiring() -> None:
+    planner_src = (ROOT / "ea/app/planner/intent_compiler.py").read_text(encoding="utf-8")
+    store_src = (ROOT / "ea/app/execution/session_store.py").read_text(encoding="utf-8")
+    assert "def compile_intent_spec_v2(" in planner_src
+    assert "from app.planner.intent_compiler import compile_intent_spec_v2" in store_src
+    assert "return compile_intent_spec_v2(" in store_src
+    _pass("v1.21 intent compiler module + shim wiring")
+
+
 def test_intent_spec_v2_shape_for_high_risk_finance() -> None:
     _install_psycopg2_stub()
     from app.execution.session_store import compile_intent_spec
@@ -81,5 +90,6 @@ def test_intent_spec_v2_shape_for_url_analysis() -> None:
 
 
 if __name__ == "__main__":
+    test_intent_compiler_module_and_shim_wiring()
     test_intent_spec_v2_shape_for_high_risk_finance()
     test_intent_spec_v2_shape_for_url_analysis()

@@ -34,6 +34,7 @@ def test_v121_doc_alignment() -> None:
     assert "provider_registry.py" in guide
     assert "runtime_execution_ops" in guide
     assert "capability_router.py" in guide
+    assert "intent_compiler.py" in guide
     assert "plan_builder.py" in guide
     assert "poll_listener.py" in guide
     assert "send_budgets" in guide

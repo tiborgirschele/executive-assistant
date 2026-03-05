@@ -154,6 +154,11 @@ Branch: `main`
     `approval_gate_id`) in `ea/app/actions.py` and bootstrap schema.
   - added migration `ea/schema/20260305_v1_21_approval_gates.sql`.
   - added `tests/smoke_v1_21_approval_gate_store.py` and expanded approval behavior smokes.
+- [DONE] Planner intent compiler shim:
+  - added `ea/app/planner/intent_compiler.py` with `compile_intent_spec_v2(...)`.
+  - `ea/app/execution/session_store.py::compile_intent_spec(...)` now delegates to
+    planner intent compiler as a compatibility shim.
+  - `tests/smoke_v1_21_intent_spec_v2_shape.py` expanded with shim wiring checks.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`
     from `runner.py` (canonical role shim path), not direct worker import.

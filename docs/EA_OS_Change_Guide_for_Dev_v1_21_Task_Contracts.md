@@ -132,6 +132,12 @@ existing capability routing behavior.
      in `ea/app/intent_runtime.py`; approval callback resume marks gate decision `approved`.
    - Added `tests/smoke_v1_21_approval_gate_store.py` and updated approval-behavior smokes.
 
+13. Planner intent-compiler shim:
+   - Added planner module `ea/app/planner/intent_compiler.py` with `compile_intent_spec_v2(...)`.
+   - `ea/app/execution/session_store.py::compile_intent_spec(...)` now acts as a
+     compatibility shim delegating to planner intent compilation.
+   - `tests/smoke_v1_21_intent_spec_v2_shape.py` now also validates module + shim wiring.
+
 ## Why this matters
 
 This keeps provider contracts (`CapabilityContract`) but introduces a stable task layer the
