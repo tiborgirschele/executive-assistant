@@ -42,6 +42,10 @@ All notable changes to the rewrite-kernel baseline are documented here.
   - `PlannerService` compiles `IntentSpecV3` + typed `PlanSpec`/`PlanStepSpec`
   - `POST /v1/plans/compile` emits plan projections from task contracts
   - rewrite orchestration now executes with compiled plan metadata and writes `plan_compiled` events
+- Memory kernel seed primitives:
+  - `memory_candidates` store for reviewable memory promotion queue entries
+  - `memory_items` store for promoted durable memory entries with provenance
+  - API endpoints for candidate stage/list/promote/reject and memory item list/get
 - Postgres + in-memory repository backends for kernel stores.
 - Kernel SQL migrations:
   - `v0_2` execution ledger
@@ -53,6 +57,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
   - `v0_8` channel runtime reliability
   - `v0_9` tool/connector kernel
   - `v0_10` task-contracts kernel
+  - `v0_11` memory kernel seed
 - Operator tooling:
   - `scripts/db_bootstrap.sh`
   - `scripts/db_status.sh`
@@ -77,6 +82,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Rewrite orchestration now supports contract-driven intent compilation via task contracts.
 - Added plan compilation surface for contract-driven typed step output.
 - Rewrite execution now references typed plan-step metadata in step input/output and receipts.
+- Added reviewed memory promotion flow (`candidate -> promoted item`) with durable in-memory/Postgres backends.
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.

@@ -8,6 +8,7 @@ from app.api.routes.channels import router as channels_router
 from app.api.routes.connectors import router as connectors_router
 from app.api.routes.delivery import router as delivery_router
 from app.api.routes.health import router as health_router
+from app.api.routes.memory import router as memory_router
 from app.api.routes.observations import router as observations_router
 from app.api.routes.plans import router as plans_router
 from app.api.routes.policy import router as policy_router
@@ -26,6 +27,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     auth_dependency = [Depends(require_request_auth)]
     app.include_router(channels_router, dependencies=auth_dependency)
+    app.include_router(memory_router, dependencies=auth_dependency)
     app.include_router(observations_router, dependencies=auth_dependency)
     app.include_router(delivery_router, dependencies=auth_dependency)
     app.include_router(connectors_router, dependencies=auth_dependency)

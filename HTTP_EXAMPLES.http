@@ -3,6 +3,8 @@
 @session_id = replace_me
 @delivery_id = replace_me
 @approval_id = replace_me
+@memory_candidate_id = replace_me
+@memory_item_id = replace_me
 @oversized_text = replace_with_20001_chars
 
 ### Health
@@ -246,3 +248,47 @@ Content-Type: application/json
   "principal_id": "exec-1",
   "goal": "rewrite this text for board notes"
 }
+
+### Memory -> stage candidate
+POST {{host}}/v1/memory/candidates
+Content-Type: application/json
+
+{
+  "principal_id": "exec-1",
+  "category": "stakeholder_pref",
+  "summary": "CEO prefers concise updates",
+  "fact_json": {
+    "tone": "concise"
+  },
+  "source_session_id": "session-1",
+  "source_event_id": "event-1",
+  "source_step_id": "step-1",
+  "confidence": 0.72,
+  "sensitivity": "internal"
+}
+
+### Memory -> list candidates
+GET {{host}}/v1/memory/candidates?limit=20&status=pending
+
+### Memory -> promote candidate
+POST {{host}}/v1/memory/candidates/{{memory_candidate_id}}/promote
+Content-Type: application/json
+
+{
+  "reviewer": "operator",
+  "sharing_policy": "private"
+}
+
+### Memory -> reject candidate
+POST {{host}}/v1/memory/candidates/{{memory_candidate_id}}/reject
+Content-Type: application/json
+
+{
+  "reviewer": "operator"
+}
+
+### Memory -> list items
+GET {{host}}/v1/memory/items?limit=20&principal_id=exec-1
+
+### Memory -> get item
+GET {{host}}/v1/memory/items/{{memory_item_id}}

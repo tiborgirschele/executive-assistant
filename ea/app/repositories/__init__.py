@@ -8,6 +8,10 @@ from app.repositories.delivery_outbox import DeliveryOutboxRepository, InMemoryD
 from app.repositories.delivery_outbox_postgres import PostgresDeliveryOutboxRepository
 from app.repositories.ledger import ExecutionLedgerRepository, InMemoryExecutionLedgerRepository
 from app.repositories.ledger_postgres import PostgresExecutionLedgerRepository
+from app.repositories.memory_candidates import InMemoryMemoryCandidateRepository, MemoryCandidateRepository
+from app.repositories.memory_candidates_postgres import PostgresMemoryCandidateRepository
+from app.repositories.memory_items import InMemoryMemoryItemRepository, MemoryItemRepository
+from app.repositories.memory_items_postgres import PostgresMemoryItemRepository
 from app.repositories.observation import ObservationEventRepository, InMemoryObservationEventRepository
 from app.repositories.observation_postgres import PostgresObservationEventRepository
 from app.repositories.policy_decisions import PolicyDecisionRepository, InMemoryPolicyDecisionRepository
@@ -31,13 +35,19 @@ __all__ = [
     "InMemoryExecutionLedgerRepository",
     "InMemoryObservationEventRepository",
     "InMemoryPolicyDecisionRepository",
+    "InMemoryMemoryCandidateRepository",
+    "InMemoryMemoryItemRepository",
     "ObservationEventRepository",
     "PolicyDecisionRepository",
+    "MemoryCandidateRepository",
+    "MemoryItemRepository",
     "PostgresArtifactRepository",
     "PostgresConnectorBindingRepository",
     "PostgresDeliveryOutboxRepository",
     "PostgresObservationEventRepository",
     "PostgresPolicyDecisionRepository",
+    "PostgresMemoryCandidateRepository",
+    "PostgresMemoryItemRepository",
     "PostgresExecutionLedgerRepository",
     "InMemoryTaskContractRepository",
     "TaskContractRepository",

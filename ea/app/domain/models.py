@@ -97,6 +97,42 @@ class RunCost:
 
 
 @dataclass(frozen=True)
+class MemoryCandidate:
+    candidate_id: str
+    principal_id: str
+    category: str
+    summary: str
+    fact_json: dict[str, Any]
+    source_session_id: str
+    source_event_id: str
+    source_step_id: str
+    confidence: float
+    sensitivity: str
+    status: str
+    created_at: str
+    reviewed_at: str | None = None
+    reviewer: str = ""
+    promoted_item_id: str = ""
+
+
+@dataclass(frozen=True)
+class MemoryItem:
+    item_id: str
+    principal_id: str
+    category: str
+    summary: str
+    fact_json: dict[str, Any]
+    provenance_json: dict[str, Any]
+    confidence: float
+    sensitivity: str
+    sharing_policy: str
+    last_verified_at: str | None
+    reviewer: str
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
 class ToolDefinition:
     tool_name: str
     version: str

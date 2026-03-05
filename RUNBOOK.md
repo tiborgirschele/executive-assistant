@@ -38,6 +38,12 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | GET | `/v1/tasks/contracts` | `200` | validation `422` |
 | GET | `/v1/tasks/contracts/{task_key}` | `200` | `404 task_contract_not_found` |
 | POST | `/v1/plans/compile` | `200` | validation `422` |
+| POST | `/v1/memory/candidates` | `200` | validation `422` |
+| GET | `/v1/memory/candidates` | `200` | validation `422` |
+| POST | `/v1/memory/candidates/{candidate_id}/promote` | `200` | `404 memory_candidate_not_found` |
+| POST | `/v1/memory/candidates/{candidate_id}/reject` | `200` | `404 memory_candidate_not_found` |
+| GET | `/v1/memory/items` | `200` | validation `422` |
+| GET | `/v1/memory/items/{item_id}` | `200` | `404 memory_item_not_found` |
 
 Error envelope for failures:
 - `{ "error": { "code": "...", "message": "...", "details": ..., "correlation_id": "..." } }`
@@ -127,6 +133,7 @@ Applies:
 - `ea/schema/20260305_v0_8_channel_runtime_reliability.sql`
 - `ea/schema/20260305_v0_9_tool_connector_kernel.sql`
 - `ea/schema/20260305_v0_10_task_contracts_kernel.sql`
+- `ea/schema/20260305_v0_11_memory_kernel.sql`
 
 Check table presence/counts:
 
@@ -199,7 +206,23 @@ make release-smoke
 
 The smoke script now includes a blocked-policy assertion (`403` on oversized rewrite input).
 
-## 8) Script Help Smoke
+## 8) Memory Candidate Promotion Smoke
+
+```bash
+curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/memory/candidates \
+  -H 'content-type: application/json' \
+  -d '{"principal_id":"exec-1","category":"stakeholder_pref","summary":"CEO prefers concise updates","fact_json":{"tone":"concise"}}'
+```
+
+Promote using the returned `candidate_id`:
+
+```bash
+curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/memory/candidates/<candidate_id>/promote \
+  -H 'content-type: application/json' \
+  -d '{"reviewer":"operator","sharing_policy":"private"}'
+curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/items?limit=10&principal_id=exec-1"
+```
+## 9) Script Help Smoke
 
 ```bash
 bash scripts/smoke_help.sh
@@ -207,7 +230,7 @@ bash scripts/smoke_help.sh
 make smoke-help
 ```
 
-## 9) Export OpenAPI Snapshot
+## 10) Export OpenAPI Snapshot
 
 ```bash
 bash scripts/export_openapi.sh
@@ -233,7 +256,7 @@ bash scripts/prune_openapi.sh 50
 make openapi-prune
 ```
 
-## 10) Optional Local Pre-Commit Hook
+## 11) Optional Local Pre-Commit Hook
 
 ```bash
 mkdir -p .githooks
@@ -242,7 +265,7 @@ chmod +x .githooks/pre-commit
 git config core.hooksPath .githooks
 ```
 
-## 11) Print Endpoint Inventory
+## 12) Print Endpoint Inventory
 
 ```bash
 bash scripts/list_endpoints.sh
@@ -250,7 +273,7 @@ bash scripts/list_endpoints.sh
 make endpoints
 ```
 
-## 12) Print Version Fingerprint
+## 13) Print Version Fingerprint
 
 ```bash
 bash scripts/version_info.sh
@@ -258,7 +281,7 @@ bash scripts/version_info.sh
 make version-info
 ```
 
-## 13) Print Operator Summary
+## 14) Print Operator Summary
 
 ```bash
 bash scripts/operator_summary.sh
@@ -266,7 +289,7 @@ bash scripts/operator_summary.sh
 make operator-summary
 ```
 
-## 14) Generate Support Bundle
+## 15) Generate Support Bundle
 
 ```bash
 bash scripts/support_bundle.sh
@@ -288,7 +311,7 @@ make support-bundle
 
 `support_bundle.sh` applies baseline redaction patterns for common secret/token/password forms.
 
-## 15) Archive Completed Task Rows
+## 16) Archive Completed Task Rows
 
 ```bash
 # append Done rows to TASKS_ARCHIVE.md
@@ -303,7 +326,7 @@ make tasks-archive-dry-run
 make tasks-archive-prune
 ```
 
-## 16) Verify Release Assets
+## 17) Verify Release Assets
 
 ```bash
 bash scripts/verify_release_assets.sh
@@ -339,6 +362,6 @@ make release-preflight
 
 - `11`: rewrite response missing `execution_session_id`
 - `12`: blocked-policy path did not return expected `403`
-- `13`: delivery enqueue response missing `delivery_id`
+- `13`: runtime response missing an expected resource id (delivery or memory flow)
 
 Other transport failures (for example `curl`) return their native non-zero exit codes.

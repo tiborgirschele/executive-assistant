@@ -10,7 +10,8 @@ Usage:
 
 Runs end-to-end HTTP smoke checks for liveness/readiness/version,
 rewrite/session/policy/approvals, observations, delivery outbox, channel adapters,
-tool/connector registry endpoints, task-contract endpoints, and plan compile endpoint.
+tool/connector registry endpoints, task-contract endpoints, plan compile endpoint,
+and memory candidate/item promotion endpoints.
 
 Auth:
   If EA_API_TOKEN is set, the script sends Authorization: Bearer <token>.
@@ -18,7 +19,7 @@ Auth:
 Exit codes:
   11 missing execution_session_id
   12 blocked-policy contract mismatch
-  13 missing delivery_id
+  13 missing resource id from runtime response
 EOF
   exit 0
 fi
@@ -145,5 +146,23 @@ echo "== smoke: plans =="
 curl -fsS -X POST "${BASE}/v1/plans/compile" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"task_key":"rewrite_text","principal_id":"exec-1","goal":"rewrite this text"}' >/dev/null
 echo "plans ok"
+
+echo "== smoke: memory =="
+MEMORY_CANDIDATE_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/candidates" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"principal_id":"exec-1","category":"stakeholder_pref","summary":"CEO prefers concise updates","fact_json":{"tone":"concise"},"source_session_id":"session-1","source_event_id":"event-1","source_step_id":"step-1","confidence":0.72,"sensitivity":"internal"}')"
+MEMORY_CANDIDATE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("candidate_id",""))' <<<"${MEMORY_CANDIDATE_JSON}")"
+if [[ -z "${MEMORY_CANDIDATE_ID}" ]]; then
+  fail 13 "missing candidate_id from memory candidate response"
+fi
+MEMORY_PROMOTE_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/candidates/${MEMORY_CANDIDATE_ID}/promote" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"reviewer":"smoke-operator","sharing_policy":"private"}')"
+MEMORY_ITEM_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(((body.get("item") or {}).get("item_id")) or "")' <<<"${MEMORY_PROMOTE_JSON}")"
+if [[ -z "${MEMORY_ITEM_ID}" ]]; then
+  fail 13 "missing item_id from memory promote response"
+fi
+curl -fsS "${BASE}/v1/memory/candidates?limit=5&status=promoted" "${AUTH_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/items?limit=5&principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/items/${MEMORY_ITEM_ID}" "${AUTH_ARGS[@]}" >/dev/null
+echo "memory ok"
 
 echo "smoke complete"

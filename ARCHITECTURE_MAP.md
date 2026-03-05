@@ -16,6 +16,14 @@
 - Policy audit:
   - `GET /v1/policy/decisions/recent`
   - (`ea/app/api/routes/policy.py`)
+- Memory kernel:
+  - `POST /v1/memory/candidates`
+  - `GET /v1/memory/candidates`
+  - `POST /v1/memory/candidates/{candidate_id}/promote`
+  - `POST /v1/memory/candidates/{candidate_id}/reject`
+  - `GET /v1/memory/items`
+  - `GET /v1/memory/items/{item_id}`
+  - (`ea/app/api/routes/memory.py`)
 - Observation runtime:
   - `POST /v1/observations/ingest`
   - `GET /v1/observations/recent`
@@ -33,6 +41,7 @@
 
 - Intent + execution: `IntentSpecV3`, `ExecutionSession`, `ExecutionEvent`
 - Policy: `PolicyDecision`, `PolicyDecisionRecord`
+- Memory: `MemoryCandidate`, `MemoryItem`
 - Channel runtime: `ObservationEvent`, `DeliveryOutboxItem`
 - File: `ea/app/domain/models.py`
 
@@ -44,6 +53,8 @@
   - `ea/app/services/policy.py`
 - Channel runtime (observations + outbox) + backend selection:
   - `ea/app/services/channel_runtime.py`
+- Memory runtime (candidate staging + reviewed promotion) + backend selection:
+  - `ea/app/services/memory_runtime.py`
 
 ## Repositories
 
@@ -56,6 +67,12 @@
 - Observation events:
   - in-memory: `ea/app/repositories/observation.py`
   - postgres: `ea/app/repositories/observation_postgres.py`
+- Memory candidates:
+  - in-memory: `ea/app/repositories/memory_candidates.py`
+  - postgres: `ea/app/repositories/memory_candidates_postgres.py`
+- Memory items:
+  - in-memory: `ea/app/repositories/memory_items.py`
+  - postgres: `ea/app/repositories/memory_items_postgres.py`
 - Delivery outbox:
   - in-memory: `ea/app/repositories/delivery_outbox.py`
   - postgres: `ea/app/repositories/delivery_outbox_postgres.py`
@@ -65,6 +82,13 @@
 - `ea/schema/20260305_v0_2_execution_ledger_kernel.sql`
 - `ea/schema/20260305_v0_3_channel_runtime_kernel.sql`
 - `ea/schema/20260305_v0_4_policy_decisions_kernel.sql`
+- `ea/schema/20260305_v0_5_artifacts_kernel.sql`
+- `ea/schema/20260305_v0_6_execution_ledger_v2.sql`
+- `ea/schema/20260305_v0_7_approvals_kernel.sql`
+- `ea/schema/20260305_v0_8_channel_runtime_reliability.sql`
+- `ea/schema/20260305_v0_9_tool_connector_kernel.sql`
+- `ea/schema/20260305_v0_10_task_contracts_kernel.sql`
+- `ea/schema/20260305_v0_11_memory_kernel.sql`
 
 ## Operator Tooling
 

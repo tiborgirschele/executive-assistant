@@ -2,6 +2,7 @@ from app.api.routes.channels import router as channels_router
 from app.api.routes.connectors import router as connectors_router
 from app.api.routes.delivery import router as delivery_router
 from app.api.routes.health import router as health_router
+from app.api.routes.memory import router as memory_router
 from app.api.routes.observations import router as observations_router
 from app.api.routes.plans import router as plans_router
 from app.api.routes.policy import router as policy_router
@@ -14,6 +15,7 @@ __all__ = [
     "connectors_router",
     "delivery_router",
     "health_router",
+    "memory_router",
     "observations_router",
     "plans_router",
     "policy_router",

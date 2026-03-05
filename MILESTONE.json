@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "date": "2026-03-05",
   "features": [
     "execution_ledger",
@@ -31,6 +31,8 @@
     "contract_driven_rewrite_intent",
     "plan_compiler_dsl",
     "plan_step_execution_kernel",
+    "memory_kernel_seed",
+    "memory_candidate_promotion_api",
     "script_help_contracts",
     "ci_gate_bundle",
     "release_preflight_bundle",
@@ -45,7 +47,8 @@
     "ea/schema/20260305_v0_7_approvals_kernel.sql",
     "ea/schema/20260305_v0_8_channel_runtime_reliability.sql",
     "ea/schema/20260305_v0_9_tool_connector_kernel.sql",
-    "ea/schema/20260305_v0_10_task_contracts_kernel.sql"
+    "ea/schema/20260305_v0_10_task_contracts_kernel.sql",
+    "ea/schema/20260305_v0_11_memory_kernel.sql"
   ],
   "env_contract": {
     "EA_STORAGE_BACKEND": "memory|postgres|auto",

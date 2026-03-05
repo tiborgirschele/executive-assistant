@@ -345,6 +345,50 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
     assert rewrite.json()["error"]["code"] == "policy_denied:approval_required"
 
 
+def test_memory_candidate_promotion_flow() -> None:
+    client = _client(storage_backend="memory")
+
+    staged = client.post(
+        "/v1/memory/candidates",
+        json={
+            "principal_id": "exec-1",
+            "category": "stakeholder_pref",
+            "summary": "CEO prefers concise updates",
+            "fact_json": {"tone": "concise"},
+            "source_session_id": "session-1",
+            "source_event_id": "event-1",
+            "source_step_id": "step-1",
+            "confidence": 0.72,
+            "sensitivity": "internal",
+        },
+    )
+    assert staged.status_code == 200
+    candidate_id = staged.json()["candidate_id"]
+    assert staged.json()["status"] == "pending"
+
+    listed_candidates = client.get("/v1/memory/candidates", params={"limit": 10, "status": "pending"})
+    assert listed_candidates.status_code == 200
+    assert any(row["candidate_id"] == candidate_id for row in listed_candidates.json())
+
+    promoted = client.post(
+        f"/v1/memory/candidates/{candidate_id}/promote",
+        json={"reviewer": "operator-1", "sharing_policy": "private"},
+    )
+    assert promoted.status_code == 200
+    promoted_body = promoted.json()
+    assert promoted_body["candidate"]["status"] == "promoted"
+    item_id = promoted_body["item"]["item_id"]
+    assert promoted_body["item"]["provenance_json"]["candidate_id"] == candidate_id
+
+    listed_items = client.get("/v1/memory/items", params={"limit": 10, "principal_id": "exec-1"})
+    assert listed_items.status_code == 200
+    assert any(row["item_id"] == item_id for row in listed_items.json())
+
+    fetched_item = client.get(f"/v1/memory/items/{item_id}")
+    assert fetched_item.status_code == 200
+    assert fetched_item.json()["item_id"] == item_id
+
+
 def test_auth_allow_and_deny() -> None:
     token = "secret-token"
     client = _client(storage_backend="memory", auth_token=token)

@@ -5,9 +5,12 @@ from dataclasses import dataclass
 
 from app.repositories.connector_bindings import InMemoryConnectorBindingRepository
 from app.repositories.delivery_outbox import InMemoryDeliveryOutboxRepository
+from app.repositories.memory_candidates import InMemoryMemoryCandidateRepository
+from app.repositories.memory_items import InMemoryMemoryItemRepository
 from app.repositories.observation import InMemoryObservationEventRepository
 from app.repositories.tool_registry import InMemoryToolRegistryRepository
 from app.services.channel_runtime import ChannelRuntimeService, build_channel_runtime
+from app.services.memory_runtime import MemoryRuntimeService, build_memory_runtime
 from app.services.orchestrator import RewriteOrchestrator, build_default_orchestrator
 from app.services.planner import PlannerService
 from app.services.policy import PolicyDecisionService
@@ -54,6 +57,7 @@ class AppContainer:
     orchestrator: RewriteOrchestrator
     channel_runtime: ChannelRuntimeService
     tool_runtime: ToolRuntimeService
+    memory_runtime: MemoryRuntimeService
     task_contracts: TaskContractService
     planner: PlannerService
     readiness: ReadinessService
@@ -89,6 +93,14 @@ def build_container(settings: Settings | None = None) -> AppContainer:
             connector_bindings=InMemoryConnectorBindingRepository(),
         )
     try:
+        memory_runtime = build_memory_runtime(settings=resolved)
+    except Exception as exc:
+        log.warning("memory runtime bootstrap failed, using in-memory fallback: %s", exc)
+        memory_runtime = MemoryRuntimeService(
+            candidates=InMemoryMemoryCandidateRepository(),
+            items=InMemoryMemoryItemRepository(),
+        )
+    try:
         task_contracts = build_task_contract_service(settings=resolved)
     except Exception as exc:
         log.warning("task-contract bootstrap failed, using in-memory fallback: %s", exc)
@@ -101,6 +113,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         orchestrator=orchestrator,
         channel_runtime=channel_runtime,
         tool_runtime=tool_runtime,
+        memory_runtime=memory_runtime,
         task_contracts=task_contracts,
         planner=planner,
         readiness=ReadinessService(resolved),

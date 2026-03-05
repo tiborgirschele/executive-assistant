@@ -82,6 +82,26 @@ class _FakeToolRuntime:
         return []
 
 
+class _FakeMemoryRuntime:
+    def stage_candidate(self, **_: object):
+        raise AssertionError("not expected in this test")
+
+    def list_candidates(self, **_: object):
+        return []
+
+    def promote_candidate(self, candidate_id: str, **_: object):
+        return None
+
+    def reject_candidate(self, candidate_id: str, **_: object):
+        return None
+
+    def list_items(self, **_: object):
+        return []
+
+    def get_item(self, item_id: str):
+        return None
+
+
 class _FakeTaskContracts:
     def list_contracts(self, limit: int = 100):
         return []
@@ -98,6 +118,7 @@ class _FakeContainer:
         self.orchestrator = _FakeOrchestrator()
         self.channel_runtime = _FakeRuntime()
         self.tool_runtime = _FakeToolRuntime()
+        self.memory_runtime = _FakeMemoryRuntime()
         self.task_contracts = _FakeTaskContracts()
         self.planner = _FakePlanner()
         self.readiness = _FakeReadiness()
