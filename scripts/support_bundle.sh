@@ -15,6 +15,8 @@ Environment:
   SUPPORT_LOG_TAIL_LINES=<n>            Number of log lines to capture (default: 300)
   SUPPORT_INCLUDE_API=0|1               Include ea-api logs (default: 1)
   SUPPORT_INCLUDE_DB=0|1                Include ea-db logs (default: 1)
+  SUPPORT_INCLUDE_DB_SIZE=0|1           Include DB size snapshot via db_size.sh (default: 1)
+  SUPPORT_DB_SIZE_LIMIT=<n>             Top table count for DB size snapshot (default: 10)
   SUPPORT_INCLUDE_QUEUE=0|1             Include queued task snapshot (default: 1)
 EOF
   exit 0
@@ -35,6 +37,8 @@ OUT_FILE="${OUT_DIR}/${PREFIX}_${STAMP}.txt"
 TAIL_LINES="${SUPPORT_LOG_TAIL_LINES:-300}"
 INCLUDE_DB="${SUPPORT_INCLUDE_DB:-1}"
 INCLUDE_API="${SUPPORT_INCLUDE_API:-1}"
+INCLUDE_DB_SIZE="${SUPPORT_INCLUDE_DB_SIZE:-1}"
+DB_SIZE_LIMIT="${SUPPORT_DB_SIZE_LIMIT:-10}"
 INCLUDE_QUEUE="${SUPPORT_INCLUDE_QUEUE:-1}"
 
 redact() {
@@ -77,6 +81,16 @@ redact() {
   else
     echo "-- ea-db logs --"
     echo "skipped (SUPPORT_INCLUDE_DB=${INCLUDE_DB})"
+    echo
+  fi
+
+  if [[ "${INCLUDE_DB_SIZE}" == "1" ]]; then
+    echo "-- db size snapshot --"
+    EA_DB_SIZE_LIMIT="${DB_SIZE_LIMIT}" bash scripts/db_size.sh 2>&1 | redact || true
+    echo
+  else
+    echo "-- db size snapshot --"
+    echo "skipped (SUPPORT_INCLUDE_DB_SIZE=${INCLUDE_DB_SIZE})"
     echo
   fi
 

@@ -132,6 +132,8 @@ Support bundle export is available via `scripts/support_bundle.sh` or `make supp
 Support bundles apply baseline redaction for common secret/token/password patterns.
 Set `SUPPORT_INCLUDE_DB=0` to skip DB logs in support bundle generation.
 Set `SUPPORT_INCLUDE_API=0` to skip API logs in support bundle generation.
+Set `SUPPORT_INCLUDE_DB_SIZE=0` to skip DB size snapshots in support bundle generation.
+Set `SUPPORT_DB_SIZE_LIMIT=<n>` to control top-table count in DB size snapshots.
 Set `SUPPORT_INCLUDE_QUEUE=0` to skip queued-task snapshot in support bundles.
 Set `SUPPORT_BUNDLE_PREFIX=<tag>` to customize support bundle filenames.
 Set `SUPPORT_BUNDLE_TIMESTAMP_FMT=<date format>` to customize bundle timestamp formatting.

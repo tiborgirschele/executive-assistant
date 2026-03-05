@@ -141,6 +141,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Memory runtime now supports principal-scoped communication-policy records for channel/tone governance stubs.
 - Memory runtime now supports principal-scoped follow-up-rule records for proactive follow-through automation stubs.
 - Memory runtime now supports principal-scoped interruption-budget records for interruption-threshold governance stubs.
+- Support bundle export now optionally includes DB size snapshots (`SUPPORT_INCLUDE_DB_SIZE`, `SUPPORT_DB_SIZE_LIMIT`).
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.
