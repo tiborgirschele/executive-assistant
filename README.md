@@ -139,7 +139,7 @@ Set `SUPPORT_BUNDLE_PREFIX=<tag>` to customize support bundle filenames.
 Set `SUPPORT_BUNDLE_TIMESTAMP_FMT=<date format>` to customize bundle timestamp formatting.
 HTTP script host-port resolution details are documented at the top of `RUNBOOK.md`.
 Task archive rotation is available via `scripts/archive_tasks.sh` or `make tasks-archive`.
-Retention pruning dry-runs are available via `scripts/db_retention.sh` or `make db-retention` (`EA_RETENTION_PROFILE=aggressive|standard|conservative`).
+Retention pruning dry-runs are available via `scripts/db_retention.sh` or `make db-retention` (`EA_RETENTION_PROFILE=aggressive|standard|conservative`, optional `EA_RETENTION_TABLES`/`EA_RETENTION_SKIP_TABLES` filters).
 Script help contract smoke is available via `scripts/smoke_help.sh` or `make smoke-help`.
 Release smoke aggregate is available via `make release-smoke`.
 Local CI-parity compile checks can be run via `make ci-local`.

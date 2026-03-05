@@ -20,6 +20,8 @@ Environment:
   EA_RETENTION_DELIVERY_SENT_DAYS          default: 30
   EA_RETENTION_APPROVAL_REQUESTS_DAYS      default: 120
   EA_RETENTION_APPROVAL_DECISIONS_DAYS     default: 120
+  EA_RETENTION_TABLES                      Optional CSV table allowlist
+  EA_RETENTION_SKIP_TABLES                 Optional CSV table skip list
 EOF
   exit 0
 fi
@@ -133,7 +135,7 @@ predicate_for_table() {
   esac
 }
 
-TABLES=(
+DEFAULT_TABLES=(
   execution_events
   policy_decisions
   observation_events
@@ -141,6 +143,36 @@ TABLES=(
   approval_requests
   approval_decisions
 )
+TABLES=("${DEFAULT_TABLES[@]}")
+
+if [[ -n "${EA_RETENTION_TABLES:-}" ]]; then
+  TABLES=()
+  IFS=',' read -r -a requested_tables <<<"${EA_RETENTION_TABLES}"
+  for raw_table in "${requested_tables[@]}"; do
+    t="$(echo "${raw_table}" | xargs)"
+    if [[ -n "${t}" ]]; then
+      TABLES+=("${t}")
+    fi
+  done
+fi
+
+if [[ -n "${EA_RETENTION_SKIP_TABLES:-}" ]]; then
+  declare -A skip_table_map=()
+  IFS=',' read -r -a skip_tables <<<"${EA_RETENTION_SKIP_TABLES}"
+  for raw_skip in "${skip_tables[@]}"; do
+    t="$(echo "${raw_skip}" | xargs)"
+    if [[ -n "${t}" ]]; then
+      skip_table_map["${t}"]=1
+    fi
+  done
+  filtered_tables=()
+  for t in "${TABLES[@]}"; do
+    if [[ -z "${skip_table_map[${t}]+x}" ]]; then
+      filtered_tables+=("${t}")
+    fi
+  done
+  TABLES=("${filtered_tables[@]}")
+fi
 
 echo "== EA DB retention =="
 if [[ "${APPLY}" == "1" ]]; then
@@ -150,6 +182,11 @@ else
 fi
 echo "profile: ${RETENTION_PROFILE}"
 echo "windows: execution_events=${EXECUTION_EVENTS_DAYS}d policy_decisions=${POLICY_DECISIONS_DAYS}d observations=${OBSERVATIONS_DAYS}d delivery_sent=${DELIVERY_SENT_DAYS}d approval_requests=${APPROVAL_REQUESTS_DAYS}d approval_decisions=${APPROVAL_DECISIONS_DAYS}d"
+if [[ "${#TABLES[@]}" == "0" ]]; then
+  echo "no retention tables selected after allowlist/skip filtering" >&2
+  exit 2
+fi
+echo "tables: $(IFS=, ; echo "${TABLES[*]}")"
 
 "${DC[@]}" up -d ea-db >/dev/null
 for _ in $(seq 1 30); do
