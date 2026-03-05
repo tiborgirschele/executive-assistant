@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import pathlib
 import sys
 
@@ -71,16 +72,18 @@ def test_execution_store_behavior_with_stubbed_db() -> None:
     store.get_db = lambda: fake
     try:
         intent = store.compile_intent_spec(
-            text="Read https://example.com and summarize the project deadline risk.",
+            text="Review https://example.com and rebook my trip with safer layover options.",
             tenant="chat_1001",
             chat_id=1001,
             has_url=True,
         )
         assert intent.get("intent_type") == "url_analysis"
-        assert intent.get("domain") in {"project", "general"}
+        assert intent.get("domain") == "travel"
+        assert intent.get("task_type") == "travel_rescue"
         plan = store.build_plan_steps(intent_spec=intent)
         assert any(str(step.get("step_key")) == "compile_intent" for step in plan)
         assert any(str(step.get("step_key")) == "gather_evidence" for step in plan)
+        assert any(str(step.get("step_key")) == "analyze_trip_commitment" for step in plan)
         session_id = store.create_execution_session(
             tenant="chat_1001",
             chat_id=1001,
@@ -108,6 +111,15 @@ def test_execution_store_behavior_with_stubbed_db() -> None:
     assert "UPDATE execution_sessions" in joined_queries
     assert "UPDATE execution_steps" in joined_queries
     assert "INSERT INTO execution_events" in joined_queries
+    step_inserts = [
+        vars for (query, vars) in fake.calls if "INSERT INTO execution_steps" in str(query or "") and isinstance(vars, tuple)
+    ]
+    execute_rows = [row for row in step_inserts if str(row[3]) == "execute_intent"]
+    assert execute_rows, "expected execute_intent step insert"
+    evidence_payload = json.loads(str(execute_rows[0][6] or "{}"))
+    assert str(evidence_payload.get("task_type") or "") == "travel_rescue"
+    assert "oneair" in list(evidence_payload.get("provider_candidates") or [])
+    assert str(evidence_payload.get("output_artifact_type") or "") == "travel_decision_pack"
     _pass("v1.20 execution store behavior with stubbed db")
 
 
