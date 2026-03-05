@@ -86,6 +86,10 @@ Branch: `main`
   - added runtime behavior tests for MetaSurvey, ApproveThis, and BrowserAct event handlers.
   - validates processed/discarded outcomes and execution-session finalization behavior with stubbed DB.
   - `smoke_v1_20_external_event_behavior.py` wired into host/docker/CI gates.
+- [DONE] GOG execution session-id hardening:
+  - removed fixed `--session-id ea-exec` usage from `gog_scout`.
+  - added per-run unique/sanitized session-id generation to reduce concurrent execution collisions.
+  - `smoke_v1_20_gog_session_id_uniqueness.py` wired into host/docker/CI gates.
 - [DONE] Auditor LTD inventory hardening:
   - `LTD_INVENTORY.md` now explicitly separates capability-backed LTD tier declarations
     from non-tiered runtime dependencies.

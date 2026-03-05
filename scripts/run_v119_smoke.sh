@@ -46,6 +46,7 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_20_teable_memory_boundary.py" \
   "$ROOT/tests/smoke_v1_20_slash_command_behavior.py" \
   "$ROOT/tests/smoke_v1_20_typed_action_behavior.py" \
+  "$ROOT/tests/smoke_v1_20_gog_session_id_uniqueness.py" \
   "$ROOT/tests/smoke_v1_19_3_control_plane_decomposition.py" \
   "$ROOT/tests/smoke_v1_19_3_source_acquisition_split.py" \
   "$ROOT/tests/smoke_v1_19_3_briefing_runtime_behavior.py"
@@ -84,6 +85,7 @@ python3 "$ROOT/tests/smoke_v1_20_slash_command_sessions.py"
 python3 "$ROOT/tests/smoke_v1_20_teable_memory_boundary.py"
 python3 "$ROOT/tests/smoke_v1_20_slash_command_behavior.py"
 python3 "$ROOT/tests/smoke_v1_20_typed_action_behavior.py"
+python3 "$ROOT/tests/smoke_v1_20_gog_session_id_uniqueness.py"
 python3 "$ROOT/tests/smoke_v1_19_3_control_plane_decomposition.py"
 python3 "$ROOT/tests/smoke_v1_19_3_source_acquisition_split.py"
 python3 "$ROOT/tests/smoke_v1_19_3_briefing_runtime_behavior.py"

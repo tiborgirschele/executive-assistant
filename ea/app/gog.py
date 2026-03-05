@@ -5,6 +5,7 @@ import asyncio
 import re
 import time
 import shutil
+import uuid
 from app.settings import settings
 
 try:
@@ -129,6 +130,7 @@ async def gog_scout(container: str, prompt: str, account: str, status_cb=None, t
     )
     if not keyring_password:
         return "Execution keyring is not configured. Please ask the operator to set GOG keyring credentials."
+    session_id = _build_gog_session_id(account=account, task_name=task_name)
     cmd = [
         "docker",
         "exec",
@@ -141,7 +143,7 @@ async def gog_scout(container: str, prompt: str, account: str, status_cb=None, t
         "SEARXNG_URL=http://searxng:8080",
     ]
     if account: cmd.extend(["-e", f"GOG_ACCOUNT={account}"])
-    cmd.extend([container, "node", "/app/dist/index.js", "agent", "--message", prompt, "--session-id", "ea-exec"])
+    cmd.extend([container, "node", "/app/dist/index.js", "agent", "--message", prompt, "--session-id", session_id])
     
     print(f"\n========================================", flush=True)
     print(f"🚀 [AGENT DEPLOYED] {container}\n🎯 [TASK] {task_name}", flush=True)
@@ -187,7 +189,7 @@ async def gog_scout(container: str, prompt: str, account: str, status_cb=None, t
                 client = docker_sdk.DockerClient(base_url='unix://var/run/docker.sock')
                 c = client.containers.get(container)
                 out = c.exec_run(
-                    ["node", "/app/dist/index.js", "agent", "--message", prompt, "--session-id", "ea-exec"],
+                    ["node", "/app/dist/index.js", "agent", "--message", prompt, "--session-id", session_id],
                     user="root",
                     environment={
                         **_llm_env_dict(),
@@ -207,3 +209,19 @@ async def gog_scout(container: str, prompt: str, account: str, status_cb=None, t
             pass
 
     return "Execution backend is temporarily unavailable. Please try again in a moment."
+
+
+def _normalize_session_slug(raw: str, *, fallback: str) -> str:
+    value = re.sub(r"[^a-zA-Z0-9_-]+", "-", str(raw or "").strip().lower()).strip("-")
+    if not value:
+        return fallback
+    return value[:24]
+
+
+def _build_gog_session_id(*, account: str, task_name: str) -> str:
+    prefix = _normalize_session_slug(os.getenv("EA_GOG_SESSION_PREFIX", "ea-exec"), fallback="ea-exec")
+    acct = _normalize_session_slug(account, fallback="anon")
+    task = _normalize_session_slug(task_name, fallback="task")
+    ts = int(time.time() * 1000)
+    nonce = uuid.uuid4().hex[:8]
+    return f"{prefix}-{acct}-{task}-{ts}-{nonce}"[:96]

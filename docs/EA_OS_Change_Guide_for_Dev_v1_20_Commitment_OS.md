@@ -85,6 +85,7 @@ be tracked as deterministic steps.
    - `tests/smoke_v1_20_teable_memory_boundary.py`
    - `tests/smoke_v1_20_slash_command_behavior.py`
    - `tests/smoke_v1_20_typed_action_behavior.py`
+   - `tests/smoke_v1_20_gog_session_id_uniqueness.py`
    - wired into:
      - `scripts/run_v119_smoke.sh`
      - `scripts/run_v120_smoke.sh`
@@ -107,3 +108,8 @@ foundation for broader v1.20 planner/session unification across slash commands, 
 2. Add explicit approval-step objects for irreversible actions.
 3. Persist per-step budgets, deadlines, and retry policies.
 4. Add session replay tooling for operator audit.
+
+## Additional hardening in this slice
+
+- `ea/app/gog.py` now generates a unique execution session id per run (no fixed `ea-exec` id),
+  reducing collision risk under concurrent free-text/agent runs.
