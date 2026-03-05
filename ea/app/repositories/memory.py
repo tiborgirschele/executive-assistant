@@ -1,3 +1,5 @@
+from app.repositories.authority_bindings import AuthorityBindingRepository, InMemoryAuthorityBindingRepository
+from app.repositories.authority_bindings_postgres import PostgresAuthorityBindingRepository
 from app.repositories.commitments import CommitmentRepository, InMemoryCommitmentRepository
 from app.repositories.commitments_postgres import PostgresCommitmentRepository
 from app.repositories.entities import EntityRepository, InMemoryEntityRepository
@@ -13,6 +15,9 @@ __all__ = [
     "EntityRepository",
     "InMemoryEntityRepository",
     "PostgresEntityRepository",
+    "AuthorityBindingRepository",
+    "InMemoryAuthorityBindingRepository",
+    "PostgresAuthorityBindingRepository",
     "CommitmentRepository",
     "InMemoryCommitmentRepository",
     "PostgresCommitmentRepository",

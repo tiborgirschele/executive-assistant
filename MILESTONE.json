@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "date": "2026-03-05",
   "features": [
     "execution_ledger",
@@ -37,6 +37,8 @@
     "semantic_relationships_seed",
     "commitments_seed",
     "principal_scoped_commitments_api",
+    "authority_bindings_seed",
+    "principal_scoped_authority_bindings_api",
     "script_help_contracts",
     "ci_gate_bundle",
     "release_preflight_bundle",
@@ -54,7 +56,8 @@
     "ea/schema/20260305_v0_10_task_contracts_kernel.sql",
     "ea/schema/20260305_v0_11_memory_kernel.sql",
     "ea/schema/20260305_v0_12_entities_relationships_kernel.sql",
-    "ea/schema/20260305_v0_13_commitments_kernel.sql"
+    "ea/schema/20260305_v0_13_commitments_kernel.sql",
+    "ea/schema/20260305_v0_14_authority_bindings_kernel.sql"
   ],
   "env_contract": {
     "EA_STORAGE_BACKEND": "memory|postgres|auto",

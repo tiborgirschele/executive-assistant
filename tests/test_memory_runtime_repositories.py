@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.repositories.authority_bindings import InMemoryAuthorityBindingRepository
 from app.repositories.commitments import InMemoryCommitmentRepository
 from app.repositories.entities import InMemoryEntityRepository
 from app.repositories.memory_candidates import InMemoryMemoryCandidateRepository
@@ -44,6 +45,7 @@ def test_inmemory_memory_runtime_promote_and_reject_paths() -> None:
         entities=InMemoryEntityRepository(),
         relationships=InMemoryRelationshipRepository(),
         commitments=InMemoryCommitmentRepository(),
+        authority_bindings=InMemoryAuthorityBindingRepository(),
     )
 
     candidate = runtime.stage_candidate(
@@ -94,6 +96,7 @@ def test_inmemory_entities_and_relationships_upsert_flow() -> None:
         entities=InMemoryEntityRepository(),
         relationships=InMemoryRelationshipRepository(),
         commitments=InMemoryCommitmentRepository(),
+        authority_bindings=InMemoryAuthorityBindingRepository(),
     )
 
     executive = runtime.upsert_entity(
@@ -139,6 +142,7 @@ def test_inmemory_commitments_principal_scope() -> None:
         entities=InMemoryEntityRepository(),
         relationships=InMemoryRelationshipRepository(),
         commitments=InMemoryCommitmentRepository(),
+        authority_bindings=InMemoryAuthorityBindingRepository(),
     )
 
     created = runtime.upsert_commitment(
@@ -163,3 +167,37 @@ def test_inmemory_commitments_principal_scope() -> None:
     right_scope = runtime.get_commitment(created.commitment_id, principal_id="exec-1")
     assert right_scope is not None
     assert right_scope.title == "Send board follow-up"
+
+
+def test_inmemory_authority_bindings_principal_scope() -> None:
+    runtime = MemoryRuntimeService(
+        candidates=InMemoryMemoryCandidateRepository(),
+        items=InMemoryMemoryItemRepository(),
+        entities=InMemoryEntityRepository(),
+        relationships=InMemoryRelationshipRepository(),
+        commitments=InMemoryCommitmentRepository(),
+        authority_bindings=InMemoryAuthorityBindingRepository(),
+    )
+
+    created = runtime.upsert_authority_binding(
+        principal_id="exec-1",
+        subject_ref="assistant",
+        action_scope="calendar.write",
+        approval_level="manager",
+        channel_scope=("email", "slack"),
+        policy_json={"quiet_hours_enforced": True},
+        status="active",
+    )
+    assert created.binding_id
+    assert created.principal_id == "exec-1"
+
+    listed = runtime.list_authority_bindings(principal_id="exec-1", limit=10)
+    assert len(listed) == 1
+    assert listed[0].binding_id == created.binding_id
+
+    wrong_scope = runtime.get_authority_binding(created.binding_id, principal_id="exec-2")
+    assert wrong_scope is None
+
+    right_scope = runtime.get_authority_binding(created.binding_id, principal_id="exec-1")
+    assert right_scope is not None
+    assert right_scope.action_scope == "calendar.write"

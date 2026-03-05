@@ -30,6 +30,7 @@ Removed:
 - `/v1/memory/entities*` upserts/list/gets semantic entities for people/projects/objects
 - `/v1/memory/relationships*` upserts/list/gets relationship edges between entities
 - `/v1/memory/commitments*` upserts/list/gets principal-scoped commitments
+- `/v1/memory/authority-bindings*` upserts/list/gets principal-scoped authority bindings
 - rewrite execution now records `plan_compiled` and executes the primary typed plan step in the ledger
 - observation intake supports `source_id`/`external_id`/`dedupe_key` attribution and auth/raw-payload pointers
 - delivery outbox supports idempotency keys plus retry/dead-letter state fields
@@ -63,6 +64,7 @@ Removed:
 - memory kernel migration: `ea/schema/20260305_v0_11_memory_kernel.sql`
 - entities/relationships kernel migration: `ea/schema/20260305_v0_12_entities_relationships_kernel.sql`
 - commitments kernel migration: `ea/schema/20260305_v0_13_commitments_kernel.sql`
+- authority bindings kernel migration: `ea/schema/20260305_v0_14_authority_bindings_kernel.sql`
 
 ## Auth
 

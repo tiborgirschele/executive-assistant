@@ -482,6 +482,37 @@ def test_memory_commitments_principal_scope_flow() -> None:
     assert wrong_scope.json()["error"]["code"] == "commitment_not_found"
 
 
+def test_memory_authority_bindings_principal_scope_flow() -> None:
+    client = _client(storage_backend="memory")
+
+    created = client.post(
+        "/v1/memory/authority-bindings",
+        json={
+            "principal_id": "exec-1",
+            "subject_ref": "assistant",
+            "action_scope": "calendar.write",
+            "approval_level": "manager",
+            "channel_scope": ["email", "slack"],
+            "policy_json": {"quiet_hours_enforced": True},
+            "status": "active",
+        },
+    )
+    assert created.status_code == 200
+    binding_id = created.json()["binding_id"]
+
+    listed = client.get("/v1/memory/authority-bindings", params={"principal_id": "exec-1", "limit": 10})
+    assert listed.status_code == 200
+    assert any(row["binding_id"] == binding_id for row in listed.json())
+
+    fetched = client.get(f"/v1/memory/authority-bindings/{binding_id}", params={"principal_id": "exec-1"})
+    assert fetched.status_code == 200
+    assert fetched.json()["action_scope"] == "calendar.write"
+
+    wrong_scope = client.get(f"/v1/memory/authority-bindings/{binding_id}", params={"principal_id": "exec-2"})
+    assert wrong_scope.status_code == 404
+    assert wrong_scope.json()["error"]["code"] == "authority_binding_not_found"
+
+
 def test_auth_allow_and_deny() -> None:
     token = "secret-token"
     client = _client(storage_backend="memory", auth_token=token)

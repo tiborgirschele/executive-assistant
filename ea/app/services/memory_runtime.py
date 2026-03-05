@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 
-from app.domain.models import Commitment, Entity, MemoryCandidate, MemoryItem, RelationshipEdge, now_utc_iso
+from app.domain.models import AuthorityBinding, Commitment, Entity, MemoryCandidate, MemoryItem, RelationshipEdge, now_utc_iso
+from app.repositories.authority_bindings import AuthorityBindingRepository, InMemoryAuthorityBindingRepository
+from app.repositories.authority_bindings_postgres import PostgresAuthorityBindingRepository
 from app.repositories.commitments import CommitmentRepository, InMemoryCommitmentRepository
 from app.repositories.commitments_postgres import PostgresCommitmentRepository
 from app.repositories.entities import EntityRepository, InMemoryEntityRepository
@@ -24,12 +26,14 @@ class MemoryRuntimeService:
         entities: EntityRepository,
         relationships: RelationshipRepository,
         commitments: CommitmentRepository,
+        authority_bindings: AuthorityBindingRepository,
     ) -> None:
         self._candidates = candidates
         self._items = items
         self._entities = entities
         self._relationships = relationships
         self._commitments = commitments
+        self._authority_bindings = authority_bindings
 
     def stage_candidate(
         self,
@@ -247,6 +251,50 @@ class MemoryRuntimeService:
             return None
         return found
 
+    def upsert_authority_binding(
+        self,
+        *,
+        principal_id: str,
+        subject_ref: str,
+        action_scope: str,
+        approval_level: str = "manager",
+        channel_scope: tuple[str, ...] = (),
+        policy_json: dict[str, object] | None = None,
+        status: str = "active",
+        binding_id: str | None = None,
+    ) -> AuthorityBinding:
+        return self._authority_bindings.upsert_binding(
+            principal_id=principal_id,
+            subject_ref=subject_ref,
+            action_scope=action_scope,
+            approval_level=approval_level,
+            channel_scope=channel_scope,
+            policy_json=policy_json,
+            status=status,
+            binding_id=binding_id,
+        )
+
+    def list_authority_bindings(
+        self,
+        *,
+        principal_id: str,
+        limit: int = 100,
+        status: str | None = None,
+    ) -> list[AuthorityBinding]:
+        return self._authority_bindings.list_bindings(
+            principal_id=principal_id,
+            limit=limit,
+            status=status,
+        )
+
+    def get_authority_binding(self, binding_id: str, *, principal_id: str) -> AuthorityBinding | None:
+        found = self._authority_bindings.get(binding_id)
+        if not found:
+            return None
+        if found.principal_id != str(principal_id or "").strip():
+            return None
+        return found
+
 
 def _backend_mode(settings: Settings) -> str:
     return str(settings.storage.backend or "auto").strip().lower()
@@ -337,6 +385,23 @@ def _build_commitment_repo(settings: Settings) -> CommitmentRepository:
     return InMemoryCommitmentRepository()
 
 
+def _build_authority_binding_repo(settings: Settings) -> AuthorityBindingRepository:
+    backend = _backend_mode(settings)
+    log = logging.getLogger("ea.authority_bindings")
+    if backend == "memory":
+        return InMemoryAuthorityBindingRepository()
+    if backend == "postgres":
+        if not settings.database_url:
+            raise RuntimeError("EA_STORAGE_BACKEND=postgres requires DATABASE_URL")
+        return PostgresAuthorityBindingRepository(settings.database_url)
+    if settings.database_url:
+        try:
+            return PostgresAuthorityBindingRepository(settings.database_url)
+        except Exception as exc:
+            log.warning("postgres authority-binding backend unavailable in auto mode; falling back to memory: %s", exc)
+    return InMemoryAuthorityBindingRepository()
+
+
 def build_memory_runtime(settings: Settings | None = None) -> MemoryRuntimeService:
     resolved = settings or get_settings()
     return MemoryRuntimeService(
@@ -345,4 +410,5 @@ def build_memory_runtime(settings: Settings | None = None) -> MemoryRuntimeServi
         entities=_build_entity_repo(resolved),
         relationships=_build_relationship_repo(resolved),
         commitments=_build_commitment_repo(resolved),
+        authority_bindings=_build_authority_binding_repo(resolved),
     )

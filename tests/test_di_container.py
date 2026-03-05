@@ -128,6 +128,15 @@ class _FakeMemoryRuntime:
     def get_commitment(self, commitment_id: str, **_: object):
         return None
 
+    def upsert_authority_binding(self, **_: object):
+        raise AssertionError("not expected in this test")
+
+    def list_authority_bindings(self, **_: object):
+        return []
+
+    def get_authority_binding(self, binding_id: str, **_: object):
+        return None
+
 
 class _FakeTaskContracts:
     def list_contracts(self, limit: int = 100):

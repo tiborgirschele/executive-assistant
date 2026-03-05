@@ -175,6 +175,20 @@ class Commitment:
 
 
 @dataclass(frozen=True)
+class AuthorityBinding:
+    binding_id: str
+    principal_id: str
+    subject_ref: str
+    action_scope: str
+    approval_level: str
+    channel_scope: tuple[str, ...]
+    policy_json: dict[str, Any]
+    status: str
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
 class ToolDefinition:
     tool_name: str
     version: str

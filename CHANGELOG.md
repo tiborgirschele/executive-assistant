@@ -53,6 +53,9 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Commitment primitives:
   - `commitments` store for principal-scoped commitment tracking
   - API endpoints for commitment upsert/list/get with principal-scoped reads
+- Authority-binding primitives:
+  - `authority_bindings` store for principal-scoped action authority metadata
+  - API endpoints for authority-binding upsert/list/get with principal-scoped reads
 - Postgres + in-memory repository backends for kernel stores.
 - Kernel SQL migrations:
   - `v0_2` execution ledger
@@ -67,6 +70,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
   - `v0_11` memory kernel seed
   - `v0_12` entities/relationships kernel seed
   - `v0_13` commitments kernel seed
+  - `v0_14` authority-bindings kernel seed
 - Operator tooling:
   - `scripts/db_bootstrap.sh`
   - `scripts/db_status.sh`
@@ -94,6 +98,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Added reviewed memory promotion flow (`candidate -> promoted item`) with durable in-memory/Postgres backends.
 - Memory runtime now supports semantic entity and relationship stubs for graph-style context seeding.
 - Memory runtime now supports principal-scoped commitment records for durable follow-up tracking.
+- Memory runtime now supports principal-scoped authority-binding records for governance stubs.
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.

@@ -8,6 +8,7 @@
 @entity_id = replace_me
 @relationship_id = replace_me
 @commitment_id = replace_me
+@authority_binding_id = replace_me
 @oversized_text = replace_with_20001_chars
 
 ### Health
@@ -359,3 +360,28 @@ GET {{host}}/v1/memory/commitments?principal_id=exec-1&limit=20
 
 ### Memory -> get commitment (principal-scoped)
 GET {{host}}/v1/memory/commitments/{{commitment_id}}?principal_id=exec-1
+
+### Memory -> upsert authority binding (principal-scoped)
+POST {{host}}/v1/memory/authority-bindings
+Content-Type: application/json
+
+{
+  "principal_id": "exec-1",
+  "subject_ref": "assistant",
+  "action_scope": "calendar.write",
+  "approval_level": "manager",
+  "channel_scope": [
+    "email",
+    "slack"
+  ],
+  "policy_json": {
+    "quiet_hours_enforced": true
+  },
+  "status": "active"
+}
+
+### Memory -> list authority bindings (principal-scoped)
+GET {{host}}/v1/memory/authority-bindings?principal_id=exec-1&limit=20
+
+### Memory -> get authority binding (principal-scoped)
+GET {{host}}/v1/memory/authority-bindings/{{authority_binding_id}}?principal_id=exec-1

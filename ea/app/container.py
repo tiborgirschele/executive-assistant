@@ -7,6 +7,7 @@ from app.repositories.connector_bindings import InMemoryConnectorBindingReposito
 from app.repositories.commitments import InMemoryCommitmentRepository
 from app.repositories.delivery_outbox import InMemoryDeliveryOutboxRepository
 from app.repositories.entities import InMemoryEntityRepository
+from app.repositories.authority_bindings import InMemoryAuthorityBindingRepository
 from app.repositories.memory_candidates import InMemoryMemoryCandidateRepository
 from app.repositories.memory_items import InMemoryMemoryItemRepository
 from app.repositories.observation import InMemoryObservationEventRepository
@@ -105,6 +106,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
             entities=InMemoryEntityRepository(),
             relationships=InMemoryRelationshipRepository(),
             commitments=InMemoryCommitmentRepository(),
+            authority_bindings=InMemoryAuthorityBindingRepository(),
         )
     try:
         task_contracts = build_task_contract_service(settings=resolved)

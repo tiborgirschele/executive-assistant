@@ -16,3 +16,4 @@ Current rewrite kernel migrations:
 - `20260305_v0_11_memory_kernel.sql`
 - `20260305_v0_12_entities_relationships_kernel.sql`
 - `20260305_v0_13_commitments_kernel.sql`
+- `20260305_v0_14_authority_bindings_kernel.sql`

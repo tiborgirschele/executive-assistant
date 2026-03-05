@@ -14,7 +14,7 @@ Checks kernel table presence and row counts for:
   execution_steps, tool_receipts, run_costs,
   approval_requests, approval_decisions,
   memory_candidates, memory_items,
-  entities, relationships, commitments
+  entities, relationships, commitments, authority_bindings
 EOF
   exit 0
 fi
@@ -46,6 +46,7 @@ TABLES=(
   entities
   relationships
   commitments
+  authority_bindings
 )
 
 echo "== EA DB status =="

@@ -125,6 +125,30 @@ class CommitmentOut(BaseModel):
     updated_at: str
 
 
+class AuthorityBindingIn(BaseModel):
+    principal_id: str = Field(min_length=1, max_length=200)
+    subject_ref: str = Field(min_length=1, max_length=200)
+    action_scope: str = Field(min_length=1, max_length=200)
+    approval_level: str = Field(default="manager", max_length=100)
+    channel_scope: list[str] = Field(default_factory=list)
+    policy_json: dict[str, object] = Field(default_factory=dict)
+    status: str = Field(default="active", max_length=80)
+    binding_id: str | None = Field(default=None, max_length=200)
+
+
+class AuthorityBindingOut(BaseModel):
+    binding_id: str
+    principal_id: str
+    subject_ref: str
+    action_scope: str
+    approval_level: str
+    channel_scope: list[str]
+    policy_json: dict[str, object]
+    status: str
+    created_at: str
+    updated_at: str
+
+
 class PromoteCandidateIn(BaseModel):
     reviewer: str = Field(min_length=1, max_length=200)
     sharing_policy: str = Field(default="private", max_length=100)
@@ -220,6 +244,21 @@ def _commitment_out(row) -> CommitmentOut:
         priority=row.priority,
         due_at=row.due_at,
         source_json=row.source_json,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _authority_binding_out(row) -> AuthorityBindingOut:
+    return AuthorityBindingOut(
+        binding_id=row.binding_id,
+        principal_id=row.principal_id,
+        subject_ref=row.subject_ref,
+        action_scope=row.action_scope,
+        approval_level=row.approval_level,
+        channel_scope=list(row.channel_scope),
+        policy_json=row.policy_json,
+        status=row.status,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -439,3 +478,48 @@ def get_memory_commitment(
     if not row:
         raise HTTPException(status_code=404, detail="commitment_not_found")
     return _commitment_out(row)
+
+
+@router.post("/authority-bindings")
+def upsert_memory_authority_binding(
+    body: AuthorityBindingIn,
+    container: AppContainer = Depends(get_container),
+) -> AuthorityBindingOut:
+    row = container.memory_runtime.upsert_authority_binding(
+        principal_id=body.principal_id,
+        subject_ref=body.subject_ref,
+        action_scope=body.action_scope,
+        approval_level=body.approval_level,
+        channel_scope=tuple(body.channel_scope),
+        policy_json=body.policy_json,
+        status=body.status,
+        binding_id=body.binding_id,
+    )
+    return _authority_binding_out(row)
+
+
+@router.get("/authority-bindings")
+def list_memory_authority_bindings(
+    principal_id: str = Query(min_length=1, max_length=200),
+    limit: int = Query(default=100, ge=1, le=500),
+    status: str | None = Query(default=None),
+    container: AppContainer = Depends(get_container),
+) -> list[AuthorityBindingOut]:
+    rows = container.memory_runtime.list_authority_bindings(
+        principal_id=principal_id,
+        limit=limit,
+        status=status,
+    )
+    return [_authority_binding_out(row) for row in rows]
+
+
+@router.get("/authority-bindings/{binding_id}")
+def get_memory_authority_binding(
+    binding_id: str,
+    principal_id: str = Query(min_length=1, max_length=200),
+    container: AppContainer = Depends(get_container),
+) -> AuthorityBindingOut:
+    row = container.memory_runtime.get_authority_binding(binding_id, principal_id=principal_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="authority_binding_not_found")
+    return _authority_binding_out(row)
