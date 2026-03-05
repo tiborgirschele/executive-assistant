@@ -16,6 +16,7 @@ Environment:
   POSTGRES_USER            Postgres user (default: postgres)
   POSTGRES_DB              Postgres database name (default: ea)
   EA_DB_SIZE_LIMIT         Number of largest tables to print (default: 20)
+  EA_DB_SIZE_SCHEMA        Optional schema filter (for example: public)
   EA_DB_SIZE_TABLE_PREFIX  Optional table-name prefix filter
   EA_DB_SIZE_MIN_MB        Optional minimum total table size in MB
 EOF
@@ -32,6 +33,7 @@ DB_CONTAINER="${EA_DB_CONTAINER:-ea-db}"
 DB_USER="${POSTGRES_USER:-postgres}"
 DB_NAME="${POSTGRES_DB:-ea}"
 SIZE_LIMIT="${EA_DB_SIZE_LIMIT:-20}"
+TABLE_SCHEMA="${EA_DB_SIZE_SCHEMA:-}"
 TABLE_PREFIX="${EA_DB_SIZE_TABLE_PREFIX:-}"
 MIN_MB="${EA_DB_SIZE_MIN_MB:-0}"
 
@@ -45,12 +47,20 @@ if [[ -n "${TABLE_PREFIX}" && ! "${TABLE_PREFIX}" =~ ^[A-Za-z0-9_]+$ ]]; then
   exit 2
 fi
 
+if [[ -n "${TABLE_SCHEMA}" && ! "${TABLE_SCHEMA}" =~ ^[A-Za-z0-9_]+$ ]]; then
+  echo "EA_DB_SIZE_SCHEMA must match [A-Za-z0-9_]+" >&2
+  exit 2
+fi
+
 if ! [[ "${MIN_MB}" =~ ^[0-9]+$ ]]; then
   echo "EA_DB_SIZE_MIN_MB must be an integer" >&2
   exit 2
 fi
 
 FILTER_CLAUSE="TRUE"
+if [[ -n "${TABLE_SCHEMA}" ]]; then
+  FILTER_CLAUSE="${FILTER_CLAUSE} AND schemaname = '${TABLE_SCHEMA}'"
+fi
 if [[ -n "${TABLE_PREFIX}" ]]; then
   FILTER_CLAUSE="${FILTER_CLAUSE} AND relname LIKE '${TABLE_PREFIX}%'"
 fi
@@ -82,6 +92,9 @@ docker exec -i "${DB_CONTAINER}" psql -U "${DB_USER}" -d "${DB_NAME}" -c \
    WHERE ${FILTER_CLAUSE};"
 
 echo "-- largest user tables (top ${SIZE_LIMIT}) --"
+if [[ -n "${TABLE_SCHEMA}" ]]; then
+  echo "table_schema_filter=${TABLE_SCHEMA}"
+fi
 if [[ -n "${TABLE_PREFIX}" ]]; then
   echo "table_prefix_filter=${TABLE_PREFIX}"
 fi
@@ -90,6 +103,7 @@ if [[ "${MIN_MB}" -gt 0 ]]; then
 fi
 docker exec -i "${DB_CONTAINER}" psql -U "${DB_USER}" -d "${DB_NAME}" -c \
   "SELECT \
+     schemaname AS schema_name, \
      relname AS table_name, \
      pg_size_pretty(pg_relation_size(relid)) AS table_size, \
      pg_size_pretty(pg_indexes_size(relid)) AS index_size, \

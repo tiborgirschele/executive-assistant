@@ -146,6 +146,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Retention operator flow now supports table allowlist/skip filters (`EA_RETENTION_TABLES`, `EA_RETENTION_SKIP_TABLES`).
 - DB size operator flow now supports table-prefix scoping (`EA_DB_SIZE_TABLE_PREFIX`).
 - DB size operator flow now supports minimum-size filtering (`EA_DB_SIZE_MIN_MB`).
+- DB size operator flow now supports schema scoping (`EA_DB_SIZE_SCHEMA`).
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.
