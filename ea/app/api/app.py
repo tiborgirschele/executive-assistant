@@ -5,11 +5,13 @@ from fastapi import Depends, FastAPI
 from app.api.dependencies import require_request_auth
 from app.api.errors import install_error_handlers
 from app.api.routes.channels import router as channels_router
+from app.api.routes.connectors import router as connectors_router
 from app.api.routes.delivery import router as delivery_router
 from app.api.routes.health import router as health_router
 from app.api.routes.observations import router as observations_router
 from app.api.routes.policy import router as policy_router
 from app.api.routes.rewrite import router as rewrite_router
+from app.api.routes.tools import router as tools_router
 from app.container import build_container
 from app.settings import get_settings
 
@@ -24,6 +26,8 @@ def create_app() -> FastAPI:
     app.include_router(channels_router, dependencies=auth_dependency)
     app.include_router(observations_router, dependencies=auth_dependency)
     app.include_router(delivery_router, dependencies=auth_dependency)
+    app.include_router(connectors_router, dependencies=auth_dependency)
     app.include_router(policy_router, dependencies=auth_dependency)
     app.include_router(rewrite_router, dependencies=auth_dependency)
+    app.include_router(tools_router, dependencies=auth_dependency)
     return app

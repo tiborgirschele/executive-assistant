@@ -47,6 +47,7 @@ required_files=(
   "ea/schema/20260305_v0_6_execution_ledger_v2.sql"
   "ea/schema/20260305_v0_7_approvals_kernel.sql"
   "ea/schema/20260305_v0_8_channel_runtime_reliability.sql"
+  "ea/schema/20260305_v0_9_tool_connector_kernel.sql"
 )
 
 echo "== verify release assets =="

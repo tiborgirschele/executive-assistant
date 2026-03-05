@@ -11,3 +11,4 @@ Current rewrite kernel migrations:
 - `20260305_v0_6_execution_ledger_v2.sql`
 - `20260305_v0_7_approvals_kernel.sql`
 - `20260305_v0_8_channel_runtime_reliability.sql`
+- `20260305_v0_9_tool_connector_kernel.sql`

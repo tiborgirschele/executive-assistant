@@ -97,6 +97,32 @@ class RunCost:
 
 
 @dataclass(frozen=True)
+class ToolDefinition:
+    tool_name: str
+    version: str
+    input_schema_json: dict[str, Any]
+    output_schema_json: dict[str, Any]
+    policy_json: dict[str, Any]
+    allowed_channels: tuple[str, ...]
+    approval_default: str
+    enabled: bool
+    updated_at: str
+
+
+@dataclass(frozen=True)
+class ConnectorBinding:
+    binding_id: str
+    principal_id: str
+    connector_name: str
+    external_account_ref: str
+    scope_json: dict[str, Any]
+    auth_metadata_json: dict[str, Any]
+    status: str
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
 class ApprovalRequest:
     approval_id: str
     session_id: str

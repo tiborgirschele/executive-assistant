@@ -3,11 +3,14 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+from app.repositories.connector_bindings import InMemoryConnectorBindingRepository
 from app.repositories.delivery_outbox import InMemoryDeliveryOutboxRepository
 from app.repositories.observation import InMemoryObservationEventRepository
+from app.repositories.tool_registry import InMemoryToolRegistryRepository
 from app.services.channel_runtime import ChannelRuntimeService, build_channel_runtime
 from app.services.orchestrator import RewriteOrchestrator, build_default_orchestrator
 from app.services.policy import PolicyDecisionService
+from app.services.tool_runtime import ToolRuntimeService, build_tool_runtime
 from app.settings import Settings, get_settings
 
 
@@ -48,6 +51,7 @@ class AppContainer:
     settings: Settings
     orchestrator: RewriteOrchestrator
     channel_runtime: ChannelRuntimeService
+    tool_runtime: ToolRuntimeService
     readiness: ReadinessService
 
 
@@ -72,9 +76,18 @@ def build_container(settings: Settings | None = None) -> AppContainer:
             observations=InMemoryObservationEventRepository(),
             outbox=InMemoryDeliveryOutboxRepository(),
         )
+    try:
+        tool_runtime = build_tool_runtime(settings=resolved)
+    except Exception as exc:
+        log.warning("tool runtime bootstrap failed, using in-memory fallback: %s", exc)
+        tool_runtime = ToolRuntimeService(
+            tool_registry=InMemoryToolRegistryRepository(),
+            connector_bindings=InMemoryConnectorBindingRepository(),
+        )
     return AppContainer(
         settings=resolved,
         orchestrator=orchestrator,
         channel_runtime=channel_runtime,
+        tool_runtime=tool_runtime,
         readiness=ReadinessService(resolved),
     )

@@ -254,6 +254,55 @@ def test_telegram_adapter_ingest() -> None:
     assert body["event_type"] == "telegram.message"
 
 
+def test_tool_registry_and_connector_bindings_flow() -> None:
+    client = _client(storage_backend="memory")
+
+    tool = client.post(
+        "/v1/tools/registry",
+        json={
+            "tool_name": "email.send",
+            "version": "v1",
+            "input_schema_json": {"type": "object", "properties": {"to": {"type": "string"}}},
+            "output_schema_json": {"type": "object"},
+            "policy_json": {"risk": "medium"},
+            "allowed_channels": ["email", "slack"],
+            "approval_default": "manager",
+            "enabled": True,
+        },
+    )
+    assert tool.status_code == 200
+    assert tool.json()["tool_name"] == "email.send"
+
+    listed_tools = client.get("/v1/tools/registry", params={"limit": 10})
+    assert listed_tools.status_code == 200
+    assert any(row["tool_name"] == "email.send" for row in listed_tools.json())
+
+    binding = client.post(
+        "/v1/connectors/bindings",
+        json={
+            "principal_id": "exec-1",
+            "connector_name": "gmail",
+            "external_account_ref": "acct-1",
+            "scope_json": {"scopes": ["mail.readonly"]},
+            "auth_metadata_json": {"provider": "google"},
+            "status": "enabled",
+        },
+    )
+    assert binding.status_code == 200
+    binding_id = binding.json()["binding_id"]
+
+    listed_bindings = client.get("/v1/connectors/bindings", params={"principal_id": "exec-1", "limit": 10})
+    assert listed_bindings.status_code == 200
+    assert any(row["binding_id"] == binding_id for row in listed_bindings.json())
+
+    disabled = client.post(
+        f"/v1/connectors/bindings/{binding_id}/status",
+        json={"status": "disabled"},
+    )
+    assert disabled.status_code == 200
+    assert disabled.json()["status"] == "disabled"
+
+
 def test_auth_allow_and_deny() -> None:
     token = "secret-token"
     client = _client(storage_backend="memory", auth_token=token)

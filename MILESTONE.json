@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "date": "2026-03-05",
   "features": [
     "execution_ledger",
@@ -25,6 +25,8 @@
     "approval_decision_api",
     "observation_dedupe_context",
     "outbox_retry_idempotency",
+    "tool_registry_kernel",
+    "connector_bindings_kernel",
     "script_help_contracts",
     "ci_gate_bundle",
     "release_preflight_bundle",
@@ -37,7 +39,8 @@
     "ea/schema/20260305_v0_5_artifacts_kernel.sql",
     "ea/schema/20260305_v0_6_execution_ledger_v2.sql",
     "ea/schema/20260305_v0_7_approvals_kernel.sql",
-    "ea/schema/20260305_v0_8_channel_runtime_reliability.sql"
+    "ea/schema/20260305_v0_8_channel_runtime_reliability.sql",
+    "ea/schema/20260305_v0_9_tool_connector_kernel.sql"
   ],
   "env_contract": {
     "EA_STORAGE_BACKEND": "memory|postgres|auto",

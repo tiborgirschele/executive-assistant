@@ -30,6 +30,10 @@ All notable changes to the rewrite-kernel baseline are documented here.
   - observation attribution fields (`source_id`, `external_id`, `dedupe_key`, `auth_context_json`, `raw_payload_uri`)
   - delivery idempotency/retry fields (`idempotency_key`, `attempt_count`, `next_attempt_at`, `last_error`, `receipt_json`, `dead_lettered_at`)
   - delivery failure endpoint (`POST /v1/delivery/outbox/{delivery_id}/failed`)
+- Tool/connector kernel primitives:
+  - `tool_registry` store for typed tool contracts and policy metadata
+  - `connector_bindings` store for external account bindings + status
+  - API endpoints for tool registry and connector binding CRUD/status updates
 - Postgres + in-memory repository backends for kernel stores.
 - Kernel SQL migrations:
   - `v0_2` execution ledger
@@ -39,6 +43,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
   - `v0_6` execution ledger v2
   - `v0_7` approvals workflow
   - `v0_8` channel runtime reliability
+  - `v0_9` tool/connector kernel
 - Operator tooling:
   - `scripts/db_bootstrap.sh`
   - `scripts/db_status.sh`
@@ -59,6 +64,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Artifact persistence now supports durable Postgres metadata + file-backed content storage.
 - Approval-required rewrite sessions now pause with `waiting_approval` steps and transition on approve/deny/expire decisions.
 - Observation ingest now supports dedupe and source attribution; delivery outbox now supports retry scheduling and idempotent enqueue.
+- API/runtime now includes first-class tool registry and connector binding management surfaces.
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.

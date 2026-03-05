@@ -9,7 +9,8 @@ Usage:
   bash scripts/smoke_api.sh
 
 Runs end-to-end HTTP smoke checks for liveness/readiness/version,
-rewrite/session/policy/approvals, observations, delivery outbox, and telegram adapter.
+rewrite/session/policy/approvals, observations, delivery outbox, channel adapters,
+and tool/connector registry endpoints.
 
 Auth:
   If EA_API_TOKEN is set, the script sends Authorization: Bearer <token>.
@@ -119,5 +120,18 @@ echo "== smoke: telegram adapter =="
 curl -fsS -X POST "${BASE}/v1/channels/telegram/ingest" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"update":{"message":{"chat":{"id":42},"text":"hello","message_id":7,"date":123}}}' >/dev/null
 echo "telegram adapter ok"
+
+echo "== smoke: tools and connectors =="
+curl -fsS -X POST "${BASE}/v1/tools/registry" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"tool_name":"email.send","version":"v1","input_schema_json":{"type":"object"},"output_schema_json":{"type":"object"},"policy_json":{"risk":"medium"},"allowed_channels":["email"],"approval_default":"manager","enabled":true}' >/dev/null
+curl -fsS "${BASE}/v1/tools/registry?limit=5" "${AUTH_ARGS[@]}" >/dev/null
+CONNECTOR_JSON="$(curl -fsS -X POST "${BASE}/v1/connectors/bindings" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"principal_id":"exec-1","connector_name":"gmail","external_account_ref":"acct-1","scope_json":{"scopes":["mail.readonly"]},"auth_metadata_json":{"provider":"google"},"status":"enabled"}')"
+BINDING_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("binding_id",""))' <<<"${CONNECTOR_JSON}")"
+if [[ -n "${BINDING_ID}" ]]; then
+  curl -fsS -X POST "${BASE}/v1/connectors/bindings/${BINDING_ID}/status" "${AUTH_ARGS[@]}" -H 'content-type: application/json' -d '{"status":"disabled"}' >/dev/null
+fi
+curl -fsS "${BASE}/v1/connectors/bindings?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
+echo "tools/connectors ok"
 
 echo "smoke complete"

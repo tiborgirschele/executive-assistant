@@ -151,3 +151,63 @@ Content-Type: application/json
 
 ### Rewrite -> unknown session (expected 404)
 GET {{host}}/v1/rewrite/sessions/not-a-real-session-id
+
+### Tools -> upsert registry entry
+POST {{host}}/v1/tools/registry
+Content-Type: application/json
+
+{
+  "tool_name": "email.send",
+  "version": "v1",
+  "input_schema_json": {
+    "type": "object"
+  },
+  "output_schema_json": {
+    "type": "object"
+  },
+  "policy_json": {
+    "risk": "medium"
+  },
+  "allowed_channels": [
+    "email",
+    "slack"
+  ],
+  "approval_default": "manager",
+  "enabled": true
+}
+
+### Tools -> list enabled
+GET {{host}}/v1/tools/registry?limit=20
+
+### Tools -> get by name
+GET {{host}}/v1/tools/registry/email.send
+
+### Connectors -> upsert binding
+POST {{host}}/v1/connectors/bindings
+Content-Type: application/json
+
+{
+  "principal_id": "exec-1",
+  "connector_name": "gmail",
+  "external_account_ref": "acct-1",
+  "scope_json": {
+    "scopes": [
+      "mail.readonly"
+    ]
+  },
+  "auth_metadata_json": {
+    "provider": "google"
+  },
+  "status": "enabled"
+}
+
+### Connectors -> list by principal
+GET {{host}}/v1/connectors/bindings?principal_id=exec-1&limit=20
+
+### Connectors -> set status
+POST {{host}}/v1/connectors/bindings/replace_with_binding_id/status
+Content-Type: application/json
+
+{
+  "status": "disabled"
+}
