@@ -1,14 +1,28 @@
 # Tasks Work Log
 
-Use this file as the execution queue and progress ledger.
+Use this file as the active queue and progress ledger for rewrite slices.
+
+## Usage
+
+1. Add all new work to **Queue** with the next `Q-XXX` ID.
+2. Move an item to **In Progress** when execution starts.
+3. Move blocked work to **Blocked** with a concrete blocker in `Notes`.
+4. Move completed work to **Done** and convert the ID to `D-XXX`.
 
 ## Queue
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-042 | P3 | Add script-level help/usage output for key ops scripts | codex | queued | Improve discoverability for operators |
+| Q-042 | P3 | Add script-level help/usage output for `scripts/support_bundle.sh` | codex | queued | Complete `--help` parity across key operator scripts |
+| Q-044 | P2 | Keep queue log current as slices are added/closed | codex | queued | Use this file as the default intake point for new tasks |
 
 ## In Progress
+
+| ID | Priority | Task | Owner | Status | Notes |
+|---|---|---|---|---|---|
+| - | - | - | - | - | - |
+
+## Blocked
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
@@ -61,6 +75,7 @@ Use this file as the execution queue and progress ledger.
 | D-041 | P3 | Add support bundle filename prefix override | codex | done | Added `SUPPORT_BUNDLE_PREFIX` support |
 | D-042 | P3 | Add support bundle timestamp-format override | codex | done | Added `SUPPORT_BUNDLE_TIMESTAMP_FMT` support |
 | D-043 | P3 | Document host-port resolution for runtime scripts | codex | done | Added ordering note to top of `RUNBOOK.md` |
+| D-044 | P2 | Create queue-first work-log format for rewrite slices | codex | done | Added usage rules + blocked lane + queue intake emphasis |
 
 ## Intake Template
 
