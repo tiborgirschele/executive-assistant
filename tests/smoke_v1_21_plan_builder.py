@@ -44,6 +44,13 @@ def _step_keys(plan: list[dict[str, object]]) -> list[str]:
     return [str(row.get("step_key") or "") for row in (plan or [])]
 
 
+def _step_by_key(plan: list[dict[str, object]], step_key: str) -> dict[str, object]:
+    for row in plan or []:
+        if str((row or {}).get("step_key") or "") == str(step_key):
+            return dict(row or {})
+    return {}
+
+
 def test_plan_builder_module_and_session_store_wiring() -> None:
     planner_src = (ROOT / "ea/app/planner/plan_builder.py").read_text(encoding="utf-8")
     store_src = (ROOT / "ea/app/execution/session_store.py").read_text(encoding="utf-8")
@@ -51,7 +58,10 @@ def test_plan_builder_module_and_session_store_wiring() -> None:
     assert "analyze_trip_commitment" in planner_src
     assert "verify_payment_context" in planner_src
     assert "gather_project_context" in planner_src
+    assert "provider_candidates" in planner_src
+    assert "output_artifact_type" in planner_src
     assert "return build_task_plan_steps(intent_spec=dict(intent_spec or {}))" in store_src
+    assert "meta_evidence[\"provider_candidates\"]" in store_src
     _pass("v1.21 plan builder module/wiring")
 
 
@@ -70,6 +80,12 @@ def test_task_aware_plan_steps() -> None:
     assert "analyze_trip_commitment" in travel_keys
     assert "compare_travel_options" in travel_keys
     assert "safety_gate" in travel_keys
+    travel_plan = build_plan_steps(intent_spec=travel_spec)
+    exec_step = _step_by_key(travel_plan, "execute_intent")
+    assert str(exec_step.get("task_type") or "") == "travel_rescue"
+    assert list(exec_step.get("provider_candidates") or [])
+    assert str(exec_step.get("output_artifact_type") or "") == "travel_decision_pack"
+    assert str(exec_step.get("budget_policy") or "") == "travel_sidecar_daily"
 
     project_spec = compile_intent_spec(
         text="Summarize project deadline risk before tomorrow's meeting.",
@@ -87,8 +103,11 @@ def test_task_aware_plan_steps() -> None:
         chat_id=123,
         has_url=False,
     )
-    finance_keys = _step_keys(build_plan_steps(intent_spec=finance_spec))
+    finance_plan = build_plan_steps(intent_spec=finance_spec)
+    finance_keys = _step_keys(finance_plan)
     assert "verify_payment_context" in finance_keys
+    finance_exec = _step_by_key(finance_plan, "execute_intent")
+    assert str(finance_exec.get("task_type") or "") == "typed_safe_action"
     _pass("v1.21 task-aware plan builder behavior")
 
 

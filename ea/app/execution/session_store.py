@@ -220,6 +220,22 @@ def create_execution_session(
             step_title = str((step or {}).get("step_title") or step_key)
             preconditions = (step or {}).get("preconditions_json") if isinstance(step, dict) else {}
             evidence = (step or {}).get("evidence_json") if isinstance(step, dict) else {}
+            if isinstance(step, dict):
+                meta_preconditions = dict(preconditions or {})
+                meta_evidence = dict(evidence or {})
+                if (step or {}).get("budget_policy"):
+                    meta_preconditions["budget_policy"] = str((step or {}).get("budget_policy"))
+                if (step or {}).get("approval_default"):
+                    meta_preconditions["approval_default"] = str((step or {}).get("approval_default"))
+                if (step or {}).get("task_type"):
+                    meta_evidence["task_type"] = str((step or {}).get("task_type"))
+                provider_candidates = list((step or {}).get("provider_candidates") or [])
+                if provider_candidates:
+                    meta_evidence["provider_candidates"] = [str(x) for x in provider_candidates if str(x or "").strip()]
+                if (step or {}).get("output_artifact_type"):
+                    meta_evidence["output_artifact_type"] = str((step or {}).get("output_artifact_type"))
+                preconditions = meta_preconditions
+                evidence = meta_evidence
             db.execute(
                 """
                 INSERT INTO execution_steps (

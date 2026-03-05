@@ -18,6 +18,24 @@ def _domain_from_text(text_lower: str) -> str:
     return "general"
 
 
+def _task_type_from_text(text_lower: str, *, domain: str, high_risk: bool, url_present: bool) -> str:
+    if any(k in text_lower for k in ("polish", "humanize", "rewrite", "tone")):
+        return "polish_human_tone"
+    if any(k in text_lower for k in ("prompt pack", "compile prompt", "prompt template")):
+        return "compile_prompt_pack"
+    if any(k in text_lower for k in ("intake", "questionnaire", "form", "survey")):
+        return "collect_structured_intake"
+    if domain == "travel":
+        if any(k in text_lower for k in ("book", "rebook", "reroute", "cancel", "layover", "risk", "rescue")):
+            return "travel_rescue"
+        return "trip_context_pack"
+    if url_present and any(k in text_lower for k in ("summarize", "extract", "analyze", "review")):
+        return "compile_prompt_pack"
+    if domain == "finance":
+        return "typed_safe_action"
+    return ""
+
+
 def compile_intent_spec_v2(
     *,
     text: str,
@@ -45,6 +63,12 @@ def compile_intent_spec_v2(
         w in text_lower for w in ("what", "why", "how", "when", "where", "summarize", "explain")
     )
     domain = _domain_from_text(text_lower)
+    task_type = _task_type_from_text(
+        text_lower,
+        domain=domain,
+        high_risk=high_risk,
+        url_present=url_present,
+    )
     deadline_hint = (
         "urgent"
         if any(k in text_lower for k in ("urgent", "asap", "today", "now", "immediately"))
@@ -73,6 +97,7 @@ def compile_intent_spec_v2(
         "intent_type": "url_analysis" if url_present else "free_text",
         "objective": objective,
         "domain": domain,
+        "task_type": task_type,
         "deliverable": deliverable_type,
         "deliverable_type": deliverable_type,
         "autonomy_level": "approval_required" if high_risk else "assistive",

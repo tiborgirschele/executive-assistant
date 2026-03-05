@@ -44,6 +44,7 @@ def test_intent_compiler_module_and_shim_wiring() -> None:
     planner_src = (ROOT / "ea/app/planner/intent_compiler.py").read_text(encoding="utf-8")
     store_src = (ROOT / "ea/app/execution/session_store.py").read_text(encoding="utf-8")
     assert "def compile_intent_spec_v2(" in planner_src
+    assert "def _task_type_from_text(" in planner_src
     assert "from app.planner.intent_compiler import compile_intent_spec_v2" in store_src
     assert "return compile_intent_spec_v2(" in store_src
     _pass("v1.21 intent compiler module + shim wiring")
@@ -64,6 +65,7 @@ def test_intent_spec_v2_shape_for_high_risk_finance() -> None:
     assert spec.get("approval_class") == "explicit_callback_required"
     assert spec.get("risk_class") == "high_impact_action"
     assert spec.get("budget_class") == "high_guardrail"
+    assert spec.get("task_type") == "typed_safe_action"
     assert "payment_context" in list(spec.get("evidence_requirements") or [])
     assert isinstance(spec.get("output_contract"), dict)
     assert str(spec.get("commitment_key")).startswith("finance:chat_100284:")
@@ -83,6 +85,7 @@ def test_intent_spec_v2_shape_for_url_analysis() -> None:
     assert spec.get("intent_type") == "url_analysis"
     assert spec.get("deliverable_type") == "answer_now"
     assert spec.get("approval_class") == "none"
+    assert spec.get("task_type") == "compile_prompt_pack"
     assert "url_evidence" in list(spec.get("evidence_requirements") or [])
     refs = list(spec.get("source_refs") or [])
     assert refs and "https://example.com/post" in refs[0]
