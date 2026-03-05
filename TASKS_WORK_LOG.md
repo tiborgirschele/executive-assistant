@@ -15,6 +15,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 |---|---|---|---|---|---|
 | Q-042 | P3 | Add script-level help/usage output for `scripts/support_bundle.sh` | codex | queued | Complete `--help` parity across key operator scripts |
 | Q-044 | P2 | Keep queue log current as slices are added/closed | codex | queued | Use this file as the default intake point for new tasks |
+| Q-045 | P3 | Add script-level help/usage output for `scripts/archive_tasks.sh` and `scripts/verify_release_assets.sh` | codex | queued | Finish operator UX consistency across maintenance scripts |
 
 ## In Progress
 
