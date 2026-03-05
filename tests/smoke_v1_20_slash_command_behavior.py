@@ -95,13 +95,20 @@ def test_skill_command_uses_planning_task_type_and_records_session() -> None:
             )
         )
 
-        def _fake_create_action(tenant: str, action_type: str, payload: dict, days: int = 7) -> str:
+        def _fake_create_action(
+            tenant: str,
+            action_type: str,
+            payload: dict,
+            days: int = 7,
+            **kwargs,
+        ) -> str:
             captured["created_actions"].append(
                 {
                     "tenant": tenant,
                     "action_type": action_type,
                     "payload": dict(payload),
                     "days": days,
+                    "kwargs": dict(kwargs or {}),
                 }
             )
             return "act-skill-123"
@@ -134,6 +141,7 @@ def test_skill_command_uses_planning_task_type_and_records_session() -> None:
         assert captured["created_actions"], "skill command must create a typed action"
         created = captured["created_actions"][0]
         assert created["action_type"] == "skill:draft_and_polish"
+        assert str((created.get("kwargs") or {}).get("session_id") or "") == "sess-skill-1"
         assert captured["messages"], "skill command must send a reply"
         text = str(captured["messages"][0]["text"])
         assert "Primary capability" in text

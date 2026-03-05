@@ -18,6 +18,8 @@ def test_skill_slash_command_session_wiring() -> None:
     src = (ROOT / "ea/app/skill_commands.py").read_text(encoding="utf-8")
     assert "source=\"slash_command_skill\"" in src
     assert "compile_intent_spec(" in src
+    assert "build_plan_steps(intent_spec=intent_spec)" in src
+    assert "intent_spec[\"task_type\"]" in src
     assert "create_execution_session(" in src
     assert "mark_execution_step_status(" in src
     assert "finalize_execution_session(" in src

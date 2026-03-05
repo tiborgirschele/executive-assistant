@@ -4,6 +4,7 @@ import html
 from typing import Any
 
 from app.execution import (
+    build_plan_steps,
     compile_intent_spec,
     create_execution_session,
     finalize_execution_session,
@@ -23,20 +24,42 @@ async def handle_skill_command(
     from app.skills.capability_router import build_capability_plan
     from app.skills.registry import list_skills, skill_or_raise
 
+    tokens = str(command_text or "").strip().split()
+    hinted_skill_key = str(tokens[1] or "").strip().lower() if len(tokens) >= 2 else ""
+    hinted_contract = None
+    hinted_task_type = ""
+    intent_spec = compile_intent_spec(
+        text=f"Handle slash skill command: {str(command_text or '').strip()}",
+        tenant=str(tenant_name or ""),
+        chat_id=int(chat_id),
+        has_url=False,
+    )
+    plan_steps: list[dict[str, Any]] = [
+        {"step_key": "compile_intent", "step_title": "Compile Slash Command Intent"},
+        {"step_key": "execute_intent", "step_title": "Validate and Stage Skill Action"},
+        {"step_key": "persist_result", "step_title": "Persist Command Result"},
+    ]
+    if hinted_skill_key:
+        try:
+            hinted_contract = skill_or_raise(hinted_skill_key)
+            hinted_task_type = (
+                str(getattr(hinted_contract, "planning_task_type", "") or "").strip().lower() or hinted_skill_key
+            )
+            if hinted_task_type:
+                intent_spec["task_type"] = hinted_task_type
+            derived_steps = list(build_plan_steps(intent_spec=intent_spec))
+            if not any(str((row or {}).get("step_key") or "") == "persist_result" for row in derived_steps):
+                derived_steps.append({"step_key": "persist_result", "step_title": "Persist Command Result"})
+            if derived_steps:
+                plan_steps = derived_steps
+        except Exception:
+            hinted_contract = None
+
     session_id = create_execution_session(
         tenant=str(tenant_name or ""),
         chat_id=int(chat_id),
-        intent_spec=compile_intent_spec(
-            text=f"Handle slash skill command: {str(command_text or '').strip()}",
-            tenant=str(tenant_name or ""),
-            chat_id=int(chat_id),
-            has_url=False,
-        ),
-        plan_steps=[
-            {"step_key": "compile_intent", "step_title": "Compile Slash Command Intent"},
-            {"step_key": "execute_intent", "step_title": "Validate and Stage Skill Action"},
-            {"step_key": "persist_result", "step_title": "Persist Command Result"},
-        ],
+        intent_spec=intent_spec,
+        plan_steps=plan_steps,
         source="slash_command_skill",
     )
     if session_id:
@@ -83,7 +106,6 @@ async def handle_skill_command(
             evidence={"command_text": str(command_text or "")[:300]},
         )
 
-    tokens = str(command_text or "").strip().split()
     if len(tokens) < 2:
         skills = [str(row.get("key") or "") for row in list_skills()]
         avail = ", ".join(sorted([k for k in skills if k])) or "none"
@@ -104,9 +126,13 @@ async def handle_skill_command(
         )
 
     skill_key = str(tokens[1] or "").strip().lower()
-    try:
-        contract = skill_or_raise(skill_key)
-    except Exception:
+    contract = hinted_contract
+    if not contract:
+        try:
+            contract = skill_or_raise(skill_key)
+        except Exception:
+            contract = None
+    if not contract:
         if session_id:
             mark_execution_step_status(
                 session_id,
@@ -150,6 +176,7 @@ async def handle_skill_command(
         action_type=f"skill:{skill_key}",
         payload=action_payload,
         days=2,
+        session_id=str(session_id or "") if session_id else None,
     )
     planning_task = str(getattr(contract, "planning_task_type", "") or "").strip().lower() or skill_key
     plan = build_capability_plan(planning_task)
