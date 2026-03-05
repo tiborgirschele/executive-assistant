@@ -1,57 +1,24 @@
-# Core Secrets
+# Local environment and secrets
 .env
 .env.*
 *.pem
 *.key
 *.ovpn
-*secret*
-*token*
 
-# Google Cloud & OAuth JSONs
-*.json
-litellm_keys/
-daemon-gogcli-config/
-data-*/
-credentials*/
-pristine_creds.json
+# Python cache/artifacts
+__pycache__/
+*.py[cod]
 
-# DBs & Attachments (Personal data)
+# Local runtime data
 attachments/
 logs/
+daemon-gogcli-config/
+data-*/
+*.log
 config/*.local.yml
 
-# Backups & Patch Scripts
-backups/
-*.bak*
-*patch*.py
-*fix*.py
-*healer*.py
-*validator*.sh
-*.sh
-!scripts/*.sh
-
-# Python cache
-__pycache__/
-*.pyc
-
-# Local artifacts accidentally created during runs
-.ea*.log
-.ea*.yml
-.ea_*.log
-EA_OS_*.pdf
-EA_OS_Test_Pack_*.zip
-EA_OS_v*_Test_Pack.zip
-photo_*.jpg
-sonos_shredder.log
-briefing_cron.log
-tests/_incoming_v113/
-
-# Root-level ad-hoc exports/screenshots (keep docs/ assets unaffected)
-/*.pdf
-/*.jpg
-/*.jpeg
-/*.png
-/*.heic
-/*.webp
-/Screenshot*.png
-/IMG_*.jpg
+# Editor/OS noise
+.DS_Store
+.idea/
+.vscode/
+.codex/

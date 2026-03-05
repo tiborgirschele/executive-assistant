@@ -1,36 +1,44 @@
-import os
+from __future__ import annotations
+
+import logging
+import signal
+import time
+
 import uvicorn
 
-def role() -> str:
-    return (os.environ.get("EA_ROLE") or "monolith").strip().lower()
+from app.logging_utils import configure_logging
+from app.settings import get_settings
+
+
+def _run_api() -> None:
+    s = get_settings()
+    uvicorn.run("app.main:app", host=s.host, port=s.port, log_level=s.log_level.lower())
+
+
+def _run_idle_worker(role: str) -> None:
+    stop = {"flag": False}
+
+    def _handle_stop(signum, frame):  # type: ignore[no-untyped-def]
+        stop["flag"] = True
+
+    signal.signal(signal.SIGTERM, _handle_stop)
+    signal.signal(signal.SIGINT, _handle_stop)
+
+    log = logging.getLogger("ea.runner")
+    log.info("role=%s started (idle baseline)", role)
+    while not stop["flag"]:
+        time.sleep(1.0)
+    log.info("role=%s stopped", role)
+
 
 def main() -> None:
-    r = role()
-    print("==================================================")
-    print(f"🚀 BOOTING EA OS IN ROLE: [ {r.upper()} ]")
-    print("==================================================")
-    
-    if r == "api":
-        uvicorn.run("app.main:app", host="0.0.0.0", port=8090, log_level="warning")
-    elif r == "poller":
-        from app.roles.poller import run_poller
-        import asyncio; asyncio.run(run_poller())
-    elif r == "worker":
-        from app.roles.worker import run_worker
-        import asyncio; asyncio.run(run_worker())
-    elif r == "outbox":
-        from app.roles.outbox import run_outbox
-        import asyncio; asyncio.run(run_outbox())
-    elif r == "event_worker":
-        from app.roles.event_worker import run_event_worker
-        import asyncio; asyncio.run(run_event_worker())
-    elif r == "proactive":
-        from app.roles.proactive import run_proactive
-        import asyncio; asyncio.run(run_proactive())
-    elif r == "monolith":
-        uvicorn.run("app.main:app", host="0.0.0.0", port=8090, log_level="warning")
-    else:
-        raise ValueError(f"Unknown EA_ROLE: {r}")
+    s = get_settings()
+    configure_logging(s.log_level)
+    if s.role == "api":
+        _run_api()
+        return
+    _run_idle_worker(s.role)
+
 
 if __name__ == "__main__":
     main()
