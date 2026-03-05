@@ -17,7 +17,7 @@ def _pass(name: str) -> None:
 def test_runner_supports_event_worker_role() -> None:
     runner_src = (ROOT / "ea/app/runner.py").read_text(encoding="utf-8")
     assert 'elif r == "event_worker":' in runner_src
-    assert "from app.workers.event_worker import poll_external_events" in runner_src
+    assert "from app.roles.event_worker import run_event_worker" in runner_src
     _pass("v1.19.4 runner event_worker role support")
 
 
