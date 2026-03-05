@@ -41,6 +41,15 @@ def _pass(name: str) -> None:
     print(f"[SMOKE][HOST][PASS] {name}")
 
 
+def _manifest_rows(path: pathlib.Path) -> list[str]:
+    rows: list[str] = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        cleaned = raw.split("#", 1)[0].strip()
+        if cleaned:
+            rows.append(cleaned)
+    return rows
+
+
 def test_proactive_tenant_selection_and_schema_coverage() -> None:
     _install_psycopg2_stub()
     import app.roles.proactive as pr
@@ -62,9 +71,12 @@ def test_proactive_tenant_selection_and_schema_coverage() -> None:
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     docker_e2e = (ROOT / "scripts/docker_e2e.sh").read_text(encoding="utf-8")
+    manifest_rows = _manifest_rows(ROOT / "ea/schema/runtime_manifest.txt")
     assert "--profile proactive up -d ea-proactive" in readme
-    assert "20260305_v1_22_approval_gate_deadlines.sql" in docker_e2e
-    assert "20260303_v1_18_1_runtime_alignment.sql" in docker_e2e
+    assert "SCHEMA_MANIFEST" in docker_e2e
+    assert "20260305_v1_22_approval_gate_deadlines.sql" in manifest_rows
+    assert "20260303_v1_18_1_runtime_alignment.sql" in manifest_rows
+    assert "20260303_v1_18_planner.sql" in manifest_rows
     _pass("v1.22 proactive runtime integration")
 
 

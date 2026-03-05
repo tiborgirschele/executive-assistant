@@ -2,15 +2,29 @@
 set -euo pipefail
 
 EA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCHEMA_FILES=(
-  "${EA_ROOT}/ea/schema/20260303_v1_18_1_runtime_alignment.sql"
-  "${EA_ROOT}/ea/schema/20260304_v1_20_execution_sessions.sql"
-  "${EA_ROOT}/ea/schema/20260305_v1_21_approval_gates.sql"
-  "${EA_ROOT}/ea/schema/20260305_v1_21_provider_outcomes.sql"
-  "${EA_ROOT}/ea/schema/20260305_v1_22_commitment_runtime_seed.sql"
-  "${EA_ROOT}/ea/schema/20260305_v1_22_memory_candidates.sql"
-  "${EA_ROOT}/ea/schema/20260305_v1_22_approval_gate_deadlines.sql"
-)
+SCHEMA_MANIFEST="${EA_ROOT}/ea/schema/runtime_manifest.txt"
+SCHEMA_FILES=()
+if [[ ! -f "${SCHEMA_MANIFEST}" ]]; then
+  echo "[ERROR] missing schema manifest: ${SCHEMA_MANIFEST}" >&2
+  exit 1
+fi
+while IFS= read -r row || [[ -n "${row}" ]]; do
+  row="${row%%#*}"
+  row="$(echo "${row}" | xargs)"
+  if [[ -z "${row}" ]]; then
+    continue
+  fi
+  schema_path="${EA_ROOT}/ea/schema/${row}"
+  if [[ ! -f "${schema_path}" ]]; then
+    echo "[ERROR] schema from manifest not found: ${schema_path}" >&2
+    exit 1
+  fi
+  SCHEMA_FILES+=("${schema_path}")
+done < "${SCHEMA_MANIFEST}"
+if [[ "${#SCHEMA_FILES[@]}" -eq 0 ]]; then
+  echo "[ERROR] schema manifest resolved no files: ${SCHEMA_MANIFEST}" >&2
+  exit 1
+fi
 HOST_PORT="$(grep -E '^EA_HOST_PORT=' "${EA_ROOT}/.env" | tail -n1 | cut -d= -f2- || true)"
 HOST_PORT="${HOST_PORT:-8090}"
 REPORT_DIR="${EA_ROOT}/logs/gates"
@@ -183,6 +197,10 @@ run_step "smoke_v1_22_route_signal_router" python3 tests/smoke_v1_22_route_signa
 run_step "smoke_v1_22_proactive_role_wiring" python3 tests/smoke_v1_22_proactive_role_wiring.py
 run_step "smoke_v1_22_proactive_runtime_integration" python3 tests/smoke_v1_22_proactive_runtime_integration.py
 run_step "smoke_v1_22_task_contract_surface" python3 tests/smoke_v1_22_task_contract_surface.py
+run_step "smoke_v1_22_schema_manifest_gate" python3 tests/smoke_v1_22_schema_manifest_gate.py
+run_step "smoke_v1_22_synthetic_preview_outcomes" python3 tests/smoke_v1_22_synthetic_preview_outcomes.py
+run_step "smoke_v1_22_task_matcher" python3 tests/smoke_v1_22_task_matcher.py
+run_step "smoke_v1_22_step_executor_ledger_seed" python3 tests/smoke_v1_22_step_executor_ledger_seed.py
 run_step "smoke_work_tasks_contract" python3 tests/smoke_work_tasks_contract.py
 run_step "smoke_v1_19_3_control_plane_decomposition" python3 tests/smoke_v1_19_3_control_plane_decomposition.py
 run_step "smoke_v1_19_3_source_acquisition_split" python3 tests/smoke_v1_19_3_source_acquisition_split.py

@@ -7,9 +7,15 @@ from app.gog import gog_scout
 
 _PLANNER_PRE_EXEC_STEPS = {
     "collect_intake_context",
+    "collect_feedback_context",
     "compile_prompt_pack",
     "prepare_draft_context",
     "prepare_multimodal_context",
+    "gather_research_context",
+    "ingest_external_event",
+    "prepare_external_action",
+    "build_approval_context",
+    "prepare_route_render_context",
     "analyze_trip_commitment",
     "compare_travel_options",
     "verify_payment_context",
@@ -82,6 +88,98 @@ def run_pre_execution_steps(
             message=f"Planner pre-execution step completed: {step_key}",
             payload={"step_key": step_key, "domain": domain, "task_type": task_type},
         )
+
+
+def list_queued_pre_execution_steps(
+    *,
+    session_id: str,
+    fetch_steps: Callable[[str], list[dict[str, Any]]] | None = None,
+) -> list[dict[str, Any]]:
+    if not session_id:
+        return []
+
+    if fetch_steps is not None:
+        rows = list(fetch_steps(str(session_id)) or [])
+    else:
+        rows = []
+        try:
+            from app.db import get_db
+
+            db = get_db()
+            rows = list(
+                db.fetchall(
+                    """
+                    SELECT step_order, step_key, preconditions_json, evidence_json
+                    FROM execution_steps
+                    WHERE session_id = %s
+                      AND status = 'queued'
+                    ORDER BY step_order ASC
+                    """,
+                    (str(session_id),),
+                )
+                or []
+            )
+        except Exception:
+            return []
+
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        step_key = str((row or {}).get("step_key") or "").strip()
+        if step_key not in _PLANNER_PRE_EXEC_STEPS:
+            continue
+        out.append(
+            {
+                "step_order": int((row or {}).get("step_order") or 0),
+                "step_key": step_key,
+                "preconditions_json": dict((row or {}).get("preconditions_json") or {}),
+                "evidence_json": dict((row or {}).get("evidence_json") or {}),
+            }
+        )
+    out.sort(key=lambda row: int(row.get("step_order") or 0))
+    return out
+
+
+def run_pre_execution_steps_from_ledger(
+    *,
+    session_id: str,
+    intent_spec: dict[str, Any],
+    mark_step: Callable[..., None],
+    append_event: Callable[..., None],
+    fetch_steps: Callable[[str], list[dict[str, Any]]] | None = None,
+) -> int:
+    queued_rows = list_queued_pre_execution_steps(session_id=session_id, fetch_steps=fetch_steps)
+    if not queued_rows:
+        return 0
+    domain = str((intent_spec or {}).get("domain") or "")
+    task_type = str((intent_spec or {}).get("task_type") or "")
+    objective = str((intent_spec or {}).get("objective") or "")[:200]
+    for row in queued_rows:
+        step_key = str((row or {}).get("step_key") or "").strip()
+        mark_step(
+            session_id,
+            step_key,
+            "running",
+            evidence={"domain": domain, "task_type": task_type},
+        )
+        mark_step(
+            session_id,
+            step_key,
+            "completed",
+            result={
+                "planner_step": step_key,
+                "status": "deterministic_context_ready",
+                "domain": domain,
+                "task_type": task_type,
+                "objective_preview": objective,
+            },
+        )
+        append_event(
+            session_id,
+            event_type="planner_context_step_completed",
+            message=f"Planner pre-execution step completed from ledger: {step_key}",
+            payload={"step_key": step_key, "domain": domain, "task_type": task_type},
+        )
+    return len(queued_rows)
 
 
 def _execute_step_metadata(
@@ -170,5 +268,7 @@ async def execute_planned_reasoning_step(
 __all__ = [
     "run_reasoning_step",
     "run_pre_execution_steps",
+    "list_queued_pre_execution_steps",
+    "run_pre_execution_steps_from_ledger",
     "execute_planned_reasoning_step",
 ]

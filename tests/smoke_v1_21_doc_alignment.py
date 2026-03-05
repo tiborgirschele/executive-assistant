@@ -41,6 +41,10 @@ def test_v121_doc_alignment() -> None:
     assert "smoke_v1_22_proactive_role_wiring.py" in guide
     assert "smoke_v1_22_proactive_runtime_integration.py" in guide
     assert "smoke_v1_22_task_contract_surface.py" in guide
+    assert "smoke_v1_22_schema_manifest_gate.py" in guide
+    assert "smoke_v1_22_synthetic_preview_outcomes.py" in guide
+    assert "smoke_v1_22_task_matcher.py" in guide
+    assert "smoke_v1_22_step_executor_ledger_seed.py" in guide
     assert "smoke_v1_20_execution_sessions.py" in guide
     assert "smoke_v1_20_slash_command_sessions.py" in guide
     assert "smoke_v1_20_slash_command_behavior.py" in guide
@@ -78,6 +82,15 @@ def test_v121_doc_alignment() -> None:
     assert "approval_router" in guide
     assert "bridge_external_event" in guide
     assert "run_secondary_research_pass" in guide
+    assert "runtime_manifest.txt" in guide
+    assert "SCHEMA_MANIFEST" in guide
+    assert "20260305_v1_22_execution_ledger_fields.sql" in guide
+    assert "task_contract_key" in guide
+    assert "approval_state" in guide
+    assert "step_kind" in guide
+    assert "synthetic_preview" in guide
+    assert "task_matcher.py" in guide
+    assert "run_pre_execution_steps_from_ledger" in guide
     assert "provider_outcomes" in guide
     assert "20260305_v1_21_provider_outcomes.sql" in guide
     assert "world_model.py" in guide

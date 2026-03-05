@@ -61,9 +61,11 @@ def _pass(name: str) -> None:
 
 
 def test_intent_runtime_planner_step_wiring() -> None:
-    src = (ROOT / "ea/app/intent_runtime.py").read_text(encoding="utf-8")
-    assert "def _run_planner_pre_execution_steps(" in src
-    assert "planner_context_step_completed" in src
+    runtime_src = (ROOT / "ea/app/intent_runtime.py").read_text(encoding="utf-8")
+    step_src = (ROOT / "ea/app/planner/step_executor.py").read_text(encoding="utf-8")
+    assert "def _run_planner_pre_execution_steps(" in runtime_src
+    assert "run_pre_execution_steps_from_ledger(" in runtime_src
+    assert "planner_context_step_completed" in step_src
     _pass("v1.21 intent-runtime planner-step wiring")
 
 

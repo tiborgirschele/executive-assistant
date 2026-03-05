@@ -31,7 +31,11 @@ def test_execution_store_contract_wiring() -> None:
     assert "def mark_execution_step_status(" in store_src
     assert "def finalize_execution_session(" in store_src
     assert "CREATE TABLE IF NOT EXISTS execution_sessions" in db_src
+    assert "task_type TEXT NOT NULL DEFAULT ''" in db_src
+    assert "approval_state TEXT NOT NULL DEFAULT 'none'" in db_src
     assert "CREATE TABLE IF NOT EXISTS execution_steps" in db_src
+    assert "step_kind TEXT NOT NULL DEFAULT 'generic'" in db_src
+    assert "provider_key TEXT" in db_src
     assert "CREATE TABLE IF NOT EXISTS execution_events" in db_src
     _pass("v1.20 execution store contract wiring")
 
@@ -111,12 +115,23 @@ def test_execution_store_behavior_with_stubbed_db() -> None:
     assert "UPDATE execution_sessions" in joined_queries
     assert "UPDATE execution_steps" in joined_queries
     assert "INSERT INTO execution_events" in joined_queries
+    session_inserts = [
+        vars for (query, vars) in fake.calls if "INSERT INTO execution_sessions" in str(query or "") and isinstance(vars, tuple)
+    ]
+    assert session_inserts, "expected execution_sessions insert"
+    session_row = session_inserts[0]
+    assert str(session_row[7]) == "travel_rescue"
+    assert str(session_row[8]) == "travel_rescue"
+    assert str(session_row[9]) == "pending"
+    assert str(session_row[14]).startswith("travel:chat_1001:")
     step_inserts = [
         vars for (query, vars) in fake.calls if "INSERT INTO execution_steps" in str(query or "") and isinstance(vars, tuple)
     ]
     execute_rows = [row for row in step_inserts if str(row[3]) == "execute_intent"]
     assert execute_rows, "expected execute_intent step insert"
-    evidence_payload = json.loads(str(execute_rows[0][6] or "{}"))
+    assert str(execute_rows[0][5]) == "execution"
+    assert str(execute_rows[0][6]) == "oneair"
+    evidence_payload = json.loads(str(execute_rows[0][12] or "{}"))
     assert str(evidence_payload.get("task_type") or "") == "travel_rescue"
     assert "oneair" in list(evidence_payload.get("provider_candidates") or [])
     assert str(evidence_payload.get("output_artifact_type") or "") == "travel_decision_pack"

@@ -56,9 +56,9 @@ def build_generic_skill_handler(
                     tenant_key=str(tenant or ""),
                     provider_key=primary,
                     task_type=task_type,
-                    outcome_status="success",
-                    score_delta=3,
-                    source="skill_runtime",
+                    outcome_status="synthetic_preview",
+                    score_delta=0,
+                    source="synthetic_preview",
                 )
             elif status in {"not_implemented"} or not ok:
                 record_provider_outcome(
@@ -66,7 +66,7 @@ def build_generic_skill_handler(
                     provider_key=primary,
                     task_type=task_type,
                     outcome_status="failed",
-                    score_delta=-3,
+                    score_delta=-1,
                     source="skill_runtime",
                 )
         message = (

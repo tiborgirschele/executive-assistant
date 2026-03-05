@@ -48,6 +48,10 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_22_proactive_role_wiring.py" \
   "$ROOT/tests/smoke_v1_22_proactive_runtime_integration.py" \
   "$ROOT/tests/smoke_v1_22_task_contract_surface.py" \
+  "$ROOT/tests/smoke_v1_22_schema_manifest_gate.py" \
+  "$ROOT/tests/smoke_v1_22_synthetic_preview_outcomes.py" \
+  "$ROOT/tests/smoke_v1_22_task_matcher.py" \
+  "$ROOT/tests/smoke_v1_22_step_executor_ledger_seed.py" \
   "$ROOT/tests/smoke_work_tasks_contract.py"
 
 echo "[SMOKE][v1.20] Host smoke"
@@ -89,6 +93,10 @@ python3 "$ROOT/tests/smoke_v1_22_route_signal_router.py"
 python3 "$ROOT/tests/smoke_v1_22_proactive_role_wiring.py"
 python3 "$ROOT/tests/smoke_v1_22_proactive_runtime_integration.py"
 python3 "$ROOT/tests/smoke_v1_22_task_contract_surface.py"
+python3 "$ROOT/tests/smoke_v1_22_schema_manifest_gate.py"
+python3 "$ROOT/tests/smoke_v1_22_synthetic_preview_outcomes.py"
+python3 "$ROOT/tests/smoke_v1_22_task_matcher.py"
+python3 "$ROOT/tests/smoke_v1_22_step_executor_ledger_seed.py"
 python3 "$ROOT/tests/smoke_work_tasks_contract.py"
 
 if [[ "${EA_SKIP_FULL_GATES:-0}" != "1" ]]; then

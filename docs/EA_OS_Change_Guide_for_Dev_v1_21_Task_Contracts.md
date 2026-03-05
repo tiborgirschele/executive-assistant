@@ -378,6 +378,75 @@ existing capability routing behavior.
      - every capability task can produce a capability plan.
    - Wired new smoke into host/docker/CI release gates.
 
+32. Docker E2E schema manifest guard:
+   - Added runtime schema manifest:
+     - `ea/schema/runtime_manifest.txt`
+   - Updated `scripts/docker_e2e.sh` to load and apply schema files from the
+     manifest in declared order instead of hardcoded partial lists.
+   - Added `tests/smoke_v1_22_schema_manifest_gate.py` to assert:
+     - manifest exists, is non-empty, and required migration files are present;
+     - docker e2e script references `SCHEMA_MANIFEST` and manifest-driven loading.
+   - Wired schema-manifest smoke into host/docker/CI release gates.
+
+33. Execution-ledger first-class task/approval fields:
+   - Extended `execution_sessions` schema/bootstrapping with:
+     - `task_type`
+     - `task_contract_key`
+     - `approval_state`
+     - `risk_class`
+     - `budget_json`
+     - `parent_session_id`
+     - `session_class`
+     - `commitment_key`
+   - Extended `execution_steps` schema/bootstrapping with:
+     - `step_kind`
+     - `provider_key`
+     - `input_refs_json`
+     - `output_refs_json`
+     - `attempt_count`
+     - `deadline_at`
+     - `approval_gate_id`
+   - Added migration:
+     - `ea/schema/20260305_v1_22_execution_ledger_fields.sql`
+   - `create_execution_session(...)` now persists task/approval/session metadata
+     into first-class `execution_sessions` columns.
+   - Step inserts now persist deterministic `step_kind` and provider/output refs.
+   - `mark_approval_gate_decision(...)` now mirrors terminal gate decisions to
+     `execution_sessions.approval_state`.
+
+34. Provider-outcome source hygiene for synthetic generic execution:
+   - Generic skill execution previews now record provider outcomes as:
+     - `outcome_status='synthetic_preview'`
+     - `source='synthetic_preview'`
+     - `score_delta=0`
+   - This prevents deterministic preview flows from inflating provider ranking
+     history as if real sidecar/provider work completed.
+   - Added `tests/smoke_v1_22_synthetic_preview_outcomes.py` and wired it into
+     host/docker/CI release gates.
+
+35. Task matcher extraction for intent compiler:
+   - Added planner task matcher module:
+     - `ea/app/planner/task_matcher.py`
+       - `infer_domain(...)`
+       - `detect_high_risk_action(...)`
+       - `match_task_type(...)`
+   - `intent_compiler.py` now delegates domain/high-risk/task matching to
+     `task_matcher.py` to keep the planner compiler deterministic and modular.
+   - Added `tests/smoke_v1_22_task_matcher.py` and wired it into
+     host/docker/CI release gates.
+
+36. Step-executor ledger pre-step seed:
+   - Added `step_executor` helpers:
+     - `list_queued_pre_execution_steps(...)`
+     - `run_pre_execution_steps_from_ledger(...)`
+   - `intent_runtime._run_planner_pre_execution_steps(...)` now prefers
+     persisted queued step rows from the execution ledger, with in-memory plan
+     fallback only when no queued pre-steps exist.
+   - Expanded deterministic pre-execution step coverage to include newly added
+     planner step keys (feedback/research/bridge/approval/route-render).
+   - Added `tests/smoke_v1_22_step_executor_ledger_seed.py` and wired it into
+     host/docker/CI release gates.
+
 ## Why this matters
 
 This keeps provider contracts (`CapabilityContract`) but introduces a stable task layer the

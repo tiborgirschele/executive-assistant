@@ -176,11 +176,67 @@ Owner: Codex runtime worker
       - added `smoke_v1_22_task_contract_surface.py`.
       - updated gate scripts/workflow + task/intent/plan smokes.
 
-18. `IN_PROGRESS` - Schema manifest drift guard for Docker E2E.
+18. `DONE` - Schema manifest drift guard for Docker E2E.
    - Deliverables:
       - introduce explicit runtime schema manifest file.
       - make `docker_e2e.sh` apply schema via manifest order.
       - add smoke to enforce e2e script references manifest (not hardcoded partial list).
+   - Progress:
+      - added `ea/schema/runtime_manifest.txt`.
+      - `scripts/docker_e2e.sh` now resolves schema files from `SCHEMA_MANIFEST`.
+      - added and wired `tests/smoke_v1_22_schema_manifest_gate.py`.
+
+19. `DONE` - Promote planner task/approval metadata to first-class execution ledger fields.
+   - Deliverables:
+      - add migration + bootstrap coverage for execution session/step fields.
+      - persist `task_type`, `task_contract_key`, `approval_state`, `risk_class`, and budget/session metadata in `execution_sessions`.
+      - persist deterministic `step_kind` and provider refs in `execution_steps`.
+      - mirror approval gate decisions into `execution_sessions.approval_state`.
+      - extend smoke coverage for execution store contracts/behavior.
+   - Progress:
+      - added migration `20260305_v1_22_execution_ledger_fields.sql` and manifest coverage.
+      - bootstrap now includes new first-class execution session/step columns.
+      - `create_execution_session(...)` persists task/approval/session metadata.
+      - approval-gate decisions now mirror into `execution_sessions.approval_state`.
+      - execution-store smokes updated for new ledger shape.
+
+20. `DONE` - Generic skill provider-outcome source hygiene.
+   - Deliverables:
+      - mark deterministic preview runs as synthetic in provider outcomes.
+      - avoid positive scoring drift from synthetic preview artifacts.
+      - add smoke coverage for outcome source + delta.
+   - Progress:
+      - `skills/generic.py` now records synthetic preview outcomes with
+        `source='synthetic_preview'` and `score_delta=0`.
+      - added/wired `tests/smoke_v1_22_synthetic_preview_outcomes.py`.
+
+21. `DONE` - Extract task-matcher module from intent compiler.
+   - Deliverables:
+      - create deterministic matcher module for domain/task/high-risk routing.
+      - wire `intent_compiler.py` to call matcher module.
+      - add smoke coverage for matcher behavior and compiler wiring.
+   - Progress:
+      - added `ea/app/planner/task_matcher.py`.
+      - `intent_compiler.py` now delegates deterministic matching to task matcher.
+      - added/wired `tests/smoke_v1_22_task_matcher.py`.
+
+22. `DONE` - Planner step-graph execution seed from persisted session steps.
+   - Deliverables:
+      - add planner helper to read queued steps from execution ledger in order.
+      - execute deterministic non-reasoning steps through step executor by ledger rows.
+      - add smoke coverage for queued-step selection and deterministic execution handoff.
+   - Progress:
+      - added `list_queued_pre_execution_steps(...)` and
+        `run_pre_execution_steps_from_ledger(...)` in `planner/step_executor.py`.
+      - `intent_runtime` now prefers ledger-driven pre-step execution with
+        in-memory plan fallback.
+      - added/wired `tests/smoke_v1_22_step_executor_ledger_seed.py`.
+
+23. `IN_PROGRESS` - Planner plan-store seed for persisted step graph access.
+   - Deliverables:
+      - add planner module to fetch plan steps for session ids from execution ledger.
+      - expose helper for execute-step metadata resolution from persisted rows.
+      - add smoke coverage for plan-store retrieval and metadata extraction behavior.
 
 ## Validation Command
 - Host gate: `EA_SKIP_FULL_GATES=1 bash scripts/run_v120_smoke.sh`

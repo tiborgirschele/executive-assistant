@@ -29,6 +29,28 @@ def _normalize_status(status: str, *, default: str = "queued") -> str:
     return default
 
 
+def _normalize_approval_state(value: str) -> str:
+    raw = str(value or "").strip().lower()
+    if raw in {"none", "pending", "approved", "rejected", "cancelled", "expired", "staging_failed"}:
+        return raw
+    return "none"
+
+
+def _infer_step_kind(step_key: str) -> str:
+    key = str(step_key or "").strip().lower()
+    if key in {"compile_intent"}:
+        return "compile"
+    if key in {"gather_evidence", "collect_intake_context", "collect_feedback_context", "gather_project_context", "review_health_context", "gather_research_context", "analyze_trip_commitment", "compare_travel_options", "verify_payment_context", "ingest_external_event", "prepare_external_action", "prepare_route_render_context", "prepare_multimodal_context", "prepare_draft_context"}:
+        return "context"
+    if key in {"safety_gate", "build_approval_context"}:
+        return "approval"
+    if key in {"execute_intent"}:
+        return "execution"
+    if key in {"render_reply"}:
+        return "render"
+    return "generic"
+
+
 def _coerce_json_dict(value: Any) -> dict[str, Any]:
     if isinstance(value, dict):
         return dict(value)
@@ -335,6 +357,18 @@ def mark_approval_gate_decision(
                 str(approval_gate_id),
             ),
         )
+        if status in {"approved", "rejected", "cancelled", "expired", "staging_failed"}:
+            db.execute(
+                """
+                UPDATE execution_sessions
+                SET approval_state = %s,
+                    updated_at = NOW()
+                WHERE session_id IN (
+                    SELECT session_id FROM approval_gates WHERE approval_gate_id = %s
+                )
+                """,
+                (status, str(approval_gate_id)),
+            )
     except Exception:
         return
 
@@ -395,8 +429,22 @@ def create_execution_session(
     try:
         db = get_db()
         session_id = str(uuid.uuid4())
-        objective = str((intent_spec or {}).get("objective") or "")[:1200]
-        intent_type = str((intent_spec or {}).get("intent_type") or "free_text")
+        spec = dict(intent_spec or {})
+        objective = str(spec.get("objective") or "")[:1200]
+        intent_type = str(spec.get("intent_type") or "free_text")
+        task_type = str(spec.get("task_type") or "").strip().lower()
+        task_contract_key = task_type if task_type else ""
+        approval_state = _normalize_approval_state(
+            "pending" if str(spec.get("approval_class") or "").strip().lower() == "explicit_callback_required" else "none"
+        )
+        risk_class = str(spec.get("risk_class") or "").strip().lower()
+        budget_json = {
+            "budget_class": str(spec.get("budget_class") or "").strip().lower(),
+            "deadline_hint": str(spec.get("deadline_hint") or "").strip().lower(),
+        }
+        session_class = str(spec.get("session_class") or "primary").strip().lower() or "primary"
+        parent_session_id = str(spec.get("parent_session_id") or "").strip() or None
+        commitment_key = str(spec.get("commitment_key") or "").strip() or None
         db.execute(
             """
             INSERT INTO execution_sessions (
@@ -407,10 +455,18 @@ def create_execution_session(
                 intent_type,
                 objective,
                 intent_spec_json,
+                task_type,
+                task_contract_key,
+                approval_state,
+                risk_class,
+                budget_json,
+                parent_session_id,
+                session_class,
+                commitment_key,
                 status,
                 correlation_id
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, 'queued', %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, 'queued', %s)
             """,
             (
                 session_id,
@@ -419,15 +475,29 @@ def create_execution_session(
                 int(chat_id) if chat_id is not None else None,
                 intent_type,
                 objective,
-                _safe_json(intent_spec or {}),
+                _safe_json(spec),
+                task_type,
+                task_contract_key,
+                approval_state,
+                risk_class,
+                _safe_json(budget_json),
+                parent_session_id,
+                session_class,
+                commitment_key,
                 str(correlation_id or ""),
             ),
         )
         for idx, step in enumerate(plan_steps or [], start=1):
             step_key = str((step or {}).get("step_key") or f"step_{idx}")
             step_title = str((step or {}).get("step_title") or step_key)
+            step_kind = _infer_step_kind(step_key)
             preconditions = (step or {}).get("preconditions_json") if isinstance(step, dict) else {}
             evidence = (step or {}).get("evidence_json") if isinstance(step, dict) else {}
+            provider_key: str | None = None
+            input_refs: list[str] = []
+            output_refs: list[str] = []
+            approval_gate_id: str | None = None
+            deadline_at = None
             if isinstance(step, dict):
                 meta_preconditions = dict(preconditions or {})
                 meta_evidence = dict(evidence or {})
@@ -440,8 +510,10 @@ def create_execution_session(
                 provider_candidates = list((step or {}).get("provider_candidates") or [])
                 if provider_candidates:
                     meta_evidence["provider_candidates"] = [str(x) for x in provider_candidates if str(x or "").strip()]
+                    provider_key = str(meta_evidence["provider_candidates"][0] or "").strip().lower() or None
                 if (step or {}).get("output_artifact_type"):
                     meta_evidence["output_artifact_type"] = str((step or {}).get("output_artifact_type"))
+                    output_refs.append(str((step or {}).get("output_artifact_type")))
                 preconditions = meta_preconditions
                 evidence = meta_evidence
             db.execute(
@@ -452,11 +524,18 @@ def create_execution_session(
                     step_order,
                     step_key,
                     step_title,
+                    step_kind,
+                    provider_key,
+                    input_refs_json,
+                    output_refs_json,
+                    attempt_count,
+                    deadline_at,
+                    approval_gate_id,
                     status,
                     preconditions_json,
                     evidence_json
                 )
-                VALUES (%s, %s, %s, %s, %s, 'queued', %s::jsonb, %s::jsonb)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, 0, %s, %s, 'queued', %s::jsonb, %s::jsonb)
                 """,
                 (
                     str(uuid.uuid4()),
@@ -464,6 +543,12 @@ def create_execution_session(
                     int(idx),
                     step_key,
                     step_title,
+                    step_kind,
+                    provider_key,
+                    _safe_json(input_refs),
+                    _safe_json(output_refs),
+                    deadline_at,
+                    approval_gate_id,
                     _safe_json(preconditions),
                     _safe_json(evidence),
                 ),

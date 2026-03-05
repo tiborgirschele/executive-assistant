@@ -24,6 +24,7 @@ from app.gog import gog_scout
 from app.memory import save_button_context
 from app.planner.step_executor import (
     execute_planned_reasoning_step,
+    run_pre_execution_steps_from_ledger,
     run_pre_execution_steps,
     run_reasoning_step,
 )
@@ -37,7 +38,15 @@ def _run_planner_pre_execution_steps(
     plan_steps: list[dict[str, Any]],
     intent_spec: dict[str, Any],
 ) -> None:
-    # planner_context_step_completed events are emitted by planner.step_executor.
+    # Prefer persisted step graph from execution ledger; fall back to in-memory plan.
+    executed = run_pre_execution_steps_from_ledger(
+        session_id=session_id,
+        intent_spec=dict(intent_spec or {}),
+        mark_step=mark_execution_step_status,
+        append_event=append_execution_event,
+    )
+    if executed > 0:
+        return
     run_pre_execution_steps(
         session_id=session_id,
         plan_steps=list(plan_steps or []),

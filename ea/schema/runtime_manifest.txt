@@ -1,0 +1,13 @@
+# EA runtime schema manifest for docker E2E gates.
+# Entries are relative to `ea/schema/` and applied in order.
+
+v1_12_6_avomap.sql
+20260303_v1_18_1_runtime_alignment.sql
+20260303_v1_18_planner.sql
+20260304_v1_20_execution_sessions.sql
+20260305_v1_21_approval_gates.sql
+20260305_v1_21_provider_outcomes.sql
+20260305_v1_22_commitment_runtime_seed.sql
+20260305_v1_22_memory_candidates.sql
+20260305_v1_22_approval_gate_deadlines.sql
+20260305_v1_22_execution_ledger_fields.sql

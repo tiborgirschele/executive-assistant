@@ -131,6 +131,14 @@ def init_db_sync() -> None:
             intent_type TEXT NOT NULL DEFAULT 'free_text',
             objective TEXT NOT NULL DEFAULT '',
             intent_spec_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+            task_type TEXT NOT NULL DEFAULT '',
+            task_contract_key TEXT NOT NULL DEFAULT '',
+            approval_state TEXT NOT NULL DEFAULT 'none',
+            risk_class TEXT NOT NULL DEFAULT '',
+            budget_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+            parent_session_id UUID REFERENCES execution_sessions(session_id) ON DELETE SET NULL,
+            session_class TEXT NOT NULL DEFAULT 'primary',
+            commitment_key TEXT,
             status TEXT NOT NULL DEFAULT 'queued',
             started_at TIMESTAMPTZ,
             finished_at TIMESTAMPTZ,
@@ -144,6 +152,26 @@ def init_db_sync() -> None:
             ON execution_sessions(tenant, status, created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_execution_sessions_corr
             ON execution_sessions(correlation_id);
+        CREATE INDEX IF NOT EXISTS idx_execution_sessions_task
+            ON execution_sessions(tenant, task_type, status, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_execution_sessions_parent
+            ON execution_sessions(parent_session_id, created_at DESC);
+        ALTER TABLE IF EXISTS execution_sessions
+            ADD COLUMN IF NOT EXISTS task_type TEXT NOT NULL DEFAULT '';
+        ALTER TABLE IF EXISTS execution_sessions
+            ADD COLUMN IF NOT EXISTS task_contract_key TEXT NOT NULL DEFAULT '';
+        ALTER TABLE IF EXISTS execution_sessions
+            ADD COLUMN IF NOT EXISTS approval_state TEXT NOT NULL DEFAULT 'none';
+        ALTER TABLE IF EXISTS execution_sessions
+            ADD COLUMN IF NOT EXISTS risk_class TEXT NOT NULL DEFAULT '';
+        ALTER TABLE IF EXISTS execution_sessions
+            ADD COLUMN IF NOT EXISTS budget_json JSONB NOT NULL DEFAULT '{}'::jsonb;
+        ALTER TABLE IF EXISTS execution_sessions
+            ADD COLUMN IF NOT EXISTS parent_session_id UUID;
+        ALTER TABLE IF EXISTS execution_sessions
+            ADD COLUMN IF NOT EXISTS session_class TEXT NOT NULL DEFAULT 'primary';
+        ALTER TABLE IF EXISTS execution_sessions
+            ADD COLUMN IF NOT EXISTS commitment_key TEXT;
 
         CREATE TABLE IF NOT EXISTS execution_steps (
             step_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -151,6 +179,13 @@ def init_db_sync() -> None:
             step_order INT NOT NULL,
             step_key TEXT NOT NULL,
             step_title TEXT NOT NULL,
+            step_kind TEXT NOT NULL DEFAULT 'generic',
+            provider_key TEXT,
+            input_refs_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+            output_refs_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+            attempt_count INT NOT NULL DEFAULT 0,
+            deadline_at TIMESTAMPTZ,
+            approval_gate_id UUID,
             status TEXT NOT NULL DEFAULT 'queued',
             preconditions_json JSONB NOT NULL DEFAULT '{}'::jsonb,
             evidence_json JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -164,6 +199,24 @@ def init_db_sync() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_execution_steps_poll
             ON execution_steps(session_id, status, step_order);
+        CREATE INDEX IF NOT EXISTS idx_execution_steps_provider
+            ON execution_steps(provider_key, status, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_execution_steps_gate
+            ON execution_steps(approval_gate_id, status, created_at DESC);
+        ALTER TABLE IF EXISTS execution_steps
+            ADD COLUMN IF NOT EXISTS step_kind TEXT NOT NULL DEFAULT 'generic';
+        ALTER TABLE IF EXISTS execution_steps
+            ADD COLUMN IF NOT EXISTS provider_key TEXT;
+        ALTER TABLE IF EXISTS execution_steps
+            ADD COLUMN IF NOT EXISTS input_refs_json JSONB NOT NULL DEFAULT '[]'::jsonb;
+        ALTER TABLE IF EXISTS execution_steps
+            ADD COLUMN IF NOT EXISTS output_refs_json JSONB NOT NULL DEFAULT '[]'::jsonb;
+        ALTER TABLE IF EXISTS execution_steps
+            ADD COLUMN IF NOT EXISTS attempt_count INT NOT NULL DEFAULT 0;
+        ALTER TABLE IF EXISTS execution_steps
+            ADD COLUMN IF NOT EXISTS deadline_at TIMESTAMPTZ;
+        ALTER TABLE IF EXISTS execution_steps
+            ADD COLUMN IF NOT EXISTS approval_gate_id UUID;
 
         CREATE TABLE IF NOT EXISTS execution_events (
             event_id BIGSERIAL PRIMARY KEY,
