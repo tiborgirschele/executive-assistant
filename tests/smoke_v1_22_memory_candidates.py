@@ -73,6 +73,7 @@ def test_memory_candidate_contract_presence() -> None:
     assert "def emit_memory_candidate(" in module_src
     assert "def mark_memory_candidate_review(" in module_src
     assert "def list_memory_candidates(" in module_src
+    assert "def list_memory_candidates_for_sync(" in module_src
     assert migration.exists(), "missing memory-candidate migration"
     _pass("v1.22 memory-candidate contract presence")
 
@@ -100,12 +101,14 @@ def test_memory_candidate_behavior() -> None:
             review_note="looks good",
         )
         rows = mc.list_memory_candidates(tenant_key="chat_100284", review_status="approved", limit=5)
+        sync_rows = mc.list_memory_candidates_for_sync(review_status="approved", tenant_keys=["chat_100284"], limit=5)
     finally:
         mc._get_db = orig_get_db
 
     assert candidate_id == "mem-1"
     assert ok is True
     assert rows and str(rows[0].get("memory_candidate_id") or "") == "mem-1"
+    assert sync_rows and str(sync_rows[0].get("memory_candidate_id") or "") == "mem-1"
     assert fake.fetchone_calls, "expected insert returning call"
     assert fake.execute_calls, "expected review update call"
     assert fake.fetchall_calls, "expected list query call"

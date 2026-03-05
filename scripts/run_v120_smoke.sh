@@ -40,6 +40,7 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_21_doc_alignment.py" \
   "$ROOT/tests/smoke_v1_22_world_model_seed.py" \
   "$ROOT/tests/smoke_v1_22_memory_candidates.py" \
+  "$ROOT/tests/smoke_v1_22_memory_promotion_pipeline.py" \
   "$ROOT/tests/smoke_work_tasks_contract.py"
 
 echo "[SMOKE][v1.20] Host smoke"
@@ -74,6 +75,7 @@ python3 "$ROOT/tests/smoke_v1_21_gate_alias.py"
 python3 "$ROOT/tests/smoke_v1_21_doc_alignment.py"
 python3 "$ROOT/tests/smoke_v1_22_world_model_seed.py"
 python3 "$ROOT/tests/smoke_v1_22_memory_candidates.py"
+python3 "$ROOT/tests/smoke_v1_22_memory_promotion_pipeline.py"
 python3 "$ROOT/tests/smoke_work_tasks_contract.py"
 
 if [[ "${EA_SKIP_FULL_GATES:-0}" != "1" ]]; then

@@ -229,6 +229,16 @@ Branch: `main`
     - `list_memory_candidates(...)`
   - exported memory-candidate helpers via `ea/app/planner/__init__.py`.
   - added `tests/smoke_v1_22_memory_candidates.py` and wired it into host/docker/CI gates.
+- [DONE] Memory-candidate promotion pipeline completion:
+  - `execution/session_store.py::finalize_execution_session(...)` now emits bounded
+    memory candidates for completed/partial sessions with source provenance.
+  - failed/error session finalize paths are excluded from automatic memory promotion.
+  - `integrations/teable/sync_worker.py` now ingests only `approved` rows from
+    local `memory_candidates` and tracks candidate-id sync state in
+    `/attachments/teable_sync_state.json`.
+  - added `list_memory_candidates_for_sync(...)` in `planner/memory_candidates.py`.
+  - added `tests/smoke_v1_22_memory_promotion_pipeline.py` and wired it into
+    host/docker/CI gates.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`
     from `runner.py` (canonical role shim path), not direct worker import.
@@ -248,4 +258,5 @@ Branch: `main`
 - None.
 
 ## Next Queue (on new feedback)
-- None.
+- [IN_PROGRESS] Synthetic-user eval harness container (qa profile only)
+- [PENDING] Continue poll/scheduler decomposition

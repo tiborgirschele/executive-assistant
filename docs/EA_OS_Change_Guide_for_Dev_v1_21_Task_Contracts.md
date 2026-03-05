@@ -248,8 +248,21 @@ existing capability routing behavior.
        - `emit_memory_candidate(...)`
        - `mark_memory_candidate_review(...)`
        - `list_memory_candidates(...)`
+       - `list_memory_candidates_for_sync(...)`
+   - Added finalize-session memory emission hook in
+     `ea/app/execution/session_store.py`:
+     - completed/partial sessions emit bounded candidate facts to
+       `memory_candidates` with source provenance.
+     - failed/error sessions are excluded from automatic promotion.
+   - Extended Teable sync worker (`ea/app/integrations/teable/sync_worker.py`):
+     - ingests only `approved` memory candidates from local Postgres.
+     - keeps candidate-id sync state in `/attachments/teable_sync_state.json`.
+     - preserves runtime-dump filtering before push to Teable.
    - Exported memory-candidate helpers via `ea/app/planner/__init__.py`.
-   - Added `tests/smoke_v1_22_memory_candidates.py` and wired it into host/docker/CI gates.
+   - Added:
+     - `tests/smoke_v1_22_memory_candidates.py`
+     - `tests/smoke_v1_22_memory_promotion_pipeline.py`
+     and wired both into host/docker/CI gates.
 
 ## Why this matters
 

@@ -47,21 +47,24 @@ Owner: Codex runtime worker
      - helper module for linking execution sessions to commitments/artifacts.
      - smoke for table presence + minimal lifecycle.
 
-6. `IN_PROGRESS` - Add memory-candidate promotion pipeline (local-first, Teable-curated).
+6. `DONE` - Add memory-candidate promotion pipeline (local-first, Teable-curated).
    - Deliverables:
      - `memory_candidates` local table + promotion status.
      - runtime emit on session finalize (bounded, policy-safe).
      - sync worker ingests approved candidates only.
      - smoke for promotion + filtering rules.
    - Progress:
-     - seed schema + planner memory-candidate module + smoke gates are implemented.
-     - finalize-session emit and Teable approved-candidate ingestion remain.
+     - seed schema + planner memory-candidate module + smoke gates implemented.
+     - finalize-session emission + approved-candidate Teable ingestion implemented.
+     - added `smoke_v1_22_memory_promotion_pipeline.py` to host/docker/CI gates.
 
-7. `PENDING` - Synthetic-user eval harness container (qa profile only).
+7. `IN_PROGRESS` - Synthetic-user eval harness container (qa profile only).
    - Deliverables:
      - `ea-sim-user` compose profile entry (non-prod by default).
      - scenario runner for cooperative/adversarial scripts.
      - smoke for container wiring and scenario contract.
+   - Progress:
+      - next execution target after task 6 completion.
 
 8. `PENDING` - Continue poll/scheduler decomposition.
    - Deliverables:

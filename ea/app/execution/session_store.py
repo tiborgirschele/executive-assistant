@@ -28,6 +28,140 @@ def _normalize_status(status: str, *, default: str = "queued") -> str:
     return default
 
 
+def _coerce_json_dict(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, str):
+        try:
+            loaded = json.loads(value)
+        except Exception:
+            return {}
+        if isinstance(loaded, dict):
+            return dict(loaded)
+    return {}
+
+
+def _normalize_memory_text(text: str, *, limit: int = 1400) -> str:
+    cleaned = " ".join(str(text or "").replace("\n", " ").split())
+    return cleaned[:limit].strip()
+
+
+def _looks_runtime_like(text: str) -> bool:
+    sample = str(text or "").lower()
+    if not sample:
+        return True
+    markers = (
+        "traceback",
+        "fatal event loop deadlock",
+        "tool_call",
+        '"role":',
+        "[options:",
+        "llm gateway",
+    )
+    return sum(1 for marker in markers if marker in sample) >= 2
+
+
+def _build_memory_candidate_fact(
+    *,
+    objective: str,
+    final_status: str,
+    outcome: dict[str, Any],
+) -> str:
+    objective_text = _normalize_memory_text(objective, limit=700)
+    if not objective_text:
+        return ""
+    result = _normalize_memory_text(str(outcome.get("result") or ""), limit=120)
+    if final_status == "completed":
+        tail = f" Outcome: {result}." if result else " Outcome: completed."
+        return f"{objective_text}.{tail}"
+    if final_status == "partial":
+        blocked = _normalize_memory_text(str(outcome.get("blocked_reason") or ""), limit=120)
+        if blocked:
+            return f"{objective_text}. Pending gate: {blocked}."
+        return f"{objective_text}. Pending approval or follow-up."
+    return ""
+
+
+def _load_session_context(session_id: str) -> dict[str, Any]:
+    try:
+        db = get_db()
+        if not hasattr(db, "fetchone"):
+            return {}
+        row = db.fetchone(
+            """
+            SELECT tenant, intent_type, objective, intent_spec_json
+            FROM execution_sessions
+            WHERE session_id = %s
+            LIMIT 1
+            """,
+            (str(session_id),),
+        )
+        return dict(row or {})
+    except Exception:
+        return {}
+
+
+def _emit_finalize_memory_candidate(
+    *,
+    session_id: str,
+    final_status: str,
+    outcome: dict[str, Any] | None = None,
+    last_error: str | None = None,
+) -> None:
+    if final_status not in {"completed", "partial"}:
+        return
+    if last_error:
+        return
+    session_row = _load_session_context(session_id)
+    tenant = str((session_row or {}).get("tenant") or "").strip()
+    if not tenant:
+        return
+    intent_type = str((session_row or {}).get("intent_type") or "").strip().lower() or "free_text"
+    objective = str((session_row or {}).get("objective") or "")
+    intent_spec = _coerce_json_dict((session_row or {}).get("intent_spec_json"))
+    task_type = str(intent_spec.get("task_type") or "").strip().lower()
+    domain = str(intent_spec.get("domain") or "").strip().lower()
+    concept = task_type or domain or intent_type or "general"
+    outcome_dict = dict(outcome or {})
+    fact = _build_memory_candidate_fact(objective=objective, final_status=final_status, outcome=outcome_dict)
+    fact = _normalize_memory_text(fact, limit=1600)
+    if not fact or _looks_runtime_like(fact):
+        return
+    payload = {
+        "source": "session_finalize",
+        "status": final_status,
+        "intent_type": intent_type,
+        "task_type": task_type,
+        "domain": domain,
+        "result": str(outcome_dict.get("result") or "")[:120],
+    }
+    try:
+        from app.planner.memory_candidates import emit_memory_candidate
+
+        candidate_id = str(
+            emit_memory_candidate(
+                tenant_key=tenant,
+                source_session_id=session_id,
+                concept=concept[:120],
+                candidate_fact=fact,
+                confidence=0.72 if final_status == "completed" else 0.62,
+                sensitivity="internal",
+                sharing_policy="private",
+                payload=payload,
+            )
+            or ""
+        )
+    except Exception:
+        candidate_id = ""
+    if candidate_id:
+        append_execution_event(
+            session_id,
+            event_type="memory_candidate_emitted",
+            message="Memory candidate emitted from finalized session.",
+            payload={"memory_candidate_id": candidate_id, "concept": concept[:120]},
+        )
+
+
 def compile_intent_spec(
     *,
     text: str,
@@ -377,6 +511,12 @@ def finalize_execution_session(
             event_type="session_finalized",
             message="Execution session finalized.",
             payload={"status": final_status, "has_error": bool(last_error)},
+        )
+        _emit_finalize_memory_candidate(
+            session_id=session_id,
+            final_status=final_status,
+            outcome=dict(outcome or {}),
+            last_error=last_error,
         )
     except Exception:
         return

@@ -17,6 +17,12 @@ TEABLE_SYNC_POLL_SEC = max(5, int(os.environ.get("EA_TEABLE_SYNC_POLL_SEC") or 1
 ATTACHMENTS_DIR = str(os.environ.get("EA_ATTACHMENTS_DIR") or "/attachments").strip() or "/attachments"
 BRAIN_PATH = str(os.environ.get("EA_BRAIN_PATH") or os.path.join(ATTACHMENTS_DIR, "brain.json"))
 STATE_PATH = str(os.environ.get("EA_TEABLE_SYNC_STATE_PATH") or os.path.join(ATTACHMENTS_DIR, "teable_sync_state.json"))
+TEABLE_MEMORY_TENANTS = [
+    x.strip()
+    for x in str(os.environ.get("EA_TEABLE_MEMORY_TENANTS") or "").split(",")
+    if x.strip()
+]
+TEABLE_MEMORY_SYNC_LIMIT = max(1, min(1000, int(os.environ.get("EA_TEABLE_MEMORY_SYNC_LIMIT") or 200)))
 
 
 def _utc_now_iso() -> str:
@@ -63,10 +69,16 @@ def _load_sync_state(path: str) -> dict[str, Any]:
     else:
         sync_list = []
     skipped = raw.get("skipped_concepts")
+    synced_candidate_ids = raw.get("synced_memory_candidate_ids")
+    if isinstance(synced_candidate_ids, list):
+        candidate_ids = [str(x).strip() for x in synced_candidate_ids if str(x).strip()]
+    else:
+        candidate_ids = []
     return {
         "synced_concepts": sync_list,
         "updated_at": raw.get("updated_at"),
         "skipped_concepts": skipped if isinstance(skipped, dict) else {},
+        "synced_memory_candidate_ids": candidate_ids,
     }
 
 
@@ -91,6 +103,13 @@ def _looks_runtime_dump(text: str) -> bool:
         "fatal event loop deadlock",
     )
     return sum(1 for marker in dump_markers if marker in low) >= 2
+
+
+def _compact_synced_candidate_ids(ids: set[str], *, cap: int = 5000) -> list[str]:
+    ordered = sorted(str(x).strip() for x in ids if str(x).strip())
+    if len(ordered) <= cap:
+        return ordered
+    return ordered[-cap:]
 
 
 def build_memory_record_fields(concept: str, raw_fact: Any) -> dict[str, Any] | None:
@@ -137,6 +156,45 @@ def build_memory_record_fields(concept: str, raw_fact: Any) -> dict[str, Any] | 
         "Sharing Policy": sharing_policy[:64],
         "Reviewer": reviewer[:120],
     }
+
+
+def build_memory_record_fields_from_candidate(row: dict[str, Any]) -> dict[str, Any] | None:
+    item = dict(row or {})
+    concept = str(item.get("concept") or "").strip()
+    candidate_fact = str(item.get("candidate_fact") or "").strip()
+    if not concept or not candidate_fact:
+        return None
+    payload_obj = item.get("payload_json")
+    if not isinstance(payload_obj, dict):
+        payload_obj = {}
+    raw_fact = {
+        "core_fact": candidate_fact,
+        "source": str(payload_obj.get("source") or "memory_candidate"),
+        "confidence": item.get("confidence"),
+        "last_verified": str(item.get("reviewed_at") or item.get("created_at") or _utc_now_iso()),
+        "sensitivity": str(item.get("sensitivity") or "internal"),
+        "sharing_policy": str(item.get("sharing_policy") or "private"),
+        "reviewer": str(item.get("reviewer") or "ea-runtime"),
+    }
+    return build_memory_record_fields(concept, raw_fact)
+
+
+def collect_approved_memory_candidate_rows(limit: int = TEABLE_MEMORY_SYNC_LIMIT) -> list[dict[str, Any]]:
+    try:
+        from app.planner.memory_candidates import list_memory_candidates_for_sync
+    except Exception:
+        return []
+    try:
+        return list(
+            list_memory_candidates_for_sync(
+                review_status="approved",
+                tenant_keys=TEABLE_MEMORY_TENANTS,
+                limit=max(1, min(1000, int(limit))),
+            )
+            or []
+        )
+    except Exception:
+        return []
 
 
 async def _fetch_memory_table_id(client: httpx.AsyncClient, headers: dict[str, str]) -> str | None:
@@ -207,11 +265,15 @@ async def run_teable_sync() -> None:
             state = _load_sync_state(STATE_PATH)
             synced_concepts = {str(x) for x in state.get("synced_concepts", []) if str(x).strip()}
             skipped = dict(state.get("skipped_concepts") or {})
+            synced_memory_candidate_ids = {
+                str(x) for x in state.get("synced_memory_candidate_ids", []) if str(x).strip()
+            }
 
-            if brain:
+            rows = collect_approved_memory_candidate_rows(limit=TEABLE_MEMORY_SYNC_LIMIT)
+            if brain or rows:
                 async with httpx.AsyncClient(timeout=15.0) as client:
                     table_id = await _fetch_memory_table_id(client, headers)
-                    if table_id:
+                    if table_id and brain:
                         for concept in sorted(brain.keys()):
                             concept_key = str(concept or "").strip()
                             if not concept_key or concept_key in synced_concepts:
@@ -230,6 +292,33 @@ async def run_teable_sync() -> None:
                                     "synced_concepts": sorted(synced_concepts),
                                     "updated_at": _utc_now_iso(),
                                     "skipped_concepts": skipped,
+                                    "synced_memory_candidate_ids": _compact_synced_candidate_ids(
+                                        synced_memory_candidate_ids
+                                    ),
+                                }
+                                _save_json(STATE_PATH, state)
+                                await asyncio.sleep(1)
+                    if table_id:
+                        for row in rows:
+                            candidate_id = str((row or {}).get("memory_candidate_id") or "").strip()
+                            if not candidate_id or candidate_id in synced_memory_candidate_ids:
+                                continue
+                            fields = build_memory_record_fields_from_candidate(dict(row or {}))
+                            if not fields:
+                                skipped[f"candidate:{candidate_id}"] = "unsupported_or_runtime_like"
+                                continue
+                            print(f"🗃️ Syncing approved memory candidate: [{candidate_id}]", flush=True)
+                            pushed = await _push_record(client, table_id=table_id, headers=headers, fields=fields)
+                            if pushed:
+                                synced_memory_candidate_ids.add(candidate_id)
+                                skipped.pop(f"candidate:{candidate_id}", None)
+                                state = {
+                                    "synced_concepts": sorted(synced_concepts),
+                                    "updated_at": _utc_now_iso(),
+                                    "skipped_concepts": skipped,
+                                    "synced_memory_candidate_ids": _compact_synced_candidate_ids(
+                                        synced_memory_candidate_ids
+                                    ),
                                 }
                                 _save_json(STATE_PATH, state)
                                 await asyncio.sleep(1)

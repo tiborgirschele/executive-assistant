@@ -49,6 +49,17 @@ def test_teable_sync_runtime_contracts() -> None:
         '{"role":"assistant","content":"traceback ... tool_call ..."}',
     )
     assert blocked is None
+    assert callable(sw.collect_approved_memory_candidate_rows)
+    candidate_fields = sw.build_memory_record_fields_from_candidate(
+        {
+            "memory_candidate_id": "mem-1",
+            "concept": "travel_rescue",
+            "candidate_fact": "Approved travel memory candidate.",
+            "review_status": "approved",
+            "payload_json": {"source": "session_finalize"},
+        }
+    )
+    assert isinstance(candidate_fields, dict)
     _pass("v1.20 teable sync runtime contracts")
 
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Sequence
 
 
 def _safe_json(value: Any) -> str:
@@ -137,4 +137,52 @@ def list_memory_candidates(
         return []
 
 
-__all__ = ["emit_memory_candidate", "mark_memory_candidate_review", "list_memory_candidates"]
+def list_memory_candidates_for_sync(
+    *,
+    review_status: str = "approved",
+    tenant_keys: Sequence[str] | None = None,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    status = str(review_status or "approved").strip().lower()
+    cap = max(1, min(1000, int(limit)))
+    tenants = [str(x).strip() for x in (tenant_keys or []) if str(x or "").strip()]
+    try:
+        db = _get_db()
+        if tenants:
+            rows = db.fetchall(
+                """
+                SELECT memory_candidate_id, tenant_key, source_session_id, concept, candidate_fact,
+                       confidence, sensitivity, sharing_policy, review_status, reviewer, review_note,
+                       payload_json, created_at, reviewed_at
+                FROM memory_candidates
+                WHERE review_status = %s
+                  AND tenant_key = ANY(%s)
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (status, tenants, cap),
+            )
+        else:
+            rows = db.fetchall(
+                """
+                SELECT memory_candidate_id, tenant_key, source_session_id, concept, candidate_fact,
+                       confidence, sensitivity, sharing_policy, review_status, reviewer, review_note,
+                       payload_json, created_at, reviewed_at
+                FROM memory_candidates
+                WHERE review_status = %s
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (status, cap),
+            )
+        return list(rows or [])
+    except Exception:
+        return []
+
+
+__all__ = [
+    "emit_memory_candidate",
+    "mark_memory_candidate_review",
+    "list_memory_candidates",
+    "list_memory_candidates_for_sync",
+]
