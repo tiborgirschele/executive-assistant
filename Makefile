@@ -33,7 +33,7 @@ release-docs:
 	$(MAKE) operator-help
 
 test-api:
-	PYTHONPATH=ea EA_LEDGER_BACKEND=memory pytest -q tests/smoke_runtime_api.py
+	PYTHONPATH=ea EA_STORAGE_BACKEND=memory pytest -q tests
 
 openapi-export:
 	bash scripts/export_openapi.sh
@@ -74,7 +74,7 @@ tasks-archive-dry-run:
 
 ci-local:
 	python3 -m compileall -q ea/app
-	python3 -m py_compile tests/smoke_runtime_api.py
+	python3 -m compileall -q tests
 	bash scripts/smoke_help.sh
 
 # Mirror the smoke-runtime CI gate order locally from one entrypoint.

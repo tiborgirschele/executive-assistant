@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from app.api.dependencies import get_container
+from app.container import AppContainer
 from app.domain.models import RewriteRequest
-from app.services.orchestrator import build_default_orchestrator
 from app.services.policy import PolicyDeniedError
 
 router = APIRouter(prefix="/v1/rewrite", tags=["rewrite"])
-_orchestrator = build_default_orchestrator()
 
 
 class RewriteIn(BaseModel):
@@ -40,12 +40,15 @@ class SessionOut(BaseModel):
 
 
 @router.post("/artifact")
-def create_artifact(payload: RewriteIn) -> RewriteOut:
+def create_artifact(
+    payload: RewriteIn,
+    container: AppContainer = Depends(get_container),
+) -> RewriteOut:
     text = str(payload.text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
     try:
-        artifact = _orchestrator.build_artifact(RewriteRequest(text=text))
+        artifact = container.orchestrator.build_artifact(RewriteRequest(text=text))
     except PolicyDeniedError as exc:
         reason = str(exc or "policy_denied")
         status_code = 409 if reason == "approval_required" else 403
@@ -59,8 +62,11 @@ def create_artifact(payload: RewriteIn) -> RewriteOut:
 
 
 @router.get("/sessions/{session_id}")
-def get_session(session_id: str) -> SessionOut:
-    found = _orchestrator.fetch_session(session_id)
+def get_session(
+    session_id: str,
+    container: AppContainer = Depends(get_container),
+) -> SessionOut:
+    found = container.orchestrator.fetch_session(session_id)
     if not found:
         raise HTTPException(status_code=404, detail="session not found")
     session, events = found

@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "date": "2026-03-05",
   "features": [
     "execution_ledger",
@@ -11,6 +11,11 @@
     "api_smoke_tests",
     "ci_smoke_workflow",
     "operator_runbook",
+    "dependency_injected_routes",
+    "error_envelope_contract",
+    "health_live_ready_version",
+    "token_auth_gate",
+    "durable_artifacts",
     "script_help_contracts",
     "ci_gate_bundle",
     "release_preflight_bundle",
@@ -19,11 +24,14 @@
   "migrations": [
     "ea/schema/20260305_v0_2_execution_ledger_kernel.sql",
     "ea/schema/20260305_v0_3_channel_runtime_kernel.sql",
-    "ea/schema/20260305_v0_4_policy_decisions_kernel.sql"
+    "ea/schema/20260305_v0_4_policy_decisions_kernel.sql",
+    "ea/schema/20260305_v0_5_artifacts_kernel.sql"
   ],
   "env_contract": {
-    "EA_LEDGER_BACKEND": "memory|postgres|auto",
+    "EA_STORAGE_BACKEND": "memory|postgres|auto",
+    "EA_LEDGER_BACKEND": "legacy_alias_for_EA_STORAGE_BACKEND",
     "DATABASE_URL": "required_for_postgres",
-    "EA_BOOTSTRAP_DB": "0|1"
+    "EA_BOOTSTRAP_DB": "0|1",
+    "EA_API_TOKEN": "optional_bearer_token_for_non_health_routes"
   }
 }

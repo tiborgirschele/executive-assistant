@@ -10,6 +10,9 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | Method | Route | Success | Error contracts |
 |---|---|---|---|
 | GET | `/health` | `200` | n/a |
+| GET | `/health/live` | `200` | n/a |
+| GET | `/health/ready` | `200` | `503 not_ready:*` |
+| GET | `/version` | `200` | n/a |
 | POST | `/v1/rewrite/artifact` | `200` | `400 text is required`, `403 policy_denied:*`, `409 policy_denied:approval_required` |
 | GET | `/v1/rewrite/sessions/{session_id}` | `200` | `404 session not found` |
 | GET | `/v1/policy/decisions/recent` | `200` | n/a |
@@ -19,6 +22,13 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | GET | `/v1/delivery/outbox/pending` | `200` | validation `422` |
 | POST | `/v1/delivery/outbox/{delivery_id}/sent` | `200` | `404 delivery_not_found` |
 | POST | `/v1/channels/telegram/ingest` | `200` | validation `422` |
+
+Error envelope for failures:
+- `{ "error": { "code": "...", "message": "...", "details": ..., "correlation_id": "..." } }`
+
+Auth:
+- Set `EA_API_TOKEN=<token>` to require auth for all non-health routes.
+- Use `Authorization: Bearer <token>` or `X-API-Token: <token>`.
 
 ## Operator Script Help Index
 
@@ -46,7 +56,7 @@ make operator-help
 
 - `make smoke-help`
 - `make ci-local`
-- `pytest -q tests/smoke_runtime_api.py`
+- `make test-api`
 - `make verify-release-assets`
 
 Milestone tracking linkage: `MILESTONE.json` feature tags include `ci_gate_bundle`, `release_preflight_bundle`, and `docs_verify_alias`.
@@ -95,6 +105,7 @@ Applies:
 - `ea/schema/20260305_v0_2_execution_ledger_kernel.sql`
 - `ea/schema/20260305_v0_3_channel_runtime_kernel.sql`
 - `ea/schema/20260305_v0_4_policy_decisions_kernel.sql`
+- `ea/schema/20260305_v0_5_artifacts_kernel.sql`
 
 Check table presence/counts:
 
@@ -108,6 +119,9 @@ make db-status
 
 ```bash
 curl -fsS http://localhost:${EA_HOST_PORT:-8090}/health
+curl -fsS http://localhost:${EA_HOST_PORT:-8090}/health/live
+curl -fsS http://localhost:${EA_HOST_PORT:-8090}/health/ready
+curl -fsS http://localhost:${EA_HOST_PORT:-8090}/version
 ```
 
 ## 4) Rewrite + Session Audit Smoke

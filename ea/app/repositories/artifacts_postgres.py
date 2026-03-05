@@ -1,0 +1,134 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from app.domain.models import Artifact, now_utc_iso
+
+
+def _file_uri(path: Path) -> str:
+    return f"file://{path.resolve()}"
+
+
+def _path_from_uri(uri: str) -> Path:
+    text = str(uri or "").strip()
+    if text.startswith("file://"):
+        return Path(text[7:])
+    return Path(text)
+
+
+class PostgresArtifactRepository:
+    def __init__(self, database_url: str, artifacts_dir: str, tenant_id: str = "default") -> None:
+        self._database_url = str(database_url or "").strip()
+        if not self._database_url:
+            raise ValueError("database_url is required for PostgresArtifactRepository")
+        self._artifacts_dir = Path(str(artifacts_dir or "").strip() or "/tmp/ea_artifacts")
+        self._artifacts_dir.mkdir(parents=True, exist_ok=True)
+        self._tenant_id = str(tenant_id or "default").strip() or "default"
+        self._ensure_schema()
+
+    def _connect(self):  # type: ignore[no-untyped-def]
+        try:
+            import psycopg
+        except Exception as exc:  # pragma: no cover - import guard
+            raise RuntimeError("psycopg is required for postgres artifact backend") from exc
+        return psycopg.connect(self._database_url, autocommit=True)
+
+    def _json_value(self, value: dict[str, Any]):  # type: ignore[no-untyped-def]
+        from psycopg.types.json import Json
+
+        return Json(value)
+
+    def _ensure_schema(self) -> None:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS artifacts (
+                        artifact_id TEXT PRIMARY KEY,
+                        tenant_id TEXT NOT NULL,
+                        session_id TEXT NOT NULL,
+                        artifact_type TEXT NOT NULL,
+                        mime_type TEXT NOT NULL,
+                        storage_uri TEXT NOT NULL,
+                        metadata_json JSONB NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL,
+                        updated_at TIMESTAMPTZ NOT NULL
+                    )
+                    """
+                )
+                cur.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_artifacts_session_created
+                    ON artifacts(session_id, created_at DESC)
+                    """
+                )
+
+    def _path_for(self, artifact_id: str) -> Path:
+        return self._artifacts_dir / f"{artifact_id}.txt"
+
+    def save(self, artifact: Artifact) -> None:
+        path = self._path_for(artifact.artifact_id)
+        path.write_text(artifact.content, encoding="utf-8")
+        stamp = now_utc_iso()
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO artifacts
+                    (artifact_id, tenant_id, session_id, artifact_type, mime_type, storage_uri, metadata_json, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (artifact_id) DO UPDATE
+                    SET session_id = EXCLUDED.session_id,
+                        artifact_type = EXCLUDED.artifact_type,
+                        mime_type = EXCLUDED.mime_type,
+                        storage_uri = EXCLUDED.storage_uri,
+                        metadata_json = EXCLUDED.metadata_json,
+                        updated_at = EXCLUDED.updated_at
+                    """,
+                    (
+                        artifact.artifact_id,
+                        self._tenant_id,
+                        artifact.execution_session_id,
+                        artifact.kind,
+                        "text/plain",
+                        _file_uri(path),
+                        self._json_value(
+                            {
+                                "execution_session_id": artifact.execution_session_id,
+                                "artifact_kind": artifact.kind,
+                            }
+                        ),
+                        stamp,
+                        stamp,
+                    ),
+                )
+
+    def get(self, artifact_id: str) -> Artifact | None:
+        aid = str(artifact_id or "").strip()
+        if not aid:
+            return None
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT artifact_id, session_id, artifact_type, storage_uri
+                    FROM artifacts
+                    WHERE artifact_id = %s AND tenant_id = %s
+                    """,
+                    (aid, self._tenant_id),
+                )
+                row = cur.fetchone()
+        if not row:
+            return None
+        found_id, session_id, artifact_type, storage_uri = row
+        path = _path_from_uri(str(storage_uri or ""))
+        if not path.exists():
+            return None
+        content = path.read_text(encoding="utf-8")
+        return Artifact(
+            artifact_id=str(found_id),
+            kind=str(artifact_type),
+            content=content,
+            execution_session_id=str(session_id),
+        )

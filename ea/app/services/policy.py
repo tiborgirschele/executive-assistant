@@ -8,6 +8,9 @@ class PolicyDeniedError(RuntimeError):
 
 
 class PolicyDecisionService:
+    def __init__(self, max_rewrite_chars: int = 20000) -> None:
+        self._max_rewrite_chars = max(1, int(max_rewrite_chars))
+
     def evaluate_rewrite(self, intent: IntentSpecV3, text: str) -> PolicyDecision:
         normalized = str(text or "")
         if not normalized.strip():
@@ -18,7 +21,7 @@ class PolicyDecisionService:
                 retention_policy="none",
                 memory_write_allowed=False,
             )
-        if len(normalized) > 20000:
+        if len(normalized) > self._max_rewrite_chars:
             return PolicyDecision(
                 allow=False,
                 requires_approval=False,

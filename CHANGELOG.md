@@ -12,11 +12,17 @@ All notable changes to the rewrite-kernel baseline are documented here.
   - observation intake/history
   - delivery outbox queue/sent/pending
   - Telegram adapter ingestion
+- Milestone 0 hardening primitives:
+  - app dependency container (`app.state.container`) with route-level dependency injection
+  - global error envelope (`error.code/message/details/correlation_id`)
+  - health split endpoints (`/health/live`, `/health/ready`) and `/version`
+  - optional token auth gate for non-health routes (`EA_API_TOKEN`)
 - Postgres + in-memory repository backends for kernel stores.
 - Kernel SQL migrations:
   - `v0_2` execution ledger
   - `v0_3` channel runtime
   - `v0_4` policy decisions
+  - `v0_5` artifacts durability
 - Operator tooling:
   - `scripts/db_bootstrap.sh`
   - `scripts/db_status.sh`
@@ -34,6 +40,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Rewrite path now emits execution ledger events and policy audit records.
 - Milestone metadata now includes CI/docs/release gate-bundle feature tags.
 - Release checklist now includes explicit milestone gate-tag parity verification.
+- Artifact persistence now supports durable Postgres metadata + file-backed content storage.
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.

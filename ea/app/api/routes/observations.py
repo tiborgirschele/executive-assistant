@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
-from app.services.channel_runtime import build_channel_runtime
+from app.api.dependencies import get_container
+from app.container import AppContainer
 
 router = APIRouter(prefix="/v1/observations", tags=["observations"])
-_runtime = build_channel_runtime()
 
 
 class ObservationIn(BaseModel):
@@ -26,8 +26,11 @@ class ObservationOut(BaseModel):
 
 
 @router.post("/ingest")
-def ingest_observation(body: ObservationIn) -> ObservationOut:
-    row = _runtime.ingest_observation(
+def ingest_observation(
+    body: ObservationIn,
+    container: AppContainer = Depends(get_container),
+) -> ObservationOut:
+    row = container.channel_runtime.ingest_observation(
         principal_id=body.principal_id,
         channel=body.channel,
         event_type=body.event_type,
@@ -44,8 +47,11 @@ def ingest_observation(body: ObservationIn) -> ObservationOut:
 
 
 @router.get("/recent")
-def list_recent_observations(limit: int = Query(default=50, ge=1, le=500)) -> list[ObservationOut]:
-    rows = _runtime.list_recent_observations(limit=limit)
+def list_recent_observations(
+    limit: int = Query(default=50, ge=1, le=500),
+    container: AppContainer = Depends(get_container),
+) -> list[ObservationOut]:
+    rows = container.channel_runtime.list_recent_observations(limit=limit)
     return [
         ObservationOut(
             observation_id=r.observation_id,

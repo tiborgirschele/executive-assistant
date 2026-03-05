@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.services.channel_runtime import build_channel_runtime
+from app.api.dependencies import get_container
+from app.container import AppContainer
 
 router = APIRouter(prefix="/v1/delivery/outbox", tags=["delivery"])
-_runtime = build_channel_runtime()
 
 
 class DeliveryIn(BaseModel):
@@ -28,8 +28,11 @@ class DeliveryOut(BaseModel):
 
 
 @router.post("")
-def enqueue_delivery(body: DeliveryIn) -> DeliveryOut:
-    row = _runtime.queue_delivery(
+def enqueue_delivery(
+    body: DeliveryIn,
+    container: AppContainer = Depends(get_container),
+) -> DeliveryOut:
+    row = container.channel_runtime.queue_delivery(
         channel=body.channel,
         recipient=body.recipient,
         content=body.content,
@@ -48,8 +51,11 @@ def enqueue_delivery(body: DeliveryIn) -> DeliveryOut:
 
 
 @router.post("/{delivery_id}/sent")
-def mark_sent(delivery_id: str) -> DeliveryOut:
-    row = _runtime.mark_delivery_sent(delivery_id)
+def mark_sent(
+    delivery_id: str,
+    container: AppContainer = Depends(get_container),
+) -> DeliveryOut:
+    row = container.channel_runtime.mark_delivery_sent(delivery_id)
     if not row:
         raise HTTPException(status_code=404, detail="delivery_not_found")
     return DeliveryOut(
@@ -65,8 +71,11 @@ def mark_sent(delivery_id: str) -> DeliveryOut:
 
 
 @router.get("/pending")
-def list_pending(limit: int = Query(default=50, ge=1, le=500)) -> list[DeliveryOut]:
-    rows = _runtime.list_pending_delivery(limit=limit)
+def list_pending(
+    limit: int = Query(default=50, ge=1, le=500),
+    container: AppContainer = Depends(get_container),
+) -> list[DeliveryOut]:
+    rows = container.channel_runtime.list_pending_delivery(limit=limit)
     return [
         DeliveryOut(
             delivery_id=r.delivery_id,

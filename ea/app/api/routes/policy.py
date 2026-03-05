@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from app.services.orchestrator import build_default_orchestrator
+from app.api.dependencies import get_container
+from app.container import AppContainer
 
 router = APIRouter(prefix="/v1/policy", tags=["policy"])
-_orchestrator = build_default_orchestrator()
 
 
 class PolicyDecisionOut(BaseModel):
@@ -24,8 +24,9 @@ class PolicyDecisionOut(BaseModel):
 def list_recent_policy_decisions(
     limit: int = Query(default=50, ge=1, le=500),
     session_id: str | None = Query(default=None),
+    container: AppContainer = Depends(get_container),
 ) -> list[PolicyDecisionOut]:
-    rows = _orchestrator.list_policy_decisions(limit=limit, session_id=session_id)
+    rows = container.orchestrator.list_policy_decisions(limit=limit, session_id=session_id)
     return [
         PolicyDecisionOut(
             decision_id=r.decision_id,

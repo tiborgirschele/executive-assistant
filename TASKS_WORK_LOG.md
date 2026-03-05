@@ -14,7 +14,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
 | Q-044 | P2 | Keep queue log current as slices are added/closed | codex | queued | Use this file as the default intake point for new tasks |
-| Q-116 | P3 | Add changelog note for runbook/checklist milestone parity linkage | codex | queued | Track cross-doc milestone parity linkage in release notes |
+| Q-117 | P0 | Start Milestone 1 ledger v2 (`execution_steps`, `tool_receipts`, `run_costs`) with API/session projection updates | codex | queued | First autonomous-runtime milestone after M0 hardening |
 
 ## In Progress
 
@@ -147,6 +147,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | D-113 | P3 | Add release-asset guard for README checklist milestone parity note | codex | done | Verifies entry docs keep checklist milestone parity guidance visible |
 | D-114 | P3 | Add RUNBOOK note for checklist milestone parity preflight line | codex | done | Added runbook linkage to checklist milestone-tag preflight validation |
 | D-115 | P3 | Add release-asset guard for runbook checklist milestone parity note | codex | done | Verifies runbook/checklist milestone parity linkage remains documented |
+| D-116 | P0 | Complete Milestone 0 kernel hardening pass | codex | done | Added DI container, error envelope, auth gate, liveness/readiness/version, durable artifact repo + `v0_5`, and expanded test scaffolding |
 
 ## Intake Template
 

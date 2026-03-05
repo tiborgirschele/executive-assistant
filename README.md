@@ -15,7 +15,7 @@ Removed:
 ## Runtime Spine (Rewrite Seed)
 
 - `app.main` exposes a FastAPI app
-- `/health` provides a baseline readiness endpoint
+- `/health`, `/health/live`, `/health/ready`, `/version` provide liveness/readiness/version probes
 - `/v1/rewrite/artifact` creates an artifact and an execution session
 - `/v1/rewrite/sessions/{session_id}` exposes the execution ledger for that run
 - `/v1/observations/ingest` and `/v1/observations/recent` provide channel-agnostic observation intake
@@ -31,14 +31,20 @@ Removed:
 - app images no longer install `docker.io`
 - runtime data/secrets are excluded from version control via a narrowed `.gitignore`
 
-## Ledger Backends
+## Storage Backends
 
-- `EA_LEDGER_BACKEND=postgres` forces Postgres-backed execution ledger storage (`DATABASE_URL` required)
-- `EA_LEDGER_BACKEND=memory` keeps the ledger in-process (dev/test convenience)
-- `EA_LEDGER_BACKEND=auto` (default) attempts Postgres first, then falls back to memory
+- `EA_STORAGE_BACKEND=postgres` forces Postgres-backed repositories (`DATABASE_URL` required)
+- `EA_STORAGE_BACKEND=memory` keeps repositories in-process (dev/test convenience)
+- `EA_STORAGE_BACKEND=auto` (default) attempts Postgres first, then falls back to memory
+- `EA_LEDGER_BACKEND` is still accepted as a backward-compatible alias
 - baseline schema migration: `ea/schema/20260305_v0_2_execution_ledger_kernel.sql`
 - channel runtime migration: `ea/schema/20260305_v0_3_channel_runtime_kernel.sql`
 - policy audit migration: `ea/schema/20260305_v0_4_policy_decisions_kernel.sql`
+- artifact durability migration: `ea/schema/20260305_v0_5_artifacts_kernel.sql`
+
+## Auth
+
+- Set `EA_API_TOKEN=<token>` to require bearer auth on all non-health routes.
 
 ## Quick Start
 
@@ -97,5 +103,5 @@ Release preflight aggregate is available via `make release-preflight`.
 Recommended sequencing: run `make release-docs` before `make release-preflight`.
 One-command local readiness check: `make all-local`.
 `make all-local` is a lighter local readiness pass; use `make release-preflight` for release-stage smoke + operator checks.
-CI gate sequence is documented in `RUNBOOK.md` and currently runs `smoke-help`, `ci-local`, runtime API smoke tests, and release-asset verification.
+CI gate sequence is documented in `RUNBOOK.md` and currently runs `smoke-help`, `ci-local`, `test-api`, and release-asset verification.
 Shell script lint config is tracked in `.shellcheckrc`.

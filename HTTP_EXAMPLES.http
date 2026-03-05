@@ -1,4 +1,5 @@
 @host = http://localhost:8090
+@token = replace_with_token_or_leave_blank
 @session_id = replace_me
 @delivery_id = replace_me
 @oversized_text = replace_with_20001_chars
@@ -6,9 +7,19 @@
 ### Health
 GET {{host}}/health
 
+### Liveness
+GET {{host}}/health/live
+
+### Readiness
+GET {{host}}/health/ready
+
+### Version
+GET {{host}}/version
+
 ### Rewrite -> artifact + execution session
 POST {{host}}/v1/rewrite/artifact
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
   "text": "Prepare a concise follow-up draft."

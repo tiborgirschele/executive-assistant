@@ -1,6 +1,7 @@
+from app.repositories.artifacts import ArtifactRepository, InMemoryArtifactRepository
+from app.repositories.artifacts_postgres import PostgresArtifactRepository
 from app.repositories.delivery_outbox import DeliveryOutboxRepository, InMemoryDeliveryOutboxRepository
 from app.repositories.delivery_outbox_postgres import PostgresDeliveryOutboxRepository
-from app.repositories.memory import InMemoryArtifactRepository
 from app.repositories.ledger import ExecutionLedgerRepository, InMemoryExecutionLedgerRepository
 from app.repositories.ledger_postgres import PostgresExecutionLedgerRepository
 from app.repositories.observation import ObservationEventRepository, InMemoryObservationEventRepository
@@ -11,6 +12,7 @@ from app.repositories.policy_decisions_postgres import PostgresPolicyDecisionRep
 __all__ = [
     "DeliveryOutboxRepository",
     "ExecutionLedgerRepository",
+    "ArtifactRepository",
     "InMemoryDeliveryOutboxRepository",
     "InMemoryArtifactRepository",
     "InMemoryExecutionLedgerRepository",
@@ -18,6 +20,7 @@ __all__ = [
     "InMemoryPolicyDecisionRepository",
     "ObservationEventRepository",
     "PolicyDecisionRepository",
+    "PostgresArtifactRepository",
     "PostgresDeliveryOutboxRepository",
     "PostgresObservationEventRepository",
     "PostgresPolicyDecisionRepository",

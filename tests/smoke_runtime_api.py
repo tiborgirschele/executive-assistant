@@ -8,15 +8,45 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
 
-def _client() -> TestClient:
-    os.environ["EA_LEDGER_BACKEND"] = "memory"
+def _client(
+    *,
+    storage_backend: str = "memory",
+    auth_token: str = "",
+    database_url: str = "",
+) -> TestClient:
+    os.environ["EA_STORAGE_BACKEND"] = storage_backend
+    os.environ["EA_LEDGER_BACKEND"] = storage_backend  # backward-compat path
+    os.environ["EA_API_TOKEN"] = auth_token
+    if database_url:
+        os.environ["DATABASE_URL"] = database_url
+    else:
+        os.environ.pop("DATABASE_URL", None)
     from app.api.app import create_app
 
     return TestClient(create_app())
 
 
+def _headers(token: str = "") -> dict[str, str]:
+    if not token:
+        return {}
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_health_ready_and_version() -> None:
+    client = _client(storage_backend="memory")
+    assert client.get("/health").status_code == 200
+    assert client.get("/health/live").json()["status"] == "live"
+    ready = client.get("/health/ready")
+    assert ready.status_code == 200
+    assert ready.json()["status"] == "ready"
+    version = client.get("/version")
+    assert version.status_code == 200
+    assert version.json()["app_name"]
+    assert version.json()["version"]
+
+
 def test_rewrite_and_policy_audit_flow() -> None:
-    client = _client()
+    client = _client(storage_backend="memory")
     create = client.post("/v1/rewrite/artifact", json={"text": "smoke"})
     assert create.status_code == 200
     payload = create.json()
@@ -34,15 +64,17 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert decisions[0]["reason"] == "allowed"
 
 
-def test_rewrite_blocked_policy_flow() -> None:
-    client = _client()
+def test_rewrite_blocked_policy_flow_has_error_envelope() -> None:
+    client = _client(storage_backend="memory")
     blocked = client.post("/v1/rewrite/artifact", json={"text": "x" * 20001})
     assert blocked.status_code == 403
-    assert blocked.json()["detail"] == "policy_denied:input_too_large"
+    body = blocked.json()
+    assert body["error"]["code"] == "policy_denied:input_too_large"
+    assert body["error"]["correlation_id"]
 
 
 def test_observation_and_delivery_flow() -> None:
-    client = _client()
+    client = _client(storage_backend="memory")
 
     obs = client.post(
         "/v1/observations/ingest",
@@ -77,7 +109,7 @@ def test_observation_and_delivery_flow() -> None:
 
 
 def test_telegram_adapter_ingest() -> None:
-    client = _client()
+    client = _client(storage_backend="memory")
     resp = client.post(
         "/v1/channels/telegram/ingest",
         json={
@@ -95,3 +127,25 @@ def test_telegram_adapter_ingest() -> None:
     body = resp.json()
     assert body["channel"] == "telegram"
     assert body["event_type"] == "telegram.message"
+
+
+def test_auth_allow_and_deny() -> None:
+    token = "secret-token"
+    client = _client(storage_backend="memory", auth_token=token)
+
+    denied = client.get("/v1/observations/recent")
+    assert denied.status_code == 401
+    assert denied.json()["error"]["code"] == "auth_required"
+
+    allowed = client.get("/v1/observations/recent", headers=_headers(token))
+    assert allowed.status_code == 200
+
+    health = client.get("/health")
+    assert health.status_code == 200
+
+
+def test_ready_fails_when_postgres_backend_without_database_url() -> None:
+    client = _client(storage_backend="postgres", database_url="")
+    ready = client.get("/health/ready")
+    assert ready.status_code == 503
+    assert ready.json()["error"]["code"].startswith("not_ready:")

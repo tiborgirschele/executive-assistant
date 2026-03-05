@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from app.api.dependencies import get_container
 from app.channels.telegram.adapter import TelegramObservationAdapter
-from app.services.channel_runtime import build_channel_runtime
+from app.container import AppContainer
 
 router = APIRouter(prefix="/v1/channels", tags=["channels"])
-_runtime = build_channel_runtime()
 _telegram = TelegramObservationAdapter()
 
 
@@ -24,9 +24,12 @@ class TelegramIngestOut(BaseModel):
 
 
 @router.post("/telegram/ingest")
-def ingest_telegram(body: TelegramUpdateIn) -> TelegramIngestOut:
+def ingest_telegram(
+    body: TelegramUpdateIn,
+    container: AppContainer = Depends(get_container),
+) -> TelegramIngestOut:
     fields = _telegram.to_observation_fields(body.update)
-    event = _runtime.ingest_observation(
+    event = container.channel_runtime.ingest_observation(
         principal_id=str(fields.get("principal_id") or "unknown"),
         channel=_telegram.channel,
         event_type=str(fields.get("event_type") or "telegram.update"),

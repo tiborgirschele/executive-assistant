@@ -4,10 +4,11 @@ import logging
 import uuid
 
 from app.domain.models import Artifact, ExecutionEvent, ExecutionSession, IntentSpecV3, RewriteRequest
-from app.repositories.memory import InMemoryArtifactRepository
+from app.repositories.artifacts import ArtifactRepository, InMemoryArtifactRepository
+from app.repositories.artifacts_postgres import PostgresArtifactRepository
 from app.repositories.ledger import ExecutionLedgerRepository, InMemoryExecutionLedgerRepository
 from app.repositories.ledger_postgres import PostgresExecutionLedgerRepository
-from app.repositories.policy_decisions import PolicyDecisionRepository, InMemoryPolicyDecisionRepository
+from app.repositories.policy_decisions import InMemoryPolicyDecisionRepository, PolicyDecisionRepository
 from app.repositories.policy_decisions_postgres import PostgresPolicyDecisionRepository
 from app.settings import Settings, get_settings
 from app.services.policy import PolicyDecisionService, PolicyDeniedError
@@ -16,12 +17,12 @@ from app.services.policy import PolicyDecisionService, PolicyDeniedError
 class RewriteOrchestrator:
     def __init__(
         self,
-        repo: InMemoryArtifactRepository | None = None,
+        artifacts: ArtifactRepository | None = None,
         ledger: ExecutionLedgerRepository | None = None,
         policy_repo: PolicyDecisionRepository | None = None,
         policy: PolicyDecisionService | None = None,
     ) -> None:
-        self._repo = repo or InMemoryArtifactRepository()
+        self._artifacts = artifacts or InMemoryArtifactRepository()
         self._ledger = ledger or InMemoryExecutionLedgerRepository()
         self._policy_repo = policy_repo or InMemoryPolicyDecisionRepository()
         self._policy = policy or PolicyDecisionService()
@@ -85,7 +86,7 @@ class RewriteOrchestrator:
             content=normalized_text,
             execution_session_id=session.session_id,
         )
-        self._repo.save(artifact)
+        self._artifacts.save(artifact)
         self._ledger.append_event(
             session.session_id,
             "artifact_persisted",
@@ -96,7 +97,7 @@ class RewriteOrchestrator:
         return artifact
 
     def fetch_artifact(self, artifact_id: str) -> Artifact | None:
-        return self._repo.get(artifact_id)
+        return self._artifacts.get(artifact_id)
 
     def fetch_session(self, session_id: str) -> tuple[ExecutionSession, list[ExecutionEvent]] | None:
         session = self._ledger.get_session(session_id)
@@ -108,17 +109,20 @@ class RewriteOrchestrator:
         return self._policy_repo.list_recent(limit=limit, session_id=session_id)
 
 
+def _backend_mode(settings: Settings) -> str:
+    return str(settings.storage.backend or "auto").strip().lower()
+
+
 def build_execution_ledger(settings: Settings) -> ExecutionLedgerRepository:
-    backend = str(settings.ledger_backend or "auto").strip().lower()
+    backend = _backend_mode(settings)
     log = logging.getLogger("ea.ledger")
     if backend == "memory":
         return InMemoryExecutionLedgerRepository()
     if backend == "postgres":
         if not settings.database_url:
-            raise RuntimeError("EA_LEDGER_BACKEND=postgres requires DATABASE_URL")
+            raise RuntimeError("EA_STORAGE_BACKEND=postgres requires DATABASE_URL")
         return PostgresExecutionLedgerRepository(settings.database_url)
 
-    # auto mode: prefer postgres if available, otherwise memory
     if settings.database_url:
         try:
             return PostgresExecutionLedgerRepository(settings.database_url)
@@ -128,13 +132,13 @@ def build_execution_ledger(settings: Settings) -> ExecutionLedgerRepository:
 
 
 def build_policy_repo(settings: Settings) -> PolicyDecisionRepository:
-    backend = str(settings.ledger_backend or "auto").strip().lower()
+    backend = _backend_mode(settings)
     log = logging.getLogger("ea.policy_repo")
     if backend == "memory":
         return InMemoryPolicyDecisionRepository()
     if backend == "postgres":
         if not settings.database_url:
-            raise RuntimeError("EA_LEDGER_BACKEND=postgres requires DATABASE_URL")
+            raise RuntimeError("EA_STORAGE_BACKEND=postgres requires DATABASE_URL")
         return PostgresPolicyDecisionRepository(settings.database_url)
     if settings.database_url:
         try:
@@ -144,8 +148,35 @@ def build_policy_repo(settings: Settings) -> PolicyDecisionRepository:
     return InMemoryPolicyDecisionRepository()
 
 
-def build_default_orchestrator() -> RewriteOrchestrator:
-    settings = get_settings()
-    ledger = build_execution_ledger(settings)
-    policy_repo = build_policy_repo(settings)
-    return RewriteOrchestrator(ledger=ledger, policy_repo=policy_repo, policy=PolicyDecisionService())
+def build_artifact_repo(settings: Settings) -> ArtifactRepository:
+    backend = _backend_mode(settings)
+    log = logging.getLogger("ea.artifacts")
+    if backend == "memory":
+        return InMemoryArtifactRepository()
+    if backend == "postgres":
+        if not settings.database_url:
+            raise RuntimeError("EA_STORAGE_BACKEND=postgres requires DATABASE_URL")
+        return PostgresArtifactRepository(
+            settings.database_url,
+            artifacts_dir=settings.storage.artifacts_dir,
+            tenant_id=settings.tenant_id,
+        )
+    if settings.database_url:
+        try:
+            return PostgresArtifactRepository(
+                settings.database_url,
+                artifacts_dir=settings.storage.artifacts_dir,
+                tenant_id=settings.tenant_id,
+            )
+        except Exception as exc:
+            log.warning("postgres artifact backend unavailable in auto mode; falling back to memory: %s", exc)
+    return InMemoryArtifactRepository()
+
+
+def build_default_orchestrator(settings: Settings | None = None) -> RewriteOrchestrator:
+    resolved = settings or get_settings()
+    ledger = build_execution_ledger(resolved)
+    policy_repo = build_policy_repo(resolved)
+    artifacts = build_artifact_repo(resolved)
+    policy = PolicyDecisionService(max_rewrite_chars=resolved.policy.max_rewrite_chars)
+    return RewriteOrchestrator(artifacts=artifacts, ledger=ledger, policy_repo=policy_repo, policy=policy)

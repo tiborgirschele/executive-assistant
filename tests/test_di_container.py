@@ -1,0 +1,83 @@
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+
+import pytest
+
+pytest.importorskip("fastapi")
+from fastapi.testclient import TestClient
+
+from app.domain.models import Artifact, RewriteRequest
+
+
+@dataclass(frozen=True)
+class _Auth:
+    api_token: str = ""
+
+
+@dataclass(frozen=True)
+class _Settings:
+    auth: _Auth = _Auth()
+
+
+class _FakeOrchestrator:
+    def build_artifact(self, req: RewriteRequest) -> Artifact:
+        assert req.text == "from-fake"
+        return Artifact(
+            artifact_id="artifact-fake",
+            kind="rewrite_note",
+            content="fake-content",
+            execution_session_id="session-fake",
+        )
+
+    def fetch_session(self, session_id: str):
+        return None
+
+    def list_policy_decisions(self, limit: int = 50, session_id: str | None = None):
+        return []
+
+
+class _FakeRuntime:
+    def ingest_observation(self, principal_id: str, channel: str, event_type: str, payload: dict | None = None):
+        raise AssertionError("not expected in this test")
+
+    def list_recent_observations(self, limit: int = 50):
+        return []
+
+    def queue_delivery(self, channel: str, recipient: str, content: str, metadata: dict | None = None):
+        raise AssertionError("not expected in this test")
+
+    def mark_delivery_sent(self, delivery_id: str):
+        return None
+
+    def list_pending_delivery(self, limit: int = 50):
+        return []
+
+
+class _FakeReadiness:
+    def check(self) -> tuple[bool, str]:
+        return True, "fake-ready"
+
+
+class _FakeContainer:
+    def __init__(self) -> None:
+        self.settings = _Settings()
+        self.orchestrator = _FakeOrchestrator()
+        self.channel_runtime = _FakeRuntime()
+        self.readiness = _FakeReadiness()
+
+
+def test_routes_use_app_state_container_dependency() -> None:
+    os.environ["EA_STORAGE_BACKEND"] = "memory"
+    os.environ["EA_API_TOKEN"] = ""
+    from app.api.app import create_app
+
+    app = create_app()
+    app.state.container = _FakeContainer()
+    client = TestClient(app)
+
+    resp = client.post("/v1/rewrite/artifact", json={"text": "from-fake"})
+    assert resp.status_code == 200
+    assert resp.json()["artifact_id"] == "artifact-fake"
+    assert resp.json()["content"] == "fake-content"

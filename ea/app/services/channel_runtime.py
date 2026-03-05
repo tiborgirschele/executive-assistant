@@ -53,13 +53,13 @@ class ChannelRuntimeService:
 
 
 def _build_observation_repo(settings: Settings) -> ObservationEventRepository:
-    backend = str(settings.ledger_backend or "auto").strip().lower()
+    backend = str(settings.storage.backend or "auto").strip().lower()
     log = logging.getLogger("ea.observations")
     if backend == "memory":
         return InMemoryObservationEventRepository()
     if backend == "postgres":
         if not settings.database_url:
-            raise RuntimeError("EA_LEDGER_BACKEND=postgres requires DATABASE_URL")
+            raise RuntimeError("EA_STORAGE_BACKEND=postgres requires DATABASE_URL")
         return PostgresObservationEventRepository(settings.database_url)
     if settings.database_url:
         try:
@@ -70,13 +70,13 @@ def _build_observation_repo(settings: Settings) -> ObservationEventRepository:
 
 
 def _build_outbox_repo(settings: Settings) -> DeliveryOutboxRepository:
-    backend = str(settings.ledger_backend or "auto").strip().lower()
+    backend = str(settings.storage.backend or "auto").strip().lower()
     log = logging.getLogger("ea.outbox")
     if backend == "memory":
         return InMemoryDeliveryOutboxRepository()
     if backend == "postgres":
         if not settings.database_url:
-            raise RuntimeError("EA_LEDGER_BACKEND=postgres requires DATABASE_URL")
+            raise RuntimeError("EA_STORAGE_BACKEND=postgres requires DATABASE_URL")
         return PostgresDeliveryOutboxRepository(settings.database_url)
     if settings.database_url:
         try:
@@ -86,9 +86,9 @@ def _build_outbox_repo(settings: Settings) -> DeliveryOutboxRepository:
     return InMemoryDeliveryOutboxRepository()
 
 
-def build_channel_runtime() -> ChannelRuntimeService:
-    settings = get_settings()
+def build_channel_runtime(settings: Settings | None = None) -> ChannelRuntimeService:
+    resolved = settings or get_settings()
     return ChannelRuntimeService(
-        observations=_build_observation_repo(settings),
-        outbox=_build_outbox_repo(settings),
+        observations=_build_observation_repo(resolved),
+        outbox=_build_outbox_repo(resolved),
     )
