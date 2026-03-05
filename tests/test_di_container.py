@@ -101,6 +101,24 @@ class _FakeMemoryRuntime:
     def get_item(self, item_id: str):
         return None
 
+    def upsert_entity(self, **_: object):
+        raise AssertionError("not expected in this test")
+
+    def list_entities(self, **_: object):
+        return []
+
+    def get_entity(self, entity_id: str):
+        return None
+
+    def upsert_relationship(self, **_: object):
+        raise AssertionError("not expected in this test")
+
+    def list_relationships(self, **_: object):
+        return []
+
+    def get_relationship(self, relationship_id: str):
+        return None
+
 
 class _FakeTaskContracts:
     def list_contracts(self, limit: int = 100):

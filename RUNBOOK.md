@@ -44,6 +44,12 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | POST | `/v1/memory/candidates/{candidate_id}/reject` | `200` | `404 memory_candidate_not_found` |
 | GET | `/v1/memory/items` | `200` | validation `422` |
 | GET | `/v1/memory/items/{item_id}` | `200` | `404 memory_item_not_found` |
+| POST | `/v1/memory/entities` | `200` | validation `422` |
+| GET | `/v1/memory/entities` | `200` | validation `422` |
+| GET | `/v1/memory/entities/{entity_id}` | `200` | `404 entity_not_found` |
+| POST | `/v1/memory/relationships` | `200` | validation `422` |
+| GET | `/v1/memory/relationships` | `200` | validation `422` |
+| GET | `/v1/memory/relationships/{relationship_id}` | `200` | `404 relationship_not_found` |
 
 Error envelope for failures:
 - `{ "error": { "code": "...", "message": "...", "details": ..., "correlation_id": "..." } }`
@@ -134,6 +140,7 @@ Applies:
 - `ea/schema/20260305_v0_9_tool_connector_kernel.sql`
 - `ea/schema/20260305_v0_10_task_contracts_kernel.sql`
 - `ea/schema/20260305_v0_11_memory_kernel.sql`
+- `ea/schema/20260305_v0_12_entities_relationships_kernel.sql`
 
 Check table presence/counts:
 
@@ -221,6 +228,19 @@ curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/memory/candidates/<c
   -H 'content-type: application/json' \
   -d '{"reviewer":"operator","sharing_policy":"private"}'
 curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/items?limit=10&principal_id=exec-1"
+```
+
+Seed semantic entities/relationships:
+
+```bash
+curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/memory/entities \
+  -H 'content-type: application/json' \
+  -d '{"principal_id":"exec-1","entity_type":"person","canonical_name":"Alex Executive","attributes_json":{"role":"executive"}}'
+curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/memory/relationships \
+  -H 'content-type: application/json' \
+  -d '{"principal_id":"exec-1","from_entity_id":"<entity_a>","to_entity_id":"<entity_b>","relationship_type":"reports_to"}'
+curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/entities?limit=10&principal_id=exec-1"
+curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/relationships?limit=10&principal_id=exec-1"
 ```
 ## 9) Script Help Smoke
 

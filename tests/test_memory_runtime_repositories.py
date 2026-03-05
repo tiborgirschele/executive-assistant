@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from app.repositories.entities import InMemoryEntityRepository
 from app.repositories.memory_candidates import InMemoryMemoryCandidateRepository
 from app.repositories.memory_items import InMemoryMemoryItemRepository
+from app.repositories.relationships import InMemoryRelationshipRepository
 from app.services.memory_runtime import MemoryRuntimeService
 
 
@@ -38,6 +40,8 @@ def test_inmemory_memory_runtime_promote_and_reject_paths() -> None:
     runtime = MemoryRuntimeService(
         candidates=InMemoryMemoryCandidateRepository(),
         items=InMemoryMemoryItemRepository(),
+        entities=InMemoryEntityRepository(),
+        relationships=InMemoryRelationshipRepository(),
     )
 
     candidate = runtime.stage_candidate(
@@ -79,3 +83,47 @@ def test_inmemory_memory_runtime_promote_and_reject_paths() -> None:
 
     pending = runtime.list_candidates(limit=10, status="pending", principal_id="exec-1")
     assert all(row.status == "pending" for row in pending)
+
+
+def test_inmemory_entities_and_relationships_upsert_flow() -> None:
+    runtime = MemoryRuntimeService(
+        candidates=InMemoryMemoryCandidateRepository(),
+        items=InMemoryMemoryItemRepository(),
+        entities=InMemoryEntityRepository(),
+        relationships=InMemoryRelationshipRepository(),
+    )
+
+    executive = runtime.upsert_entity(
+        principal_id="exec-1",
+        entity_type="person",
+        canonical_name="Alex Executive",
+        attributes_json={"role": "executive"},
+        confidence=0.9,
+    )
+    stakeholder = runtime.upsert_entity(
+        principal_id="exec-1",
+        entity_type="person",
+        canonical_name="Sam Stakeholder",
+        attributes_json={"role": "board_member"},
+        confidence=0.88,
+    )
+    assert executive.entity_id
+    assert stakeholder.entity_id
+
+    rel = runtime.upsert_relationship(
+        principal_id="exec-1",
+        from_entity_id=executive.entity_id,
+        to_entity_id=stakeholder.entity_id,
+        relationship_type="reports_to",
+        attributes_json={"strength": "high"},
+        confidence=0.75,
+    )
+    assert rel.relationship_id
+    assert rel.relationship_type == "reports_to"
+
+    listed_entities = runtime.list_entities(limit=10, principal_id="exec-1")
+    assert len(listed_entities) == 2
+
+    listed_relationships = runtime.list_relationships(limit=10, principal_id="exec-1")
+    assert len(listed_relationships) == 1
+    assert listed_relationships[0].relationship_id == rel.relationship_id

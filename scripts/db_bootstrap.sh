@@ -19,6 +19,7 @@ Applies kernel migrations in order:
   - v0_9 tool/connector kernel
   - v0_10 task contracts kernel
   - v0_11 memory kernel
+  - v0_12 entities/relationships kernel
 EOF
   exit 0
 fi
@@ -44,6 +45,7 @@ SQL_FILES=(
   "ea/schema/20260305_v0_9_tool_connector_kernel.sql"
   "ea/schema/20260305_v0_10_task_contracts_kernel.sql"
   "ea/schema/20260305_v0_11_memory_kernel.sql"
+  "ea/schema/20260305_v0_12_entities_relationships_kernel.sql"
 )
 
 echo "== EA DB bootstrap =="

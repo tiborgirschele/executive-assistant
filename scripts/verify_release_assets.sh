@@ -50,6 +50,7 @@ required_files=(
   "ea/schema/20260305_v0_9_tool_connector_kernel.sql"
   "ea/schema/20260305_v0_10_task_contracts_kernel.sql"
   "ea/schema/20260305_v0_11_memory_kernel.sql"
+  "ea/schema/20260305_v0_12_entities_relationships_kernel.sql"
 )
 
 echo "== verify release assets =="

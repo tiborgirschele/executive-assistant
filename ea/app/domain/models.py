@@ -133,6 +133,34 @@ class MemoryItem:
 
 
 @dataclass(frozen=True)
+class Entity:
+    entity_id: str
+    principal_id: str
+    entity_type: str
+    canonical_name: str
+    attributes_json: dict[str, Any]
+    confidence: float
+    status: str
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
+class RelationshipEdge:
+    relationship_id: str
+    principal_id: str
+    from_entity_id: str
+    to_entity_id: str
+    relationship_type: str
+    attributes_json: dict[str, Any]
+    confidence: float
+    valid_from: str | None
+    valid_to: str | None
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
 class ToolDefinition:
     tool_name: str
     version: str

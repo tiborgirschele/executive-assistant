@@ -5,9 +5,11 @@ from dataclasses import dataclass
 
 from app.repositories.connector_bindings import InMemoryConnectorBindingRepository
 from app.repositories.delivery_outbox import InMemoryDeliveryOutboxRepository
+from app.repositories.entities import InMemoryEntityRepository
 from app.repositories.memory_candidates import InMemoryMemoryCandidateRepository
 from app.repositories.memory_items import InMemoryMemoryItemRepository
 from app.repositories.observation import InMemoryObservationEventRepository
+from app.repositories.relationships import InMemoryRelationshipRepository
 from app.repositories.tool_registry import InMemoryToolRegistryRepository
 from app.services.channel_runtime import ChannelRuntimeService, build_channel_runtime
 from app.services.memory_runtime import MemoryRuntimeService, build_memory_runtime
@@ -99,6 +101,8 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         memory_runtime = MemoryRuntimeService(
             candidates=InMemoryMemoryCandidateRepository(),
             items=InMemoryMemoryItemRepository(),
+            entities=InMemoryEntityRepository(),
+            relationships=InMemoryRelationshipRepository(),
         )
     try:
         task_contracts = build_task_contract_service(settings=resolved)

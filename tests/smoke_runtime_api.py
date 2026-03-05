@@ -389,6 +389,68 @@ def test_memory_candidate_promotion_flow() -> None:
     assert fetched_item.json()["item_id"] == item_id
 
 
+def test_memory_entities_relationships_flow() -> None:
+    client = _client(storage_backend="memory")
+
+    executive = client.post(
+        "/v1/memory/entities",
+        json={
+            "principal_id": "exec-1",
+            "entity_type": "person",
+            "canonical_name": "Alex Executive",
+            "attributes_json": {"role": "executive"},
+            "confidence": 0.9,
+            "status": "active",
+        },
+    )
+    assert executive.status_code == 200
+    executive_id = executive.json()["entity_id"]
+
+    stakeholder = client.post(
+        "/v1/memory/entities",
+        json={
+            "principal_id": "exec-1",
+            "entity_type": "person",
+            "canonical_name": "Sam Stakeholder",
+            "attributes_json": {"role": "board_member"},
+            "confidence": 0.88,
+            "status": "active",
+        },
+    )
+    assert stakeholder.status_code == 200
+    stakeholder_id = stakeholder.json()["entity_id"]
+
+    relationship = client.post(
+        "/v1/memory/relationships",
+        json={
+            "principal_id": "exec-1",
+            "from_entity_id": executive_id,
+            "to_entity_id": stakeholder_id,
+            "relationship_type": "reports_to",
+            "attributes_json": {"strength": "high"},
+            "confidence": 0.75,
+        },
+    )
+    assert relationship.status_code == 200
+    relationship_id = relationship.json()["relationship_id"]
+
+    listed_entities = client.get("/v1/memory/entities", params={"limit": 10, "principal_id": "exec-1"})
+    assert listed_entities.status_code == 200
+    assert any(row["entity_id"] == executive_id for row in listed_entities.json())
+
+    fetched_entity = client.get(f"/v1/memory/entities/{executive_id}")
+    assert fetched_entity.status_code == 200
+    assert fetched_entity.json()["canonical_name"] == "Alex Executive"
+
+    listed_relationships = client.get("/v1/memory/relationships", params={"limit": 10, "principal_id": "exec-1"})
+    assert listed_relationships.status_code == 200
+    assert any(row["relationship_id"] == relationship_id for row in listed_relationships.json())
+
+    fetched_relationship = client.get(f"/v1/memory/relationships/{relationship_id}")
+    assert fetched_relationship.status_code == 200
+    assert fetched_relationship.json()["relationship_type"] == "reports_to"
+
+
 def test_auth_allow_and_deny() -> None:
     token = "secret-token"
     client = _client(storage_backend="memory", auth_token=token)

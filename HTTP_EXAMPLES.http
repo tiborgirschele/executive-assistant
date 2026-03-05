@@ -5,6 +5,8 @@
 @approval_id = replace_me
 @memory_candidate_id = replace_me
 @memory_item_id = replace_me
+@entity_id = replace_me
+@relationship_id = replace_me
 @oversized_text = replace_with_20001_chars
 
 ### Health
@@ -292,3 +294,45 @@ GET {{host}}/v1/memory/items?limit=20&principal_id=exec-1
 
 ### Memory -> get item
 GET {{host}}/v1/memory/items/{{memory_item_id}}
+
+### Memory -> upsert entity
+POST {{host}}/v1/memory/entities
+Content-Type: application/json
+
+{
+  "principal_id": "exec-1",
+  "entity_type": "person",
+  "canonical_name": "Alex Executive",
+  "attributes_json": {
+    "role": "executive"
+  },
+  "confidence": 0.9,
+  "status": "active"
+}
+
+### Memory -> list entities
+GET {{host}}/v1/memory/entities?limit=20&principal_id=exec-1
+
+### Memory -> get entity
+GET {{host}}/v1/memory/entities/{{entity_id}}
+
+### Memory -> upsert relationship
+POST {{host}}/v1/memory/relationships
+Content-Type: application/json
+
+{
+  "principal_id": "exec-1",
+  "from_entity_id": "replace_entity_a",
+  "to_entity_id": "replace_entity_b",
+  "relationship_type": "reports_to",
+  "attributes_json": {
+    "strength": "high"
+  },
+  "confidence": 0.75
+}
+
+### Memory -> list relationships
+GET {{host}}/v1/memory/relationships?limit=20&principal_id=exec-1
+
+### Memory -> get relationship
+GET {{host}}/v1/memory/relationships/{{relationship_id}}

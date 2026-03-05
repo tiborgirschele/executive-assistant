@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import logging
 
-from app.domain.models import MemoryCandidate, MemoryItem, now_utc_iso
+from app.domain.models import Entity, MemoryCandidate, MemoryItem, RelationshipEdge, now_utc_iso
+from app.repositories.entities import EntityRepository, InMemoryEntityRepository
+from app.repositories.entities_postgres import PostgresEntityRepository
 from app.repositories.memory_candidates import InMemoryMemoryCandidateRepository, MemoryCandidateRepository
 from app.repositories.memory_candidates_postgres import PostgresMemoryCandidateRepository
 from app.repositories.memory_items import InMemoryMemoryItemRepository, MemoryItemRepository
 from app.repositories.memory_items_postgres import PostgresMemoryItemRepository
+from app.repositories.relationships import InMemoryRelationshipRepository, RelationshipRepository
+from app.repositories.relationships_postgres import PostgresRelationshipRepository
 from app.settings import Settings, get_settings
 
 
@@ -15,9 +19,13 @@ class MemoryRuntimeService:
         self,
         candidates: MemoryCandidateRepository,
         items: MemoryItemRepository,
+        entities: EntityRepository,
+        relationships: RelationshipRepository,
     ) -> None:
         self._candidates = candidates
         self._items = items
+        self._entities = entities
+        self._relationships = relationships
 
     def stage_candidate(
         self,
@@ -117,6 +125,80 @@ class MemoryRuntimeService:
     def get_item(self, item_id: str) -> MemoryItem | None:
         return self._items.get(item_id)
 
+    def upsert_entity(
+        self,
+        *,
+        principal_id: str,
+        entity_type: str,
+        canonical_name: str,
+        attributes_json: dict[str, object] | None = None,
+        confidence: float = 0.5,
+        status: str = "active",
+    ) -> Entity:
+        return self._entities.upsert_entity(
+            principal_id=principal_id,
+            entity_type=entity_type,
+            canonical_name=canonical_name,
+            attributes_json=attributes_json,
+            confidence=confidence,
+            status=status,
+        )
+
+    def list_entities(
+        self,
+        *,
+        limit: int = 100,
+        principal_id: str | None = None,
+        entity_type: str | None = None,
+    ) -> list[Entity]:
+        return self._entities.list_entities(limit=limit, principal_id=principal_id, entity_type=entity_type)
+
+    def get_entity(self, entity_id: str) -> Entity | None:
+        return self._entities.get(entity_id)
+
+    def upsert_relationship(
+        self,
+        *,
+        principal_id: str,
+        from_entity_id: str,
+        to_entity_id: str,
+        relationship_type: str,
+        attributes_json: dict[str, object] | None = None,
+        confidence: float = 0.5,
+        valid_from: str | None = None,
+        valid_to: str | None = None,
+    ) -> RelationshipEdge:
+        return self._relationships.upsert_relationship(
+            principal_id=principal_id,
+            from_entity_id=from_entity_id,
+            to_entity_id=to_entity_id,
+            relationship_type=relationship_type,
+            attributes_json=attributes_json,
+            confidence=confidence,
+            valid_from=valid_from,
+            valid_to=valid_to,
+        )
+
+    def list_relationships(
+        self,
+        *,
+        limit: int = 100,
+        principal_id: str | None = None,
+        from_entity_id: str | None = None,
+        to_entity_id: str | None = None,
+        relationship_type: str | None = None,
+    ) -> list[RelationshipEdge]:
+        return self._relationships.list_relationships(
+            limit=limit,
+            principal_id=principal_id,
+            from_entity_id=from_entity_id,
+            to_entity_id=to_entity_id,
+            relationship_type=relationship_type,
+        )
+
+    def get_relationship(self, relationship_id: str) -> RelationshipEdge | None:
+        return self._relationships.get(relationship_id)
+
 
 def _backend_mode(settings: Settings) -> str:
     return str(settings.storage.backend or "auto").strip().lower()
@@ -156,9 +238,45 @@ def _build_item_repo(settings: Settings) -> MemoryItemRepository:
     return InMemoryMemoryItemRepository()
 
 
+def _build_entity_repo(settings: Settings) -> EntityRepository:
+    backend = _backend_mode(settings)
+    log = logging.getLogger("ea.entities")
+    if backend == "memory":
+        return InMemoryEntityRepository()
+    if backend == "postgres":
+        if not settings.database_url:
+            raise RuntimeError("EA_STORAGE_BACKEND=postgres requires DATABASE_URL")
+        return PostgresEntityRepository(settings.database_url)
+    if settings.database_url:
+        try:
+            return PostgresEntityRepository(settings.database_url)
+        except Exception as exc:
+            log.warning("postgres entity backend unavailable in auto mode; falling back to memory: %s", exc)
+    return InMemoryEntityRepository()
+
+
+def _build_relationship_repo(settings: Settings) -> RelationshipRepository:
+    backend = _backend_mode(settings)
+    log = logging.getLogger("ea.relationships")
+    if backend == "memory":
+        return InMemoryRelationshipRepository()
+    if backend == "postgres":
+        if not settings.database_url:
+            raise RuntimeError("EA_STORAGE_BACKEND=postgres requires DATABASE_URL")
+        return PostgresRelationshipRepository(settings.database_url)
+    if settings.database_url:
+        try:
+            return PostgresRelationshipRepository(settings.database_url)
+        except Exception as exc:
+            log.warning("postgres relationship backend unavailable in auto mode; falling back to memory: %s", exc)
+    return InMemoryRelationshipRepository()
+
+
 def build_memory_runtime(settings: Settings | None = None) -> MemoryRuntimeService:
     resolved = settings or get_settings()
     return MemoryRuntimeService(
         candidates=_build_candidate_repo(resolved),
         items=_build_item_repo(resolved),
+        entities=_build_entity_repo(resolved),
+        relationships=_build_relationship_repo(resolved),
     )
