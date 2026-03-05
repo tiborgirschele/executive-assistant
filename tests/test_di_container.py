@@ -39,16 +39,33 @@ class _FakeOrchestrator:
 
 
 class _FakeRuntime:
-    def ingest_observation(self, principal_id: str, channel: str, event_type: str, payload: dict | None = None):
+    def ingest_observation(
+        self,
+        principal_id: str,
+        channel: str,
+        event_type: str,
+        payload: dict | None = None,
+        **_: object,
+    ):
         raise AssertionError("not expected in this test")
 
     def list_recent_observations(self, limit: int = 50):
         return []
 
-    def queue_delivery(self, channel: str, recipient: str, content: str, metadata: dict | None = None):
+    def queue_delivery(
+        self,
+        channel: str,
+        recipient: str,
+        content: str,
+        metadata: dict | None = None,
+        **_: object,
+    ):
         raise AssertionError("not expected in this test")
 
-    def mark_delivery_sent(self, delivery_id: str):
+    def mark_delivery_sent(self, delivery_id: str, **_: object):
+        return None
+
+    def mark_delivery_failed(self, delivery_id: str, *, error: str, next_attempt_at: str | None = None, dead_letter: bool = False):
         return None
 
     def list_pending_delivery(self, limit: int = 50):

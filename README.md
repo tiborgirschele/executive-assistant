@@ -20,6 +20,9 @@ Removed:
 - `/v1/rewrite/sessions/{session_id}` exposes execution ledger detail (events, steps, receipts, artifacts, costs)
 - `/v1/observations/ingest` and `/v1/observations/recent` provide channel-agnostic observation intake
 - `/v1/delivery/outbox` endpoints provide channel-agnostic queued delivery tracking
+- `/v1/delivery/outbox/{delivery_id}/failed` marks retry/dead-letter transitions with error context
+- observation intake supports `source_id`/`external_id`/`dedupe_key` attribution and auth/raw-payload pointers
+- delivery outbox supports idempotency keys plus retry/dead-letter state fields
 - `/v1/channels/telegram/ingest` maps raw Telegram updates into normalized observation events
 - `/v1/policy/decisions/recent` exposes persisted policy decision audit records
 - `/v1/policy/approvals/*` exposes pending/history plus approve/deny/expire decision endpoints
@@ -44,6 +47,7 @@ Removed:
 - artifact durability migration: `ea/schema/20260305_v0_5_artifacts_kernel.sql`
 - execution-ledger v2 migration: `ea/schema/20260305_v0_6_execution_ledger_v2.sql`
 - approvals workflow migration: `ea/schema/20260305_v0_7_approvals_kernel.sql`
+- channel runtime reliability migration: `ea/schema/20260305_v0_8_channel_runtime_reliability.sql`
 
 ## Auth
 

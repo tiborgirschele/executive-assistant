@@ -13,15 +13,22 @@ class TelegramObservationAdapter:
                 "principal_id": "unknown",
                 "event_type": "telegram.update",
                 "payload": dict(update if isinstance(update, dict) else {}),
+                "source_id": "telegram",
+                "external_id": "",
+                "dedupe_key": "",
             }
         chat = msg.get("chat")
         chat_id = ""
         if isinstance(chat, dict):
             chat_id = str(chat.get("id") or "")
         text = str(msg.get("text") or "")
+        message_id = str(msg.get("message_id") or "").strip()
         return {
             "principal_id": chat_id or "unknown",
             "event_type": "telegram.message",
+            "source_id": f"telegram:{chat_id}" if chat_id else "telegram",
+            "external_id": message_id,
+            "dedupe_key": f"telegram:{chat_id}:{message_id}" if chat_id and message_id else "",
             "payload": {
                 "text": text,
                 "message_id": msg.get("message_id"),

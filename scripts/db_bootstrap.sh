@@ -15,6 +15,7 @@ Applies kernel migrations in order:
   - v0_5 artifacts
   - v0_6 execution ledger v2
   - v0_7 approvals
+  - v0_8 channel runtime reliability
 EOF
   exit 0
 fi
@@ -36,6 +37,7 @@ SQL_FILES=(
   "ea/schema/20260305_v0_5_artifacts_kernel.sql"
   "ea/schema/20260305_v0_6_execution_ledger_v2.sql"
   "ea/schema/20260305_v0_7_approvals_kernel.sql"
+  "ea/schema/20260305_v0_8_channel_runtime_reliability.sql"
 )
 
 echo "== EA DB bootstrap =="

@@ -84,6 +84,13 @@ Content-Type: application/json
   "principal_id": "exec-1",
   "channel": "email",
   "event_type": "thread.opened",
+  "source_id": "gmail:exec-1",
+  "external_id": "msg-42",
+  "dedupe_key": "gmail:exec-1:msg-42",
+  "auth_context_json": {
+    "scope": "mail.readonly"
+  },
+  "raw_payload_uri": "s3://ea-observations/raw/msg-42.json",
   "payload": {
     "subject": "Board prep",
     "from": "ceo@example.com"
@@ -101,6 +108,7 @@ Content-Type: application/json
   "channel": "slack",
   "recipient": "U12345",
   "content": "Draft prepared and queued for review.",
+  "idempotency_key": "delivery-slack-u12345-thread-1",
   "metadata": {
     "priority": "high",
     "thread": "T-1"
@@ -112,6 +120,16 @@ GET {{host}}/v1/delivery/outbox/pending?limit=20
 
 ### Delivery outbox -> mark sent
 POST {{host}}/v1/delivery/outbox/{{delivery_id}}/sent
+
+### Delivery outbox -> mark failed (retry)
+POST {{host}}/v1/delivery/outbox/{{delivery_id}}/failed
+Content-Type: application/json
+
+{
+  "error": "temporary send failure",
+  "retry_in_seconds": 60,
+  "dead_letter": false
+}
 
 ### Delivery outbox -> mark sent unknown id (expected 404)
 POST {{host}}/v1/delivery/outbox/not-a-real-id/sent

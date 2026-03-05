@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
@@ -150,6 +150,11 @@ class ObservationEvent:
     event_type: str
     payload: dict[str, Any]
     created_at: str
+    source_id: str = ""
+    external_id: str = ""
+    dedupe_key: str = ""
+    auth_context_json: dict[str, Any] = field(default_factory=dict)
+    raw_payload_uri: str = ""
 
 
 @dataclass(frozen=True)
@@ -162,6 +167,12 @@ class DeliveryOutboxItem:
     metadata: dict[str, Any]
     created_at: str
     sent_at: str | None
+    idempotency_key: str = ""
+    attempt_count: int = 0
+    next_attempt_at: str | None = None
+    last_error: str = ""
+    receipt_json: dict[str, Any] = field(default_factory=dict)
+    dead_lettered_at: str | None = None
 
 
 def now_utc_iso() -> str:

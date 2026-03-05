@@ -21,11 +21,12 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | POST | `/v1/policy/approvals/{approval_id}/approve` | `200` | `404 approval_not_found` |
 | POST | `/v1/policy/approvals/{approval_id}/deny` | `200` | `404 approval_not_found` |
 | POST | `/v1/policy/approvals/{approval_id}/expire` | `200` | `404 approval_not_found` |
-| POST | `/v1/observations/ingest` | `200` | validation `422` |
+| POST | `/v1/observations/ingest` | `200` | validation `422` (supports source/external/dedupe/auth/raw payload pointers) |
 | GET | `/v1/observations/recent` | `200` | validation `422` |
-| POST | `/v1/delivery/outbox` | `200` | validation `422` |
+| POST | `/v1/delivery/outbox` | `200` | validation `422` (supports idempotency keys) |
 | GET | `/v1/delivery/outbox/pending` | `200` | validation `422` |
 | POST | `/v1/delivery/outbox/{delivery_id}/sent` | `200` | `404 delivery_not_found` |
+| POST | `/v1/delivery/outbox/{delivery_id}/failed` | `200` | `404 delivery_not_found` |
 | POST | `/v1/channels/telegram/ingest` | `200` | validation `422` |
 
 Error envelope for failures:
@@ -113,6 +114,7 @@ Applies:
 - `ea/schema/20260305_v0_5_artifacts_kernel.sql`
 - `ea/schema/20260305_v0_6_execution_ledger_v2.sql`
 - `ea/schema/20260305_v0_7_approvals_kernel.sql`
+- `ea/schema/20260305_v0_8_channel_runtime_reliability.sql`
 
 Check table presence/counts:
 

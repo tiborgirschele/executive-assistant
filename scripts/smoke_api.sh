@@ -104,11 +104,13 @@ curl -fsS "${BASE}/v1/observations/recent?limit=5" "${AUTH_ARGS[@]}" >/dev/null
 echo "observations ok"
 
 echo "== smoke: outbox =="
-DELIVERY_JSON="$(curl -fsS -X POST "${BASE}/v1/delivery/outbox" "${AUTH_ARGS[@]}" -H 'content-type: application/json' -d '{"channel":"slack","recipient":"U1","content":"Draft ready","metadata":{"priority":"high"}}')"
+DELIVERY_JSON="$(curl -fsS -X POST "${BASE}/v1/delivery/outbox" "${AUTH_ARGS[@]}" -H 'content-type: application/json' -d '{"channel":"slack","recipient":"U1","content":"Draft ready","metadata":{"priority":"high"},"idempotency_key":"smoke-delivery-1"}')"
 DELIVERY_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("delivery_id",""))' <<<"${DELIVERY_JSON}")"
 if [[ -z "${DELIVERY_ID}" ]]; then
   fail 13 "missing delivery_id from outbox response"
 fi
+curl -fsS -X POST "${BASE}/v1/delivery/outbox/${DELIVERY_ID}/failed" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"error":"temporary smoke failure","retry_in_seconds":0,"dead_letter":false}' >/dev/null
 curl -fsS "${BASE}/v1/delivery/outbox/pending?limit=5" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS -X POST "${BASE}/v1/delivery/outbox/${DELIVERY_ID}/sent" "${AUTH_ARGS[@]}" >/dev/null
 echo "outbox ok"

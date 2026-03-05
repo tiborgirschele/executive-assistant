@@ -34,6 +34,9 @@ def ingest_telegram(
         channel=_telegram.channel,
         event_type=str(fields.get("event_type") or "telegram.update"),
         payload=dict(fields.get("payload") or {}),
+        source_id=str(fields.get("source_id") or ""),
+        external_id=str(fields.get("external_id") or ""),
+        dedupe_key=str(fields.get("dedupe_key") or ""),
     )
     return TelegramIngestOut(
         observation_id=event.observation_id,

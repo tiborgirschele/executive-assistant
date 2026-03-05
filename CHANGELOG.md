@@ -26,6 +26,10 @@ All notable changes to the rewrite-kernel baseline are documented here.
   - `approval_requests` durable pending approvals
   - `approval_decisions` durable approval/deny/expire audit rows
   - policy API endpoints for pending/history + approve/deny/expire actions
+- Channel runtime reliability primitives:
+  - observation attribution fields (`source_id`, `external_id`, `dedupe_key`, `auth_context_json`, `raw_payload_uri`)
+  - delivery idempotency/retry fields (`idempotency_key`, `attempt_count`, `next_attempt_at`, `last_error`, `receipt_json`, `dead_lettered_at`)
+  - delivery failure endpoint (`POST /v1/delivery/outbox/{delivery_id}/failed`)
 - Postgres + in-memory repository backends for kernel stores.
 - Kernel SQL migrations:
   - `v0_2` execution ledger
@@ -34,6 +38,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
   - `v0_5` artifacts durability
   - `v0_6` execution ledger v2
   - `v0_7` approvals workflow
+  - `v0_8` channel runtime reliability
 - Operator tooling:
   - `scripts/db_bootstrap.sh`
   - `scripts/db_status.sh`
@@ -53,6 +58,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Release checklist now includes explicit milestone gate-tag parity verification.
 - Artifact persistence now supports durable Postgres metadata + file-backed content storage.
 - Approval-required rewrite sessions now pause with `waiting_approval` steps and transition on approve/deny/expire decisions.
+- Observation ingest now supports dedupe and source attribution; delivery outbox now supports retry scheduling and idempotent enqueue.
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.

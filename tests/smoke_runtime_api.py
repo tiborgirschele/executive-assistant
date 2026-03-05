@@ -158,21 +158,71 @@ def test_observation_and_delivery_flow() -> None:
             "channel": "email",
             "event_type": "thread.opened",
             "payload": {"subject": "Board prep"},
+            "source_id": "gmail:account-1",
+            "external_id": "msg-1",
+            "dedupe_key": "obs-gmail-msg-1",
+            "auth_context_json": {"scope": "mail.readonly"},
+            "raw_payload_uri": "s3://bucket/raw/msg-1.json",
         },
     )
     assert obs.status_code == 200
     observation_id = obs.json()["observation_id"]
+    assert obs.json()["dedupe_key"] == "obs-gmail-msg-1"
 
     recent = client.get("/v1/observations/recent", params={"limit": 10})
     assert recent.status_code == 200
     assert any(r["observation_id"] == observation_id for r in recent.json())
 
+    obs_dupe = client.post(
+        "/v1/observations/ingest",
+        json={
+            "principal_id": "exec-1",
+            "channel": "email",
+            "event_type": "thread.opened",
+            "payload": {"subject": "Board prep"},
+            "source_id": "gmail:account-1",
+            "external_id": "msg-1",
+            "dedupe_key": "obs-gmail-msg-1",
+        },
+    )
+    assert obs_dupe.status_code == 200
+    assert obs_dupe.json()["observation_id"] == observation_id
+
     queued = client.post(
         "/v1/delivery/outbox",
-        json={"channel": "slack", "recipient": "U1", "content": "Draft ready", "metadata": {"priority": "high"}},
+        json={
+            "channel": "slack",
+            "recipient": "U1",
+            "content": "Draft ready",
+            "metadata": {"priority": "high"},
+            "idempotency_key": "delivery-msg-1",
+        },
     )
     assert queued.status_code == 200
     delivery_id = queued.json()["delivery_id"]
+    assert queued.json()["idempotency_key"] == "delivery-msg-1"
+
+    queued_dupe = client.post(
+        "/v1/delivery/outbox",
+        json={
+            "channel": "slack",
+            "recipient": "U1",
+            "content": "Draft ready duplicate",
+            "metadata": {"priority": "high"},
+            "idempotency_key": "delivery-msg-1",
+        },
+    )
+    assert queued_dupe.status_code == 200
+    assert queued_dupe.json()["delivery_id"] == delivery_id
+
+    failed = client.post(
+        f"/v1/delivery/outbox/{delivery_id}/failed",
+        json={"error": "temporary channel error", "retry_in_seconds": 0, "dead_letter": False},
+    )
+    assert failed.status_code == 200
+    assert failed.json()["status"] == "retry"
+    assert failed.json()["attempt_count"] == 1
+    assert failed.json()["last_error"] == "temporary channel error"
 
     pending = client.get("/v1/delivery/outbox/pending", params={"limit": 10})
     assert pending.status_code == 200

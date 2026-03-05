@@ -11,6 +11,7 @@ def test_schema_readme_lists_latest_migrations() -> None:
     assert "20260305_v0_5_artifacts_kernel.sql" in text
     assert "20260305_v0_6_execution_ledger_v2.sql" in text
     assert "20260305_v0_7_approvals_kernel.sql" in text
+    assert "20260305_v0_8_channel_runtime_reliability.sql" in text
 
 
 def test_db_bootstrap_includes_latest_migrations() -> None:
@@ -18,3 +19,4 @@ def test_db_bootstrap_includes_latest_migrations() -> None:
     assert "20260305_v0_5_artifacts_kernel.sql" in text
     assert "20260305_v0_6_execution_ledger_v2.sql" in text
     assert "20260305_v0_7_approvals_kernel.sql" in text
+    assert "20260305_v0_8_channel_runtime_reliability.sql" in text
