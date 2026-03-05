@@ -1,6 +1,7 @@
 @host = http://localhost:8090
 @session_id = replace_me
 @delivery_id = replace_me
+@oversized_text = replace_with_20001_chars
 
 ### Health
 GET {{host}}/health
@@ -15,6 +16,14 @@ Content-Type: application/json
 
 ### Rewrite -> fetch session
 GET {{host}}/v1/rewrite/sessions/{{session_id}}
+
+### Rewrite -> blocked policy (expected 403)
+POST {{host}}/v1/rewrite/artifact
+Content-Type: application/json
+
+{
+  "text": "{{oversized_text}}"
+}
 
 ### Policy audit -> recent decisions
 GET {{host}}/v1/policy/decisions/recent?limit=20
@@ -59,6 +68,9 @@ GET {{host}}/v1/delivery/outbox/pending?limit=20
 ### Delivery outbox -> mark sent
 POST {{host}}/v1/delivery/outbox/{{delivery_id}}/sent
 
+### Delivery outbox -> mark sent unknown id (expected 404)
+POST {{host}}/v1/delivery/outbox/not-a-real-id/sent
+
 ### Telegram channel adapter -> ingest
 POST {{host}}/v1/channels/telegram/ingest
 Content-Type: application/json
@@ -73,3 +85,6 @@ Content-Type: application/json
     }
   }
 }
+
+### Rewrite -> unknown session (expected 404)
+GET {{host}}/v1/rewrite/sessions/not-a-real-session-id
