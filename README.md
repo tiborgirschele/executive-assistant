@@ -32,6 +32,7 @@ bash scripts/docker_e2e_design_workflows.sh
 bash scripts/run_v113_smoke.sh
 bash scripts/run_v119_smoke.sh
 bash scripts/run_v120_smoke.sh
+bash scripts/run_v121_smoke.sh
 ```
 
 Milestone release scripts (`scripts/release_v113_onboarding.sh` through

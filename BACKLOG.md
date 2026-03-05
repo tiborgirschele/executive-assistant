@@ -141,6 +141,10 @@ Branch: `main`
     `planner_candidates`, `proactive_items`, and `planner_dedupe_keys`).
   - `tests/smoke_v1_18.py` now asserts planner table presence in db bootstrap in
     addition to schema-file contracts.
+- [DONE] Gate naming drift cleanup:
+  - added `scripts/run_v121_smoke.sh` as a v1.21 alias over the existing gate runner.
+  - added `tests/smoke_v1_21_gate_alias.py` and wired it into host/docker/CI gates.
+  - README smoke command list now includes `run_v121_smoke.sh`.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`
     from `runner.py` (canonical role shim path), not direct worker import.

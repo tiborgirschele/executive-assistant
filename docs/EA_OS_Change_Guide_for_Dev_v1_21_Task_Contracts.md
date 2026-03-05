@@ -111,6 +111,12 @@ existing capability routing behavior.
    - Extended `tests/smoke_v1_18.py` to assert planner table presence in db bootstrap,
      reducing migration/bootstrap drift between planner runtime code and startup schema.
 
+11. Gate naming drift cleanup (v1.21 alias):
+   - Added `scripts/run_v121_smoke.sh` as an explicit v1.21 alias over
+     `scripts/run_v120_smoke.sh` for operational readability.
+   - Added `tests/smoke_v1_21_gate_alias.py` and wired it into host/docker/CI gates.
+   - Updated README smoke command list to include `run_v121_smoke.sh`.
+
 ## Why this matters
 
 This keeps provider contracts (`CapabilityContract`) but introduces a stable task layer the

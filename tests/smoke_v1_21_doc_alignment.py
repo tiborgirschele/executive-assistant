@@ -26,6 +26,7 @@ def test_v121_doc_alignment() -> None:
     assert "smoke_v1_21_provider_registry.py" in guide
     assert "smoke_v1_21_generic_skill_execution.py" in guide
     assert "smoke_v1_21_plan_builder.py" in guide
+    assert "smoke_v1_21_gate_alias.py" in guide
     assert "smoke_python_compile_tree.py" in guide
     assert "approval_class" in guide
     assert "provider_broker.py" in guide
@@ -36,6 +37,8 @@ def test_v121_doc_alignment() -> None:
     assert "poll_listener.py" in guide
     assert "send_budgets" in guide
     assert "smoke_v1_18.py" in guide
+    assert "run_v121_smoke.sh" in guide
+    assert "run_v121_smoke.sh" in readme
     _pass("v1.21 doc/code alignment")
 
 

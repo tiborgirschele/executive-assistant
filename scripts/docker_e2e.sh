@@ -162,6 +162,7 @@ run_step "smoke_v1_21_provider_broker" python3 tests/smoke_v1_21_provider_broker
 run_step "smoke_v1_21_provider_registry" python3 tests/smoke_v1_21_provider_registry.py
 run_step "smoke_v1_21_generic_skill_execution" python3 tests/smoke_v1_21_generic_skill_execution.py
 run_step "smoke_v1_21_plan_builder" python3 tests/smoke_v1_21_plan_builder.py
+run_step "smoke_v1_21_gate_alias" python3 tests/smoke_v1_21_gate_alias.py
 run_step "smoke_v1_21_doc_alignment" python3 tests/smoke_v1_21_doc_alignment.py
 run_step "smoke_v1_19_3_control_plane_decomposition" python3 tests/smoke_v1_19_3_control_plane_decomposition.py
 run_step "smoke_v1_19_3_source_acquisition_split" python3 tests/smoke_v1_19_3_source_acquisition_split.py
