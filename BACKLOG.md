@@ -203,6 +203,13 @@ Branch: `main`
   - planner pre-step completion now emits `planner_context_step_completed` events.
   - added `tests/smoke_v1_21_intent_runtime_planner_steps.py` and wired it into
     host/docker/CI gates.
+- [DONE] Typed-action reference enforcement:
+  - `ea/app/actions.py::create_action(...)` now enforces ledger references for
+    execution-resume action types:
+    - `skill:*` requires `session_id`
+    - `intent:approval_execute` requires `session_id` + `approval_gate_id`
+  - added `tests/smoke_v1_21_typed_action_reference_enforcement.py` and wired it into
+    host/docker/CI gates.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`
     from `runner.py` (canonical role shim path), not direct worker import.

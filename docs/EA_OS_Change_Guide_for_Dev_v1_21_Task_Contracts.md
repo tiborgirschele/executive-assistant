@@ -214,6 +214,16 @@ existing capability routing behavior.
    - Added `tests/smoke_v1_21_intent_runtime_planner_steps.py` and wired it into
      host/docker/CI gates.
 
+21. Typed-action reference hardening (execution-resume queue semantics):
+   - `ea/app/actions.py::create_action(...)` now enforces execution references for
+     runtime-critical staged actions:
+     - `skill:*` actions require `session_id`
+     - `intent:approval_execute` requires both `session_id` and `approval_gate_id`
+   - this keeps typed actions aligned with execution-ledger ownership rather than
+     acting as unlinked blob queue rows.
+   - Added `tests/smoke_v1_21_typed_action_reference_enforcement.py` and wired it
+     into host/docker/CI gates.
+
 ## Why this matters
 
 This keeps provider contracts (`CapabilityContract`) but introduces a stable task layer the

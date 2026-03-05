@@ -26,6 +26,7 @@ def test_v121_doc_alignment() -> None:
     assert "smoke_v1_21_provider_outcomes.py" in guide
     assert "smoke_v1_21_provider_registry.py" in guide
     assert "smoke_v1_21_approval_gate_store.py" in guide
+    assert "smoke_v1_21_typed_action_reference_enforcement.py" in guide
     assert "smoke_v1_21_step_executor_path.py" in guide
     assert "smoke_v1_21_intent_runtime_planner_steps.py" in guide
     assert "smoke_v1_21_generic_skill_execution.py" in guide
@@ -45,6 +46,7 @@ def test_v121_doc_alignment() -> None:
     assert "intent_compiler.py" in guide
     assert "step_executor.py" in guide
     assert "_run_planner_pre_execution_steps" in guide
+    assert "create_action(...)" in guide
     assert "skill_commands.py" in guide
     assert "plan_builder.py" in guide
     assert "poll_listener.py" in guide

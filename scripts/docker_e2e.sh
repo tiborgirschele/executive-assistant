@@ -164,6 +164,7 @@ run_step "smoke_v1_21_provider_broker" python3 tests/smoke_v1_21_provider_broker
 run_step "smoke_v1_21_provider_outcomes" python3 tests/smoke_v1_21_provider_outcomes.py
 run_step "smoke_v1_21_provider_registry" python3 tests/smoke_v1_21_provider_registry.py
 run_step "smoke_v1_21_approval_gate_store" python3 tests/smoke_v1_21_approval_gate_store.py
+run_step "smoke_v1_21_typed_action_reference_enforcement" python3 tests/smoke_v1_21_typed_action_reference_enforcement.py
 run_step "smoke_v1_21_step_executor_path" python3 tests/smoke_v1_21_step_executor_path.py
 run_step "smoke_v1_21_intent_runtime_planner_steps" python3 tests/smoke_v1_21_intent_runtime_planner_steps.py
 run_step "smoke_v1_21_generic_skill_execution" python3 tests/smoke_v1_21_generic_skill_execution.py

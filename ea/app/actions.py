@@ -2,6 +2,15 @@ import uuid, json
 from app.db import get_db
 
 
+def _requires_session_reference(action_type: str) -> bool:
+    kind = str(action_type or "").strip().lower()
+    return kind.startswith("skill:") or kind == "intent:approval_execute"
+
+
+def _requires_approval_gate_reference(action_type: str) -> bool:
+    return str(action_type or "").strip().lower() == "intent:approval_execute"
+
+
 def create_action(
     tenant: str,
     action_type: str,
@@ -12,6 +21,10 @@ def create_action(
     step_id: str | None = None,
     approval_gate_id: str | None = None,
 ) -> str:
+    if _requires_session_reference(action_type) and not str(session_id or "").strip():
+        return ""
+    if _requires_approval_gate_reference(action_type) and not str(approval_gate_id or "").strip():
+        return ""
     db = get_db()
     act_id = str(uuid.uuid4())
     safe_days = max(1, int(days))

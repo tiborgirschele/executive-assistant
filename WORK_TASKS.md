@@ -35,13 +35,13 @@ Owner: Codex runtime worker
      - explicit step handling for non-travel task templates.
      - step result payload contract for artifacts/evidence.
 
-4. `IN_PROGRESS` - Upgrade `typed_actions` from generic blob queue to execution-resume queue.
+4. `DONE` - Upgrade `typed_actions` from generic blob queue to execution-resume queue.
    - Deliverables:
      - enforce references (`session_id`, `step_id`, `approval_gate_id`) for staged actions.
      - callback paths validate references before resume.
      - smoke coverage for missing/mismatched references.
 
-5. `PENDING` - Add commitment/artifact world-model seed.
+5. `IN_PROGRESS` - Add commitment/artifact world-model seed.
    - Deliverables:
      - bootstrap tables: `commitments`, `artifacts`, `followups`, `decision_windows`.
      - helper module for linking execution sessions to commitments/artifacts.
