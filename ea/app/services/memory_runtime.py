@@ -4,6 +4,7 @@ import logging
 
 from app.domain.models import (
     AuthorityBinding,
+    CommunicationPolicy,
     Commitment,
     DecisionWindow,
     DeadlineWindow,
@@ -20,6 +21,11 @@ from app.repositories.authority_bindings import AuthorityBindingRepository, InMe
 from app.repositories.authority_bindings_postgres import PostgresAuthorityBindingRepository
 from app.repositories.commitments import CommitmentRepository, InMemoryCommitmentRepository
 from app.repositories.commitments_postgres import PostgresCommitmentRepository
+from app.repositories.communication_policies import (
+    CommunicationPolicyRepository,
+    InMemoryCommunicationPolicyRepository,
+)
+from app.repositories.communication_policies_postgres import PostgresCommunicationPolicyRepository
 from app.repositories.decision_windows import DecisionWindowRepository, InMemoryDecisionWindowRepository
 from app.repositories.decision_windows_postgres import PostgresDecisionWindowRepository
 from app.repositories.deadline_windows import DeadlineWindowRepository, InMemoryDeadlineWindowRepository
@@ -49,6 +55,7 @@ class MemoryRuntimeService:
         entities: EntityRepository,
         relationships: RelationshipRepository,
         commitments: CommitmentRepository,
+        communication_policies: CommunicationPolicyRepository,
         decision_windows: DecisionWindowRepository,
         deadline_windows: DeadlineWindowRepository,
         stakeholders: StakeholderRepository,
@@ -61,6 +68,7 @@ class MemoryRuntimeService:
         self._entities = entities
         self._relationships = relationships
         self._commitments = commitments
+        self._communication_policies = communication_policies
         self._decision_windows = decision_windows
         self._deadline_windows = deadline_windows
         self._stakeholders = stakeholders
@@ -278,6 +286,54 @@ class MemoryRuntimeService:
 
     def get_commitment(self, commitment_id: str, *, principal_id: str) -> Commitment | None:
         found = self._commitments.get(commitment_id)
+        if not found:
+            return None
+        if found.principal_id != str(principal_id or "").strip():
+            return None
+        return found
+
+    def upsert_communication_policy(
+        self,
+        *,
+        principal_id: str,
+        scope: str,
+        preferred_channel: str = "",
+        tone: str = "neutral",
+        max_length: int = 1200,
+        quiet_hours_json: dict[str, object] | None = None,
+        escalation_json: dict[str, object] | None = None,
+        status: str = "active",
+        notes: str = "",
+        policy_id: str | None = None,
+    ) -> CommunicationPolicy:
+        return self._communication_policies.upsert_policy(
+            principal_id=principal_id,
+            scope=scope,
+            preferred_channel=preferred_channel,
+            tone=tone,
+            max_length=max_length,
+            quiet_hours_json=quiet_hours_json,
+            escalation_json=escalation_json,
+            status=status,
+            notes=notes,
+            policy_id=policy_id,
+        )
+
+    def list_communication_policies(
+        self,
+        *,
+        principal_id: str,
+        limit: int = 100,
+        status: str | None = None,
+    ) -> list[CommunicationPolicy]:
+        return self._communication_policies.list_policies(
+            principal_id=principal_id,
+            limit=limit,
+            status=status,
+        )
+
+    def get_communication_policy(self, policy_id: str, *, principal_id: str) -> CommunicationPolicy | None:
+        found = self._communication_policies.get(policy_id)
         if not found:
             return None
         if found.principal_id != str(principal_id or "").strip():
@@ -662,6 +718,26 @@ def _build_commitment_repo(settings: Settings) -> CommitmentRepository:
     return InMemoryCommitmentRepository()
 
 
+def _build_communication_policy_repo(settings: Settings) -> CommunicationPolicyRepository:
+    backend = _backend_mode(settings)
+    log = logging.getLogger("ea.communication_policies")
+    if backend == "memory":
+        return InMemoryCommunicationPolicyRepository()
+    if backend == "postgres":
+        if not settings.database_url:
+            raise RuntimeError("EA_STORAGE_BACKEND=postgres requires DATABASE_URL")
+        return PostgresCommunicationPolicyRepository(settings.database_url)
+    if settings.database_url:
+        try:
+            return PostgresCommunicationPolicyRepository(settings.database_url)
+        except Exception as exc:
+            log.warning(
+                "postgres communication-policy backend unavailable in auto mode; falling back to memory: %s",
+                exc,
+            )
+    return InMemoryCommunicationPolicyRepository()
+
+
 def _build_decision_window_repo(settings: Settings) -> DecisionWindowRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.decision_windows")
@@ -772,6 +848,7 @@ def build_memory_runtime(settings: Settings | None = None) -> MemoryRuntimeServi
         entities=_build_entity_repo(resolved),
         relationships=_build_relationship_repo(resolved),
         commitments=_build_commitment_repo(resolved),
+        communication_policies=_build_communication_policy_repo(resolved),
         decision_windows=_build_decision_window_repo(resolved),
         deadline_windows=_build_deadline_window_repo(resolved),
         stakeholders=_build_stakeholder_repo(resolved),

@@ -686,6 +686,39 @@ def test_memory_decision_windows_principal_scope_flow() -> None:
     assert wrong_scope.json()["error"]["code"] == "decision_window_not_found"
 
 
+def test_memory_communication_policies_principal_scope_flow() -> None:
+    client = _client(storage_backend="memory")
+
+    created = client.post(
+        "/v1/memory/communication-policies",
+        json={
+            "principal_id": "exec-1",
+            "scope": "board_threads",
+            "preferred_channel": "email",
+            "tone": "concise_diplomatic",
+            "max_length": 1200,
+            "quiet_hours_json": {"start": "22:00", "end": "07:00"},
+            "escalation_json": {"on_high_urgency": "notify_exec"},
+            "status": "active",
+            "notes": "Board-facing communication defaults",
+        },
+    )
+    assert created.status_code == 200
+    policy_id = created.json()["policy_id"]
+
+    listed = client.get("/v1/memory/communication-policies", params={"principal_id": "exec-1", "limit": 10})
+    assert listed.status_code == 200
+    assert any(row["policy_id"] == policy_id for row in listed.json())
+
+    fetched = client.get(f"/v1/memory/communication-policies/{policy_id}", params={"principal_id": "exec-1"})
+    assert fetched.status_code == 200
+    assert fetched.json()["scope"] == "board_threads"
+
+    wrong_scope = client.get(f"/v1/memory/communication-policies/{policy_id}", params={"principal_id": "exec-2"})
+    assert wrong_scope.status_code == 404
+    assert wrong_scope.json()["error"]["code"] == "communication_policy_not_found"
+
+
 def test_auth_allow_and_deny() -> None:
     token = "secret-token"
     client = _client(storage_backend="memory", auth_token=token)

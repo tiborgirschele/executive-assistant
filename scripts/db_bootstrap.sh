@@ -27,6 +27,7 @@ Applies kernel migrations in order:
   - v0_17 deadline windows kernel
   - v0_18 stakeholders kernel
   - v0_19 decision windows kernel
+  - v0_20 communication policies kernel
 EOF
   exit 0
 fi
@@ -60,6 +61,7 @@ SQL_FILES=(
   "ea/schema/20260305_v0_17_deadline_windows_kernel.sql"
   "ea/schema/20260305_v0_18_stakeholders_kernel.sql"
   "ea/schema/20260305_v0_19_decision_windows_kernel.sql"
+  "ea/schema/20260305_v0_20_communication_policies_kernel.sql"
 )
 
 echo "== EA DB bootstrap =="

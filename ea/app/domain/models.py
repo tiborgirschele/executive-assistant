@@ -271,6 +271,22 @@ class DecisionWindow:
 
 
 @dataclass(frozen=True)
+class CommunicationPolicy:
+    policy_id: str
+    principal_id: str
+    scope: str
+    preferred_channel: str
+    tone: str
+    max_length: int
+    quiet_hours_json: dict[str, Any]
+    escalation_json: dict[str, Any]
+    status: str
+    notes: str
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
 class ToolDefinition:
     tool_name: str
     version: str

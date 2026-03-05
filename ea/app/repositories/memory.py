@@ -2,6 +2,8 @@ from app.repositories.authority_bindings import AuthorityBindingRepository, InMe
 from app.repositories.authority_bindings_postgres import PostgresAuthorityBindingRepository
 from app.repositories.commitments import CommitmentRepository, InMemoryCommitmentRepository
 from app.repositories.commitments_postgres import PostgresCommitmentRepository
+from app.repositories.communication_policies import CommunicationPolicyRepository, InMemoryCommunicationPolicyRepository
+from app.repositories.communication_policies_postgres import PostgresCommunicationPolicyRepository
 from app.repositories.decision_windows import DecisionWindowRepository, InMemoryDecisionWindowRepository
 from app.repositories.decision_windows_postgres import PostgresDecisionWindowRepository
 from app.repositories.deadline_windows import DeadlineWindowRepository, InMemoryDeadlineWindowRepository
@@ -31,6 +33,9 @@ __all__ = [
     "CommitmentRepository",
     "InMemoryCommitmentRepository",
     "PostgresCommitmentRepository",
+    "CommunicationPolicyRepository",
+    "InMemoryCommunicationPolicyRepository",
+    "PostgresCommunicationPolicyRepository",
     "DecisionWindowRepository",
     "InMemoryDecisionWindowRepository",
     "PostgresDecisionWindowRepository",

@@ -50,6 +50,9 @@
   - `POST /v1/memory/decision-windows`
   - `GET /v1/memory/decision-windows`
   - `GET /v1/memory/decision-windows/{decision_window_id}`
+  - `POST /v1/memory/communication-policies`
+  - `GET /v1/memory/communication-policies`
+  - `GET /v1/memory/communication-policies/{policy_id}`
   - (`ea/app/api/routes/memory.py`)
 - Observation runtime:
   - `POST /v1/observations/ingest`
@@ -77,6 +80,7 @@
 - Deadline context: `DeadlineWindow`
 - Stakeholder context: `Stakeholder`
 - Decision context: `DecisionWindow`
+- Communication context: `CommunicationPolicy`
 - Channel runtime: `ObservationEvent`, `DeliveryOutboxItem`
 - File: `ea/app/domain/models.py`
 
@@ -135,6 +139,9 @@
 - Decision windows:
   - in-memory: `ea/app/repositories/decision_windows.py`
   - postgres: `ea/app/repositories/decision_windows_postgres.py`
+- Communication policies:
+  - in-memory: `ea/app/repositories/communication_policies.py`
+  - postgres: `ea/app/repositories/communication_policies_postgres.py`
 - Delivery outbox:
   - in-memory: `ea/app/repositories/delivery_outbox.py`
   - postgres: `ea/app/repositories/delivery_outbox_postgres.py`
@@ -159,6 +166,7 @@
 - `ea/schema/20260305_v0_17_deadline_windows_kernel.sql`
 - `ea/schema/20260305_v0_18_stakeholders_kernel.sql`
 - `ea/schema/20260305_v0_19_decision_windows_kernel.sql`
+- `ea/schema/20260305_v0_20_communication_policies_kernel.sql`
 
 ## Operator Tooling
 

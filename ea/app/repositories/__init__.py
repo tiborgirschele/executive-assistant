@@ -6,6 +6,8 @@ from app.repositories.authority_bindings import AuthorityBindingRepository, InMe
 from app.repositories.authority_bindings_postgres import PostgresAuthorityBindingRepository
 from app.repositories.commitments import CommitmentRepository, InMemoryCommitmentRepository
 from app.repositories.commitments_postgres import PostgresCommitmentRepository
+from app.repositories.communication_policies import CommunicationPolicyRepository, InMemoryCommunicationPolicyRepository
+from app.repositories.communication_policies_postgres import PostgresCommunicationPolicyRepository
 from app.repositories.connector_bindings import ConnectorBindingRepository, InMemoryConnectorBindingRepository
 from app.repositories.connector_bindings_postgres import PostgresConnectorBindingRepository
 from app.repositories.decision_windows import DecisionWindowRepository, InMemoryDecisionWindowRepository
@@ -46,6 +48,7 @@ __all__ = [
     "InMemoryApprovalRepository",
     "PostgresApprovalRepository",
     "CommitmentRepository",
+    "CommunicationPolicyRepository",
     "AuthorityBindingRepository",
     "DeliveryOutboxRepository",
     "DeliveryPreferenceRepository",
@@ -62,6 +65,7 @@ __all__ = [
     "InMemoryFollowUpRepository",
     "InMemoryArtifactRepository",
     "InMemoryAuthorityBindingRepository",
+    "InMemoryCommunicationPolicyRepository",
     "InMemoryCommitmentRepository",
     "InMemoryExecutionLedgerRepository",
     "InMemoryObservationEventRepository",
@@ -79,6 +83,7 @@ __all__ = [
     "StakeholderRepository",
     "PostgresArtifactRepository",
     "PostgresAuthorityBindingRepository",
+    "PostgresCommunicationPolicyRepository",
     "PostgresCommitmentRepository",
     "PostgresConnectorBindingRepository",
     "PostgresDeliveryOutboxRepository",

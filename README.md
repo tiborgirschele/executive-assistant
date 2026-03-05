@@ -36,6 +36,7 @@ Removed:
 - `/v1/memory/deadline-windows*` upserts/list/gets principal-scoped deadline windows
 - `/v1/memory/stakeholders*` upserts/list/gets principal-scoped stakeholder profiles
 - `/v1/memory/decision-windows*` upserts/list/gets principal-scoped decision windows
+- `/v1/memory/communication-policies*` upserts/list/gets principal-scoped communication policies
 - rewrite execution now records `plan_compiled` and executes the primary typed plan step in the ledger
 - observation intake supports `source_id`/`external_id`/`dedupe_key` attribution and auth/raw-payload pointers
 - delivery outbox supports idempotency keys plus retry/dead-letter state fields
@@ -75,6 +76,7 @@ Removed:
 - deadline windows kernel migration: `ea/schema/20260305_v0_17_deadline_windows_kernel.sql`
 - stakeholders kernel migration: `ea/schema/20260305_v0_18_stakeholders_kernel.sql`
 - decision windows kernel migration: `ea/schema/20260305_v0_19_decision_windows_kernel.sql`
+- communication policies kernel migration: `ea/schema/20260305_v0_20_communication_policies_kernel.sql`
 
 ## Auth
 

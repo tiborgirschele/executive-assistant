@@ -11,7 +11,7 @@ Usage:
 Runs end-to-end HTTP smoke checks for liveness/readiness/version,
 rewrite/session/policy/approvals, observations, delivery outbox, channel adapters,
 tool/connector registry endpoints, task-contract endpoints, plan compile endpoint,
-and memory candidate/item/entity/relationship/commitment/authority-binding/delivery-preference/follow-up/deadline-window/stakeholder/decision-window endpoints.
+and memory candidate/item/entity/relationship/commitment/authority-binding/delivery-preference/follow-up/deadline-window/stakeholder/decision-window/communication-policy endpoints.
 
 Auth:
   If EA_API_TOKEN is set, the script sends Authorization: Bearer <token>.
@@ -233,6 +233,14 @@ if [[ -z "${DECISION_WINDOW_ID}" ]]; then
 fi
 curl -fsS "${BASE}/v1/memory/decision-windows?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/memory/decision-windows/${DECISION_WINDOW_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
+COMM_POLICY_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/communication-policies" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"principal_id":"exec-1","scope":"board_threads","preferred_channel":"email","tone":"concise_diplomatic","max_length":1200,"quiet_hours_json":{"start":"22:00","end":"07:00"},"escalation_json":{"on_high_urgency":"notify_exec"},"status":"active","notes":"Board-facing communication defaults"}')"
+COMM_POLICY_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("policy_id",""))' <<<"${COMM_POLICY_JSON}")"
+if [[ -z "${COMM_POLICY_ID}" ]]; then
+  fail 13 "missing policy_id from communication-policy response"
+fi
+curl -fsS "${BASE}/v1/memory/communication-policies?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/communication-policies/${COMM_POLICY_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
 echo "memory ok"
 
 echo "smoke complete"

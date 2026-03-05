@@ -125,6 +125,34 @@ class CommitmentOut(BaseModel):
     updated_at: str
 
 
+class CommunicationPolicyIn(BaseModel):
+    principal_id: str = Field(min_length=1, max_length=200)
+    scope: str = Field(min_length=1, max_length=200)
+    preferred_channel: str = Field(default="", max_length=120)
+    tone: str = Field(default="neutral", max_length=120)
+    max_length: int = Field(default=1200, ge=1, le=20000)
+    quiet_hours_json: dict[str, object] = Field(default_factory=dict)
+    escalation_json: dict[str, object] = Field(default_factory=dict)
+    status: str = Field(default="active", max_length=80)
+    notes: str = Field(default="", max_length=5000)
+    policy_id: str | None = Field(default=None, max_length=200)
+
+
+class CommunicationPolicyOut(BaseModel):
+    policy_id: str
+    principal_id: str
+    scope: str
+    preferred_channel: str
+    tone: str
+    max_length: int
+    quiet_hours_json: dict[str, object]
+    escalation_json: dict[str, object]
+    status: str
+    notes: str
+    created_at: str
+    updated_at: str
+
+
 class DecisionWindowIn(BaseModel):
     principal_id: str = Field(min_length=1, max_length=200)
     title: str = Field(min_length=1, max_length=400)
@@ -388,6 +416,23 @@ def _commitment_out(row) -> CommitmentOut:
         priority=row.priority,
         due_at=row.due_at,
         source_json=row.source_json,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _communication_policy_out(row) -> CommunicationPolicyOut:
+    return CommunicationPolicyOut(
+        policy_id=row.policy_id,
+        principal_id=row.principal_id,
+        scope=row.scope,
+        preferred_channel=row.preferred_channel,
+        tone=row.tone,
+        max_length=row.max_length,
+        quiet_hours_json=row.quiet_hours_json,
+        escalation_json=row.escalation_json,
+        status=row.status,
+        notes=row.notes,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -709,6 +754,53 @@ def get_memory_commitment(
     if not row:
         raise HTTPException(status_code=404, detail="commitment_not_found")
     return _commitment_out(row)
+
+
+@router.post("/communication-policies")
+def upsert_memory_communication_policy(
+    body: CommunicationPolicyIn,
+    container: AppContainer = Depends(get_container),
+) -> CommunicationPolicyOut:
+    row = container.memory_runtime.upsert_communication_policy(
+        principal_id=body.principal_id,
+        scope=body.scope,
+        preferred_channel=body.preferred_channel,
+        tone=body.tone,
+        max_length=body.max_length,
+        quiet_hours_json=body.quiet_hours_json,
+        escalation_json=body.escalation_json,
+        status=body.status,
+        notes=body.notes,
+        policy_id=body.policy_id,
+    )
+    return _communication_policy_out(row)
+
+
+@router.get("/communication-policies")
+def list_memory_communication_policies(
+    principal_id: str = Query(min_length=1, max_length=200),
+    limit: int = Query(default=100, ge=1, le=500),
+    status: str | None = Query(default=None),
+    container: AppContainer = Depends(get_container),
+) -> list[CommunicationPolicyOut]:
+    rows = container.memory_runtime.list_communication_policies(
+        principal_id=principal_id,
+        limit=limit,
+        status=status,
+    )
+    return [_communication_policy_out(row) for row in rows]
+
+
+@router.get("/communication-policies/{policy_id}")
+def get_memory_communication_policy(
+    policy_id: str,
+    principal_id: str = Query(min_length=1, max_length=200),
+    container: AppContainer = Depends(get_container),
+) -> CommunicationPolicyOut:
+    row = container.memory_runtime.get_communication_policy(policy_id, principal_id=principal_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="communication_policy_not_found")
+    return _communication_policy_out(row)
 
 
 @router.post("/decision-windows")

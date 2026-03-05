@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.repositories.authority_bindings import InMemoryAuthorityBindingRepository
 from app.repositories.commitments import InMemoryCommitmentRepository
+from app.repositories.communication_policies import InMemoryCommunicationPolicyRepository
 from app.repositories.decision_windows import InMemoryDecisionWindowRepository
 from app.repositories.delivery_preferences import InMemoryDeliveryPreferenceRepository
 from app.repositories.deadline_windows import InMemoryDeadlineWindowRepository
@@ -50,6 +51,7 @@ def test_inmemory_memory_runtime_promote_and_reject_paths() -> None:
         entities=InMemoryEntityRepository(),
         relationships=InMemoryRelationshipRepository(),
         commitments=InMemoryCommitmentRepository(),
+        communication_policies=InMemoryCommunicationPolicyRepository(),
         decision_windows=InMemoryDecisionWindowRepository(),
         authority_bindings=InMemoryAuthorityBindingRepository(),
         delivery_preferences=InMemoryDeliveryPreferenceRepository(),
@@ -106,6 +108,7 @@ def test_inmemory_entities_and_relationships_upsert_flow() -> None:
         entities=InMemoryEntityRepository(),
         relationships=InMemoryRelationshipRepository(),
         commitments=InMemoryCommitmentRepository(),
+        communication_policies=InMemoryCommunicationPolicyRepository(),
         decision_windows=InMemoryDecisionWindowRepository(),
         authority_bindings=InMemoryAuthorityBindingRepository(),
         delivery_preferences=InMemoryDeliveryPreferenceRepository(),
@@ -157,6 +160,7 @@ def test_inmemory_commitments_principal_scope() -> None:
         entities=InMemoryEntityRepository(),
         relationships=InMemoryRelationshipRepository(),
         commitments=InMemoryCommitmentRepository(),
+        communication_policies=InMemoryCommunicationPolicyRepository(),
         decision_windows=InMemoryDecisionWindowRepository(),
         authority_bindings=InMemoryAuthorityBindingRepository(),
         delivery_preferences=InMemoryDeliveryPreferenceRepository(),
@@ -196,6 +200,7 @@ def test_inmemory_authority_bindings_principal_scope() -> None:
         entities=InMemoryEntityRepository(),
         relationships=InMemoryRelationshipRepository(),
         commitments=InMemoryCommitmentRepository(),
+        communication_policies=InMemoryCommunicationPolicyRepository(),
         decision_windows=InMemoryDecisionWindowRepository(),
         authority_bindings=InMemoryAuthorityBindingRepository(),
         delivery_preferences=InMemoryDeliveryPreferenceRepository(),
@@ -235,6 +240,7 @@ def test_inmemory_delivery_preferences_principal_scope() -> None:
         entities=InMemoryEntityRepository(),
         relationships=InMemoryRelationshipRepository(),
         commitments=InMemoryCommitmentRepository(),
+        communication_policies=InMemoryCommunicationPolicyRepository(),
         decision_windows=InMemoryDecisionWindowRepository(),
         authority_bindings=InMemoryAuthorityBindingRepository(),
         delivery_preferences=InMemoryDeliveryPreferenceRepository(),
@@ -274,6 +280,7 @@ def test_inmemory_follow_ups_principal_scope() -> None:
         entities=InMemoryEntityRepository(),
         relationships=InMemoryRelationshipRepository(),
         commitments=InMemoryCommitmentRepository(),
+        communication_policies=InMemoryCommunicationPolicyRepository(),
         decision_windows=InMemoryDecisionWindowRepository(),
         authority_bindings=InMemoryAuthorityBindingRepository(),
         delivery_preferences=InMemoryDeliveryPreferenceRepository(),
@@ -314,6 +321,7 @@ def test_inmemory_decision_windows_principal_scope() -> None:
         entities=InMemoryEntityRepository(),
         relationships=InMemoryRelationshipRepository(),
         commitments=InMemoryCommitmentRepository(),
+        communication_policies=InMemoryCommunicationPolicyRepository(),
         decision_windows=InMemoryDecisionWindowRepository(),
         deadline_windows=InMemoryDeadlineWindowRepository(),
         stakeholders=InMemoryStakeholderRepository(),
@@ -349,6 +357,48 @@ def test_inmemory_decision_windows_principal_scope() -> None:
     assert right_scope.title == "Board response decision"
 
 
+def test_inmemory_communication_policies_principal_scope() -> None:
+    runtime = MemoryRuntimeService(
+        candidates=InMemoryMemoryCandidateRepository(),
+        items=InMemoryMemoryItemRepository(),
+        entities=InMemoryEntityRepository(),
+        relationships=InMemoryRelationshipRepository(),
+        commitments=InMemoryCommitmentRepository(),
+        communication_policies=InMemoryCommunicationPolicyRepository(),
+        decision_windows=InMemoryDecisionWindowRepository(),
+        deadline_windows=InMemoryDeadlineWindowRepository(),
+        stakeholders=InMemoryStakeholderRepository(),
+        authority_bindings=InMemoryAuthorityBindingRepository(),
+        delivery_preferences=InMemoryDeliveryPreferenceRepository(),
+        follow_ups=InMemoryFollowUpRepository(),
+    )
+
+    created = runtime.upsert_communication_policy(
+        principal_id="exec-1",
+        scope="board_threads",
+        preferred_channel="email",
+        tone="concise_diplomatic",
+        max_length=1200,
+        quiet_hours_json={"start": "22:00", "end": "07:00"},
+        escalation_json={"on_high_urgency": "notify_exec"},
+        status="active",
+        notes="Board-facing communication defaults",
+    )
+    assert created.policy_id
+    assert created.principal_id == "exec-1"
+
+    listed = runtime.list_communication_policies(principal_id="exec-1", limit=10)
+    assert len(listed) == 1
+    assert listed[0].policy_id == created.policy_id
+
+    wrong_scope = runtime.get_communication_policy(created.policy_id, principal_id="exec-2")
+    assert wrong_scope is None
+
+    right_scope = runtime.get_communication_policy(created.policy_id, principal_id="exec-1")
+    assert right_scope is not None
+    assert right_scope.scope == "board_threads"
+
+
 def test_inmemory_deadline_windows_principal_scope() -> None:
     runtime = MemoryRuntimeService(
         candidates=InMemoryMemoryCandidateRepository(),
@@ -356,6 +406,7 @@ def test_inmemory_deadline_windows_principal_scope() -> None:
         entities=InMemoryEntityRepository(),
         relationships=InMemoryRelationshipRepository(),
         commitments=InMemoryCommitmentRepository(),
+        communication_policies=InMemoryCommunicationPolicyRepository(),
         decision_windows=InMemoryDecisionWindowRepository(),
         deadline_windows=InMemoryDeadlineWindowRepository(),
         stakeholders=InMemoryStakeholderRepository(),
@@ -396,6 +447,7 @@ def test_inmemory_stakeholders_principal_scope() -> None:
         entities=InMemoryEntityRepository(),
         relationships=InMemoryRelationshipRepository(),
         commitments=InMemoryCommitmentRepository(),
+        communication_policies=InMemoryCommunicationPolicyRepository(),
         decision_windows=InMemoryDecisionWindowRepository(),
         deadline_windows=InMemoryDeadlineWindowRepository(),
         stakeholders=InMemoryStakeholderRepository(),
