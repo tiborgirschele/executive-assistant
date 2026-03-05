@@ -146,6 +146,7 @@ Release smoke aggregate is available via `make release-smoke`.
 Postgres-backed smoke run is available via `scripts/smoke_postgres.sh` or `make smoke-postgres`.
 Local CI-parity compile checks can be run via `make ci-local`.
 One-command local CI gate bundle is available via `make ci-gates`.
+Combined local API+Postgres parity run is available via `make ci-gates-postgres`.
 Release asset integrity can be checked via `scripts/verify_release_assets.sh` or `make verify-release-assets`.
 Docs-focused alias for the same check: `make docs-verify`.
 Docs + operator help aggregate: `make release-docs`.
@@ -153,5 +154,5 @@ Release preflight aggregate is available via `make release-preflight`.
 Recommended sequencing: run `make release-docs` before `make release-preflight`.
 One-command local readiness check: `make all-local`.
 `make all-local` is a lighter local readiness pass; use `make release-preflight` for release-stage smoke + operator checks.
-CI gate sequence is documented in `RUNBOOK.md` and currently runs `smoke-help`, `ci-local`, `test-api`, and release-asset verification.
+CI gate sequence is documented in `RUNBOOK.md` and includes both the API gate bundle (`smoke-help`, `ci-local`, `test-api`, release-asset verification) and a Postgres-backed smoke job (`scripts/smoke_postgres.sh`).
 Shell script lint config is tracked in `.shellcheckrc`.

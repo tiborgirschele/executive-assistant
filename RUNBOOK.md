@@ -115,10 +115,13 @@ make operator-help
 
 `smoke-runtime` workflow currently enforces:
 
-- `make smoke-help`
-- `make ci-local`
-- `make test-api`
-- `make verify-release-assets`
+- API gate bundle job:
+  - `make smoke-help`
+  - `make ci-local`
+  - `make test-api`
+  - `make verify-release-assets`
+- Postgres smoke job:
+  - `bash scripts/smoke_postgres.sh`
 
 Milestone tracking linkage: `MILESTONE.json` feature tags include `ci_gate_bundle`, `release_preflight_bundle`, and `docs_verify_alias`.
 
@@ -126,6 +129,12 @@ Local mirror command:
 
 ```bash
 make ci-gates
+```
+
+Local mirror including Postgres smoke:
+
+```bash
+make ci-gates-postgres
 ```
 
 Release ops linkage: `RELEASE_CHECKLIST.md` includes `make ci-gates` as an optional local parity command.

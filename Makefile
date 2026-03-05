@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-memory deploy-bootstrap bootstrap db-status db-size db-retention smoke-api smoke-postgres smoke-help release-smoke release-preflight release-docs test-api openapi-export openapi-diff openapi-prune endpoints version-info operator-summary operator-help support-bundle tasks-archive tasks-archive-prune tasks-archive-dry-run ci-local ci-gates verify-release-assets docs-verify all-local
+.PHONY: deploy deploy-memory deploy-bootstrap bootstrap db-status db-size db-retention smoke-api smoke-postgres smoke-help release-smoke release-preflight release-docs test-api openapi-export openapi-diff openapi-prune endpoints version-info operator-summary operator-help support-bundle tasks-archive tasks-archive-prune tasks-archive-dry-run ci-local ci-gates ci-gates-postgres verify-release-assets docs-verify all-local
 
 deploy:
 	bash scripts/deploy.sh
@@ -92,6 +92,10 @@ ci-gates:
 	$(MAKE) ci-local
 	$(MAKE) test-api
 	$(MAKE) verify-release-assets
+
+ci-gates-postgres:
+	$(MAKE) ci-gates
+	$(MAKE) smoke-postgres
 
 verify-release-assets:
 	bash scripts/verify_release_assets.sh

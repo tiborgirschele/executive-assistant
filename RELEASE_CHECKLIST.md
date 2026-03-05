@@ -8,6 +8,7 @@
 - [ ] CI smoke workflow is green.
 - [ ] CI gate bundle (`make smoke-help`, `make ci-local`, runtime smoke API tests, `make verify-release-assets`) is green.
 - [ ] Optional local parity run completed: `make ci-gates`.
+- [ ] Optional local parity run including Postgres smoke completed: `make ci-gates-postgres`.
 - [ ] Optional docs parity run completed: `make docs-verify`.
 - [ ] Optional docs+usage parity run completed: `make release-docs`.
 - [ ] Docs parity confirms milestone gate tags in `MILESTONE.json` (`ci_gate_bundle`, `release_preflight_bundle`, `docs_verify_alias`).

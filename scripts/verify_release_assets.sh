@@ -231,6 +231,13 @@ else
   missing=1
 fi
 
+if grep -Fq "make ci-gates-postgres" "RELEASE_CHECKLIST.md"; then
+  echo "ok: RELEASE_CHECKLIST ci-gates-postgres line"
+else
+  echo "missing: RELEASE_CHECKLIST ci-gates-postgres line" >&2
+  missing=1
+fi
+
 if grep -Fq "make docs-verify" "RELEASE_CHECKLIST.md"; then
   echo "ok: RELEASE_CHECKLIST docs-verify line"
 else
@@ -298,6 +305,13 @@ if grep -Fq "make ci-gates" ".github/workflows/smoke-runtime.yml"; then
   echo "ok: smoke-runtime workflow uses ci-gates"
 else
   echo "missing: smoke-runtime workflow ci-gates usage" >&2
+  missing=1
+fi
+
+if grep -Fq "scripts/smoke_postgres.sh" ".github/workflows/smoke-runtime.yml"; then
+  echo "ok: smoke-runtime workflow includes postgres smoke job"
+else
+  echo "missing: smoke-runtime workflow postgres smoke job" >&2
   missing=1
 fi
 

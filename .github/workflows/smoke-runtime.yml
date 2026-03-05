@@ -25,3 +25,13 @@ jobs:
       - name: Run CI Gate Bundle
         run: |
           make ci-gates
+
+  smoke-runtime-postgres:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Postgres Smoke Script
+        run: |
+          bash scripts/smoke_postgres.sh

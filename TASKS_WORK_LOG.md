@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-146 | P1 | Add CI job for Postgres-backed smoke script (`make smoke-postgres`) | codex | queued | Chain after local postgres-smoke script slice commit |
+| - | - | - | - | - | - |
 
 ## In Progress
 
@@ -176,6 +176,8 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | D-143 | P1 | Continue kernel ops hardening (`db_size.sh` schema filter + docs contract) | codex | done | Added optional `EA_DB_SIZE_SCHEMA` filter for scoped DB-size diagnostics and updated docs/milestone/task-log tracking |
 | D-144 | P1 | Continue kernel ops hardening (`db_size.sh` sort-key selector + docs contract) | codex | done | Added optional `EA_DB_SIZE_SORT_KEY` selector (`total|table|index`) with validation and docs/milestone tracking updates |
 | D-145 | P1 | Add local Postgres-backed smoke contract script + docs wiring | codex | done | Added `scripts/smoke_postgres.sh`, make target/operator linkage, and docs/milestone references for Postgres e2e smoke path |
+| D-146 | P1 | Add CI job for Postgres-backed smoke script (`make smoke-postgres`) | codex | done | Workflow now runs `scripts/smoke_postgres.sh` in dedicated `smoke-runtime-postgres` job and docs track the expanded CI gate path |
+| D-147 | P1 | Add local parity aggregate target for API+Postgres smoke (`make ci-gates-postgres`) | codex | done | Added combined local gate target, checklist/docs references, and release-asset guard for `ci-gates-postgres` parity line |
 
 ## Intake Template
 
