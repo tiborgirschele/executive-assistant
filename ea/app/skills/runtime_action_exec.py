@@ -45,13 +45,24 @@ def typed_action_text(action_type: str, result: dict[str, Any]) -> str:
             if fallbacks:
                 lines.append(f"Fallbacks: <code>{html.escape(', '.join(str(x) for x in fallbacks))}</code>")
             return "\n".join(lines)
-        if status in {"planned", "staged"} and bool((result or {}).get("ok")):
+        if status in {"planned", "staged", "executed"} and bool((result or {}).get("ok")):
             lines = [headline, ""]
-            lines.append("✅ <b>Skill plan ready.</b>" if status == "planned" else "✅ <b>Skill action staged.</b>")
+            if status == "planned":
+                lines.append("✅ <b>Skill plan ready.</b>")
+            elif status == "staged":
+                lines.append("✅ <b>Skill action staged.</b>")
+            else:
+                lines.append("✅ <b>Skill action executed.</b>")
             if primary:
                 lines.append(f"Primary capability: <code>{html.escape(primary)}</code>")
             if fallbacks:
                 lines.append(f"Fallbacks: <code>{html.escape(', '.join(str(x) for x in fallbacks))}</code>")
+            artifacts = list((result or {}).get("artifacts") or [])
+            if artifacts:
+                first = artifacts[0] if isinstance(artifacts[0], dict) else {}
+                preview = str(first.get("preview") or "").strip()
+                if preview:
+                    lines.append(f"Preview: {html.escape(preview[:180])}")
             return "\n".join(lines)
         if bool((result or {}).get("ok")):
             return headline + "\n\n✅ <b>Skill action completed.</b>"

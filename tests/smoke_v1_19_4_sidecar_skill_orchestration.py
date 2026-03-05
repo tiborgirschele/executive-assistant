@@ -49,12 +49,14 @@ def test_generic_skill_orchestration_outcomes() -> None:
         operation="polish",
         tenant="chat_100284",
         chat_id=123,
-        payload={},
+        payload={"notes": "Make this warmer and concise"},
     )
     assert polish.get("ok") is True
-    assert polish.get("status") == "staged"
+    assert polish.get("status") == "executed"
     pplan = polish.get("plan") if isinstance(polish.get("plan"), dict) else {}
     assert pplan.get("primary") == "undetectable"
+    parts = list(polish.get("artifacts") or [])
+    assert parts and isinstance(parts[0], dict)
     _pass("v1.19.4 sidecar skill orchestration outcomes")
 
 

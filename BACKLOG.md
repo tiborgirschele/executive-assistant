@@ -108,13 +108,16 @@ Branch: `main`
   - added `TaskContract` registry at `ea/app/planner/task_registry.py`.
   - added task-aware provider broker seed (`ea/app/planner/provider_broker.py`) and
     routed capability planning through broker ranking output.
+  - generic skill handlers now support deterministic `executed` outcomes for safe operations
+    via `runtime_execution_ops` with lightweight artifact previews.
   - capability planning now reads task contract provider priority and emits task metadata
     (`task_contract_key`, approval default, artifact type, budget policy), plus broker `ranking`.
   - `compile_intent_spec(...)` now emits an `IntentSpecV2`-style shape with task/approval/risk/output fields
     (`deliverable_type`, `approval_class`, `risk_class`, `budget_class`, `evidence_requirements`,
     `source_refs`, `output_contract`, `commitment_key`).
   - `smoke_v1_21_task_contract_registry.py`, `smoke_v1_21_intent_spec_v2_shape.py`,
-    `smoke_v1_21_provider_broker.py`, and `smoke_v1_21_doc_alignment.py`
+    `smoke_v1_21_provider_broker.py`, `smoke_v1_21_generic_skill_execution.py`,
+    and `smoke_v1_21_doc_alignment.py`
     added and wired into host/docker/CI gates.
 - [DONE] Event-worker role-path convergence:
   - `EA_ROLE=event_worker` now dispatches through `app.roles.event_worker.run_event_worker`

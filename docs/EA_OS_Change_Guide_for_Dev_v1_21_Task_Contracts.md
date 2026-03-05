@@ -44,6 +44,7 @@ existing capability routing behavior.
    - `tests/smoke_v1_21_task_contract_registry.py`
    - `tests/smoke_v1_21_intent_spec_v2_shape.py`
    - `tests/smoke_v1_21_provider_broker.py`
+   - `tests/smoke_v1_21_generic_skill_execution.py`
    - Validates module presence and task-contract-aware capability planning behavior.
    - Wired into:
       - `scripts/run_v120_smoke.sh`
@@ -70,6 +71,12 @@ existing capability routing behavior.
      - lightweight policy adjustment from capability metadata
    - `ea/app/skills/capability_router.py` now delegates ranking to broker output and
      emits `ranking` details with reasons.
+
+7. Generic skill execution uplift:
+   - `ea/app/skills/generic.py` now supports `runtime_execution_ops` for safe operations.
+   - `draft_and_polish` (`polish`), `prompt_compiler` (`compile`), and `multimodal_burst`
+     (`generate`) now return deterministic `executed` outcomes with lightweight artifacts.
+   - `ea/app/skills/runtime_action_exec.py` now renders `executed` skill outcomes with artifact preview.
 
 ## Why this matters
 

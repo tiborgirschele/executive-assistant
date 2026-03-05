@@ -10,10 +10,12 @@ def build_generic_skill_handler(
     capabilities: tuple[str, ...],
     *,
     planning_task_type: str | None = None,
+    runtime_execution_ops: tuple[str, ...] = (),
 ) -> Callable[..., dict[str, Any]]:
     key = str(skill_key or "").strip().lower()
     caps = tuple(str(x or "").strip().lower() for x in capabilities if str(x or "").strip())
     task_type = str(planning_task_type or key).strip().lower()
+    runtime_ops = {str(x or "").strip().lower() for x in runtime_execution_ops if str(x or "").strip()}
     planning_ops = {"plan", "build", "compile"}
     staging_ops = {"stage", "dispatch", "polish", "generate"}
 
@@ -27,11 +29,30 @@ def build_generic_skill_handler(
         preferred = str((payload or {}).get("preferred_capability") or "").strip().lower() or None
         plan = build_capability_plan(task_type, preferred=preferred)
         op = str(operation or "").strip().lower()
-        status = "planned" if op in planning_ops else "staged" if op in staging_ops else "not_implemented"
-        ok = bool(plan.get("ok")) and status in {"planned", "staged"}
+        if op in runtime_ops:
+            status = "executed"
+        elif op in planning_ops:
+            status = "planned"
+        elif op in staging_ops:
+            status = "staged"
+        else:
+            status = "not_implemented"
+        ok = bool(plan.get("ok")) and status in {"planned", "staged", "executed"}
+        artifacts: list[dict[str, Any]] = []
+        if ok and status == "executed":
+            notes = str(((payload or {}).get("notes") if isinstance(payload, dict) else "") or "").strip()
+            artifacts.append(
+                {
+                    "artifact_type": str(plan.get("task_contract_output_artifact_type") or "execution_artifact"),
+                    "summary": "Deterministic generic-skill execution artifact",
+                    "preview": notes[:220] if notes else f"{key}:{op} executed",
+                }
+            )
         message = (
             "Skill orchestration plan generated."
             if status == "planned"
+            else "Skill operation executed."
+            if status == "executed"
             else "Skill orchestration request staged."
             if status == "staged"
             else "Skill contract exists but implementation is pending."
@@ -47,6 +68,7 @@ def build_generic_skill_handler(
             "payload": dict(payload or {}),
             "capabilities": list(caps),
             "plan": plan,
+            "artifacts": artifacts,
             "message": message,
         }
 
