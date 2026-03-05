@@ -16,6 +16,7 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT_FILE="${OUT_DIR}/support_bundle_${STAMP}.txt"
 TAIL_LINES="${SUPPORT_LOG_TAIL_LINES:-300}"
 INCLUDE_DB="${SUPPORT_INCLUDE_DB:-1}"
+INCLUDE_API="${SUPPORT_INCLUDE_API:-1}"
 
 redact() {
   sed -E \
@@ -40,9 +41,15 @@ redact() {
   "${DC[@]}" ps || true
   echo
 
-  echo "-- ea-api logs (tail ${TAIL_LINES}) --"
-  "${DC[@]}" logs --tail "${TAIL_LINES}" ea-api 2>&1 | redact || true
-  echo
+  if [[ "${INCLUDE_API}" == "1" ]]; then
+    echo "-- ea-api logs (tail ${TAIL_LINES}) --"
+    "${DC[@]}" logs --tail "${TAIL_LINES}" ea-api 2>&1 | redact || true
+    echo
+  else
+    echo "-- ea-api logs --"
+    echo "skipped (SUPPORT_INCLUDE_API=${INCLUDE_API})"
+    echo
+  fi
 
   if [[ "${INCLUDE_DB}" == "1" ]]; then
     echo "-- ea-db logs (tail ${TAIL_LINES}) --"

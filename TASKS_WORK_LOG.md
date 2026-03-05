@@ -6,7 +6,7 @@ Use this file as the execution queue and progress ledger.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-037 | P3 | Add optional `SUPPORT_INCLUDE_API=0` mode to support bundle | codex | queued | Allow DB-only triage bundles |
+| Q-038 | P3 | Add bundle flag to include queue snapshot toggle | codex | queued | Reduce noise for log-only bundles |
 
 ## In Progress
 
@@ -56,6 +56,7 @@ Use this file as the execution queue and progress ledger.
 | D-036 | P3 | Add smoke-script explicit exit codes and runbook matrix | codex | done | Added failure codes `11/12/13` docs |
 | D-037 | P3 | Add baseline support-bundle redaction patterns | codex | done | Redacts common secret/password/token forms in captured logs |
 | D-038 | P3 | Add optional DB-log exclusion in support bundles | codex | done | Added `SUPPORT_INCLUDE_DB=0` support |
+| D-039 | P3 | Add optional API-log exclusion in support bundles | codex | done | Added `SUPPORT_INCLUDE_API=0` support |
 
 ## Intake Template
 
