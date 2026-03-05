@@ -13,6 +13,7 @@ Applies kernel migrations in order:
   - v0_3 channel runtime
   - v0_4 policy decisions
   - v0_5 artifacts
+  - v0_6 execution ledger v2
 EOF
   exit 0
 fi
@@ -32,6 +33,7 @@ SQL_FILES=(
   "ea/schema/20260305_v0_3_channel_runtime_kernel.sql"
   "ea/schema/20260305_v0_4_policy_decisions_kernel.sql"
   "ea/schema/20260305_v0_5_artifacts_kernel.sql"
+  "ea/schema/20260305_v0_6_execution_ledger_v2.sql"
 )
 
 echo "== EA DB bootstrap =="

@@ -12,6 +12,9 @@ class ArtifactRepository(Protocol):
     def get(self, artifact_id: str) -> Artifact | None:
         ...
 
+    def list_for_session(self, session_id: str) -> list[Artifact]:
+        ...
+
 
 class InMemoryArtifactRepository:
     def __init__(self) -> None:
@@ -22,3 +25,7 @@ class InMemoryArtifactRepository:
 
     def get(self, artifact_id: str) -> Artifact | None:
         return self._rows.get(str(artifact_id or ""))
+
+    def list_for_session(self, session_id: str) -> list[Artifact]:
+        sid = str(session_id or "")
+        return [row for row in self._rows.values() if row.execution_session_id == sid]

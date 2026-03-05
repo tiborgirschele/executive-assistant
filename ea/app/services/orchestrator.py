@@ -2,8 +2,18 @@ from __future__ import annotations
 
 import logging
 import uuid
+from dataclasses import dataclass
 
-from app.domain.models import Artifact, ExecutionEvent, ExecutionSession, IntentSpecV3, RewriteRequest
+from app.domain.models import (
+    Artifact,
+    ExecutionEvent,
+    ExecutionSession,
+    ExecutionStep,
+    IntentSpecV3,
+    RewriteRequest,
+    RunCost,
+    ToolReceipt,
+)
 from app.repositories.artifacts import ArtifactRepository, InMemoryArtifactRepository
 from app.repositories.artifacts_postgres import PostgresArtifactRepository
 from app.repositories.ledger import ExecutionLedgerRepository, InMemoryExecutionLedgerRepository
@@ -12,6 +22,16 @@ from app.repositories.policy_decisions import InMemoryPolicyDecisionRepository, 
 from app.repositories.policy_decisions_postgres import PostgresPolicyDecisionRepository
 from app.settings import Settings, get_settings
 from app.services.policy import PolicyDecisionService, PolicyDeniedError
+
+
+@dataclass(frozen=True)
+class ExecutionSessionSnapshot:
+    session: ExecutionSession
+    events: list[ExecutionEvent]
+    steps: list[ExecutionStep]
+    receipts: list[ToolReceipt]
+    artifacts: list[Artifact]
+    run_costs: list[RunCost]
 
 
 class RewriteOrchestrator:
@@ -41,12 +61,22 @@ class RewriteOrchestrator:
             memory_write_policy="reviewed_only",
         )
         session = self._ledger.start_session(intent)
+        correlation_id = str(uuid.uuid4())
         self._ledger.append_event(
             session.session_id,
             "intent_compiled",
             {"task_type": intent.task_type, "risk_class": intent.risk_class},
         )
         normalized_text = str(req.text or "").strip()
+        rewrite_step = self._ledger.start_step(
+            session.session_id,
+            "rewrite_flow",
+            input_json={"text_length": len(normalized_text)},
+            correlation_id=correlation_id,
+            causation_id="rewrite_request",
+            actor_type="assistant",
+            actor_id="orchestrator",
+        )
         policy_decision = self._policy.evaluate_rewrite(intent, normalized_text)
         self._policy_repo.append(session.session_id, policy_decision)
         self._ledger.append_event(
@@ -60,6 +90,11 @@ class RewriteOrchestrator:
             },
         )
         if not policy_decision.allow:
+            self._ledger.update_step(
+                rewrite_step.step_id,
+                state="blocked",
+                error_json={"reason": policy_decision.reason},
+            )
             self._ledger.complete_session(session.session_id, status="blocked")
             self._ledger.append_event(
                 session.session_id,
@@ -68,6 +103,11 @@ class RewriteOrchestrator:
             )
             raise PolicyDeniedError(policy_decision.reason)
         if policy_decision.requires_approval:
+            self._ledger.update_step(
+                rewrite_step.step_id,
+                state="waiting_approval",
+                error_json={"reason": "approval_required"},
+            )
             self._ledger.complete_session(session.session_id, status="awaiting_approval")
             self._ledger.append_event(
                 session.session_id,
@@ -87,6 +127,26 @@ class RewriteOrchestrator:
             execution_session_id=session.session_id,
         )
         self._artifacts.save(artifact)
+        self._ledger.append_tool_receipt(
+            session.session_id,
+            rewrite_step.step_id,
+            tool_name="artifact_repository",
+            action_kind="artifact.save",
+            target_ref=artifact.artifact_id,
+            receipt_json={"artifact_kind": artifact.kind},
+        )
+        self._ledger.append_run_cost(
+            session.session_id,
+            model_name="none",
+            tokens_in=0,
+            tokens_out=0,
+            cost_usd=0.0,
+        )
+        self._ledger.update_step(
+            rewrite_step.step_id,
+            state="completed",
+            output_json={"artifact_id": artifact.artifact_id, "artifact_kind": artifact.kind},
+        )
         self._ledger.append_event(
             session.session_id,
             "artifact_persisted",
@@ -99,11 +159,19 @@ class RewriteOrchestrator:
     def fetch_artifact(self, artifact_id: str) -> Artifact | None:
         return self._artifacts.get(artifact_id)
 
-    def fetch_session(self, session_id: str) -> tuple[ExecutionSession, list[ExecutionEvent]] | None:
+    def fetch_session(self, session_id: str) -> ExecutionSessionSnapshot | None:
         session = self._ledger.get_session(session_id)
         if not session:
             return None
-        return session, self._ledger.events_for(session_id)
+        sid = session.session_id
+        return ExecutionSessionSnapshot(
+            session=session,
+            events=self._ledger.events_for(sid),
+            steps=self._ledger.steps_for(sid),
+            receipts=self._ledger.receipts_for(sid),
+            artifacts=self._artifacts.list_for_session(sid),
+            run_costs=self._ledger.run_costs_for(sid),
+        )
 
     def list_policy_decisions(self, limit: int = 50, session_id: str | None = None):
         return self._policy_repo.list_recent(limit=limit, session_id=session_id)

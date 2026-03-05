@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "date": "2026-03-05",
   "features": [
     "execution_ledger",
@@ -16,6 +16,10 @@
     "health_live_ready_version",
     "token_auth_gate",
     "durable_artifacts",
+    "execution_steps",
+    "tool_receipts",
+    "run_costs",
+    "session_projection_v2",
     "script_help_contracts",
     "ci_gate_bundle",
     "release_preflight_bundle",
@@ -25,7 +29,8 @@
     "ea/schema/20260305_v0_2_execution_ledger_kernel.sql",
     "ea/schema/20260305_v0_3_channel_runtime_kernel.sql",
     "ea/schema/20260305_v0_4_policy_decisions_kernel.sql",
-    "ea/schema/20260305_v0_5_artifacts_kernel.sql"
+    "ea/schema/20260305_v0_5_artifacts_kernel.sql",
+    "ea/schema/20260305_v0_6_execution_ledger_v2.sql"
   ],
   "env_contract": {
     "EA_STORAGE_BACKEND": "memory|postgres|auto",

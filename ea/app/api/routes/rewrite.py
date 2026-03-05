@@ -29,6 +29,49 @@ class SessionEventOut(BaseModel):
     created_at: str
 
 
+class SessionStepOut(BaseModel):
+    step_id: str
+    parent_step_id: str | None
+    step_kind: str
+    state: str
+    attempt_count: int
+    input_json: dict[str, object]
+    output_json: dict[str, object]
+    error_json: dict[str, object]
+    correlation_id: str
+    causation_id: str
+    actor_type: str
+    actor_id: str
+    created_at: str
+    updated_at: str
+
+
+class SessionReceiptOut(BaseModel):
+    receipt_id: str
+    step_id: str
+    tool_name: str
+    action_kind: str
+    target_ref: str
+    receipt_json: dict[str, object]
+    created_at: str
+
+
+class SessionArtifactOut(BaseModel):
+    artifact_id: str
+    kind: str
+    content: str
+    execution_session_id: str
+
+
+class SessionRunCostOut(BaseModel):
+    cost_id: str
+    model_name: str
+    tokens_in: int
+    tokens_out: int
+    cost_usd: float
+    created_at: str
+
+
 class SessionOut(BaseModel):
     session_id: str
     status: str
@@ -37,6 +80,10 @@ class SessionOut(BaseModel):
     intent_task_type: str
     intent_risk_class: str
     events: list[SessionEventOut]
+    steps: list[SessionStepOut]
+    receipts: list[SessionReceiptOut]
+    artifacts: list[SessionArtifactOut]
+    run_costs: list[SessionRunCostOut]
 
 
 @router.post("/artifact")
@@ -69,7 +116,8 @@ def get_session(
     found = container.orchestrator.fetch_session(session_id)
     if not found:
         raise HTTPException(status_code=404, detail="session not found")
-    session, events = found
+    session = found.session
+    events = found.events
     return SessionOut(
         session_id=session.session_id,
         status=session.status,
@@ -85,5 +133,56 @@ def get_session(
                 created_at=e.created_at,
             )
             for e in events
+        ],
+        steps=[
+            SessionStepOut(
+                step_id=s.step_id,
+                parent_step_id=s.parent_step_id,
+                step_kind=s.step_kind,
+                state=s.state,
+                attempt_count=s.attempt_count,
+                input_json=s.input_json,
+                output_json=s.output_json,
+                error_json=s.error_json,
+                correlation_id=s.correlation_id,
+                causation_id=s.causation_id,
+                actor_type=s.actor_type,
+                actor_id=s.actor_id,
+                created_at=s.created_at,
+                updated_at=s.updated_at,
+            )
+            for s in found.steps
+        ],
+        receipts=[
+            SessionReceiptOut(
+                receipt_id=r.receipt_id,
+                step_id=r.step_id,
+                tool_name=r.tool_name,
+                action_kind=r.action_kind,
+                target_ref=r.target_ref,
+                receipt_json=r.receipt_json,
+                created_at=r.created_at,
+            )
+            for r in found.receipts
+        ],
+        artifacts=[
+            SessionArtifactOut(
+                artifact_id=a.artifact_id,
+                kind=a.kind,
+                content=a.content,
+                execution_session_id=a.execution_session_id,
+            )
+            for a in found.artifacts
+        ],
+        run_costs=[
+            SessionRunCostOut(
+                cost_id=c.cost_id,
+                model_name=c.model_name,
+                tokens_in=c.tokens_in,
+                tokens_out=c.tokens_out,
+                cost_usd=c.cost_usd,
+                created_at=c.created_at,
+            )
+            for c in found.run_costs
         ],
     )

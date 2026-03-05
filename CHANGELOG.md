@@ -17,12 +17,18 @@ All notable changes to the rewrite-kernel baseline are documented here.
   - global error envelope (`error.code/message/details/correlation_id`)
   - health split endpoints (`/health/live`, `/health/ready`) and `/version`
   - optional token auth gate for non-health routes (`EA_API_TOKEN`)
+- Execution ledger v2 primitives:
+  - `execution_steps` stateful step log
+  - `tool_receipts` side-effect receipts
+  - `run_costs` per-session cost telemetry
+  - session detail projection now includes steps/receipts/artifacts/costs
 - Postgres + in-memory repository backends for kernel stores.
 - Kernel SQL migrations:
   - `v0_2` execution ledger
   - `v0_3` channel runtime
   - `v0_4` policy decisions
   - `v0_5` artifacts durability
+  - `v0_6` execution ledger v2
 - Operator tooling:
   - `scripts/db_bootstrap.sh`
   - `scripts/db_status.sh`

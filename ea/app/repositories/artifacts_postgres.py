@@ -132,3 +132,35 @@ class PostgresArtifactRepository:
             content=content,
             execution_session_id=str(session_id),
         )
+
+    def list_for_session(self, session_id: str) -> list[Artifact]:
+        sid = str(session_id or "").strip()
+        if not sid:
+            return []
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT artifact_id, session_id, artifact_type, storage_uri
+                    FROM artifacts
+                    WHERE session_id = %s AND tenant_id = %s
+                    ORDER BY created_at ASC, artifact_id ASC
+                    """,
+                    (sid, self._tenant_id),
+                )
+                rows = cur.fetchall()
+        out: list[Artifact] = []
+        for found_id, found_session_id, artifact_type, storage_uri in rows:
+            path = _path_from_uri(str(storage_uri or ""))
+            if not path.exists():
+                continue
+            content = path.read_text(encoding="utf-8")
+            out.append(
+                Artifact(
+                    artifact_id=str(found_id),
+                    kind=str(artifact_type),
+                    content=content,
+                    execution_session_id=str(found_session_id),
+                )
+            )
+        return out

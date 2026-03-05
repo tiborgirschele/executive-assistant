@@ -17,7 +17,7 @@ Removed:
 - `app.main` exposes a FastAPI app
 - `/health`, `/health/live`, `/health/ready`, `/version` provide liveness/readiness/version probes
 - `/v1/rewrite/artifact` creates an artifact and an execution session
-- `/v1/rewrite/sessions/{session_id}` exposes the execution ledger for that run
+- `/v1/rewrite/sessions/{session_id}` exposes execution ledger detail (events, steps, receipts, artifacts, costs)
 - `/v1/observations/ingest` and `/v1/observations/recent` provide channel-agnostic observation intake
 - `/v1/delivery/outbox` endpoints provide channel-agnostic queued delivery tracking
 - `/v1/channels/telegram/ingest` maps raw Telegram updates into normalized observation events
@@ -41,6 +41,7 @@ Removed:
 - channel runtime migration: `ea/schema/20260305_v0_3_channel_runtime_kernel.sql`
 - policy audit migration: `ea/schema/20260305_v0_4_policy_decisions_kernel.sql`
 - artifact durability migration: `ea/schema/20260305_v0_5_artifacts_kernel.sql`
+- execution-ledger v2 migration: `ea/schema/20260305_v0_6_execution_ledger_v2.sql`
 
 ## Auth
 

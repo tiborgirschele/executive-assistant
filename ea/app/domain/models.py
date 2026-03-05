@@ -55,6 +55,48 @@ class ExecutionEvent:
 
 
 @dataclass(frozen=True)
+class ExecutionStep:
+    step_id: str
+    session_id: str
+    parent_step_id: str | None
+    step_kind: str
+    state: str
+    attempt_count: int
+    input_json: dict[str, Any]
+    output_json: dict[str, Any]
+    error_json: dict[str, Any]
+    correlation_id: str
+    causation_id: str
+    actor_type: str
+    actor_id: str
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
+class ToolReceipt:
+    receipt_id: str
+    session_id: str
+    step_id: str
+    tool_name: str
+    action_kind: str
+    target_ref: str
+    receipt_json: dict[str, Any]
+    created_at: str
+
+
+@dataclass(frozen=True)
+class RunCost:
+    cost_id: str
+    session_id: str
+    model_name: str
+    tokens_in: int
+    tokens_out: int
+    cost_usd: float
+    created_at: str
+
+
+@dataclass(frozen=True)
 class PolicyDecision:
     allow: bool
     requires_approval: bool

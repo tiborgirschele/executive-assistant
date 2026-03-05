@@ -54,8 +54,13 @@ def test_rewrite_and_policy_audit_flow() -> None:
 
     session = client.get(f"/v1/rewrite/sessions/{session_id}")
     assert session.status_code == 200
-    event_names = [e["name"] for e in session.json()["events"]]
+    body = session.json()
+    event_names = [e["name"] for e in body["events"]]
     assert "policy_decision" in event_names
+    assert len(body["steps"]) >= 1
+    assert body["steps"][0]["state"] in {"completed", "running", "blocked", "waiting_approval"}
+    assert len(body["receipts"]) >= 1
+    assert body["artifacts"][0]["artifact_id"] == payload["artifact_id"]
 
     policy = client.get("/v1/policy/decisions/recent", params={"session_id": session_id, "limit": 5})
     assert policy.status_code == 200
