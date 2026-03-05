@@ -1,0 +1,75 @@
+@host = http://localhost:8090
+@session_id = replace_me
+@delivery_id = replace_me
+
+### Health
+GET {{host}}/health
+
+### Rewrite -> artifact + execution session
+POST {{host}}/v1/rewrite/artifact
+Content-Type: application/json
+
+{
+  "text": "Prepare a concise follow-up draft."
+}
+
+### Rewrite -> fetch session
+GET {{host}}/v1/rewrite/sessions/{{session_id}}
+
+### Policy audit -> recent decisions
+GET {{host}}/v1/policy/decisions/recent?limit=20
+
+### Policy audit -> by session
+GET {{host}}/v1/policy/decisions/recent?session_id={{session_id}}&limit=20
+
+### Observations -> ingest
+POST {{host}}/v1/observations/ingest
+Content-Type: application/json
+
+{
+  "principal_id": "exec-1",
+  "channel": "email",
+  "event_type": "thread.opened",
+  "payload": {
+    "subject": "Board prep",
+    "from": "ceo@example.com"
+  }
+}
+
+### Observations -> recent
+GET {{host}}/v1/observations/recent?limit=20
+
+### Delivery outbox -> enqueue
+POST {{host}}/v1/delivery/outbox
+Content-Type: application/json
+
+{
+  "channel": "slack",
+  "recipient": "U12345",
+  "content": "Draft prepared and queued for review.",
+  "metadata": {
+    "priority": "high",
+    "thread": "T-1"
+  }
+}
+
+### Delivery outbox -> pending
+GET {{host}}/v1/delivery/outbox/pending?limit=20
+
+### Delivery outbox -> mark sent
+POST {{host}}/v1/delivery/outbox/{{delivery_id}}/sent
+
+### Telegram channel adapter -> ingest
+POST {{host}}/v1/channels/telegram/ingest
+Content-Type: application/json
+
+{
+  "update": {
+    "message": {
+      "chat": { "id": 42 },
+      "message_id": 7,
+      "date": 1234567890,
+      "text": "hello from telegram"
+    }
+  }
+}
