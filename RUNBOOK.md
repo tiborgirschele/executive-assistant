@@ -1,5 +1,20 @@
 # Runtime Runbook
 
+## API Contract Summary
+
+| Method | Route | Success | Error contracts |
+|---|---|---|---|
+| GET | `/health` | `200` | n/a |
+| POST | `/v1/rewrite/artifact` | `200` | `400 text is required`, `403 policy_denied:*`, `409 policy_denied:approval_required` |
+| GET | `/v1/rewrite/sessions/{session_id}` | `200` | `404 session not found` |
+| GET | `/v1/policy/decisions/recent` | `200` | n/a |
+| POST | `/v1/observations/ingest` | `200` | validation `422` |
+| GET | `/v1/observations/recent` | `200` | validation `422` |
+| POST | `/v1/delivery/outbox` | `200` | validation `422` |
+| GET | `/v1/delivery/outbox/pending` | `200` | validation `422` |
+| POST | `/v1/delivery/outbox/{delivery_id}/sent` | `200` | `404 delivery_not_found` |
+| POST | `/v1/channels/telegram/ingest` | `200` | validation `422` |
+
 ## 1) Start Services
 
 ```bash

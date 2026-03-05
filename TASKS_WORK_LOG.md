@@ -6,7 +6,7 @@ Use this file as the execution queue and progress ledger.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-020 | P3 | Add API contract summary table to runbook | codex | queued | Include endpoint, method, happy/error status |
+| Q-021 | P3 | Add local dev convenience `.env.local.example` for memory profile | codex | queued | Minimize setup for non-DB quick starts |
 
 ## In Progress
 
@@ -39,6 +39,7 @@ Use this file as the execution queue and progress ledger.
 | D-019 | P2 | Add OpenAPI export script + make target | codex | done | Added `scripts/export_openapi.sh` and `make openapi-export` |
 | D-020 | P2 | Add OpenAPI diff script + make target | codex | done | Added `scripts/diff_openapi.sh` and `make openapi-diff` |
 | D-021 | P3 | Add OpenAPI snapshot prune script + make target | codex | done | Added `scripts/prune_openapi.sh` and `make openapi-prune` |
+| D-022 | P3 | Add API contract summary table to runbook | codex | done | Method/route/success/error snapshot in `RUNBOOK.md` |
 
 ## Intake Template
 
