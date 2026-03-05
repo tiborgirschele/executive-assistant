@@ -43,6 +43,10 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_22_memory_candidates.py" \
   "$ROOT/tests/smoke_v1_22_memory_promotion_pipeline.py" \
   "$ROOT/tests/smoke_v1_22_followup_seed_from_execute.py" \
+  "$ROOT/tests/smoke_v1_22_followup_helper_consolidation.py" \
+  "$ROOT/tests/smoke_v1_22_skill_followup_linkage.py" \
+  "$ROOT/tests/smoke_v1_22_readme_script_refs.py" \
+  "$ROOT/tests/smoke_v1_22_role_topology_alignment.py" \
   "$ROOT/tests/smoke_v1_22_approval_callback_guard.py" \
   "$ROOT/tests/smoke_v1_22_sim_user_harness.py" \
   "$ROOT/tests/smoke_v1_22_route_signal_router.py" \
@@ -51,12 +55,14 @@ python3 -m py_compile \
   "$ROOT/tests/smoke_v1_22_task_contract_surface.py" \
   "$ROOT/tests/smoke_v1_22_schema_manifest_gate.py" \
   "$ROOT/tests/smoke_v1_22_synthetic_preview_outcomes.py" \
+  "$ROOT/tests/smoke_v1_22_generic_runtime_outcomes.py" \
   "$ROOT/tests/smoke_v1_22_provider_broker_outcome_ordering.py" \
   "$ROOT/tests/smoke_v1_22_task_matcher.py" \
   "$ROOT/tests/smoke_v1_22_step_executor_ledger_seed.py" \
   "$ROOT/tests/smoke_v1_22_execute_step_queue_seed.py" \
   "$ROOT/tests/smoke_v1_22_plan_store_seed.py" \
   "$ROOT/tests/smoke_v1_22_pre_step_parity.py" \
+  "$ROOT/tests/smoke_v1_22_pre_step_handler_map.py" \
   "$ROOT/tests/smoke_v1_22_planner_exports.py" \
   "$ROOT/tests/smoke_v1_22_planner_runtime_contracts.py" \
   "$ROOT/tests/smoke_v1_22_execute_step_metadata_provenance.py" \
@@ -97,6 +103,10 @@ python3 "$ROOT/tests/smoke_v1_22_world_model_seed.py"
 python3 "$ROOT/tests/smoke_v1_22_memory_candidates.py"
 python3 "$ROOT/tests/smoke_v1_22_memory_promotion_pipeline.py"
 python3 "$ROOT/tests/smoke_v1_22_followup_seed_from_execute.py"
+python3 "$ROOT/tests/smoke_v1_22_followup_helper_consolidation.py"
+python3 "$ROOT/tests/smoke_v1_22_skill_followup_linkage.py"
+python3 "$ROOT/tests/smoke_v1_22_readme_script_refs.py"
+python3 "$ROOT/tests/smoke_v1_22_role_topology_alignment.py"
 python3 "$ROOT/tests/smoke_v1_22_approval_callback_guard.py"
 python3 "$ROOT/tests/smoke_v1_22_sim_user_harness.py"
 python3 "$ROOT/tests/smoke_v1_22_route_signal_router.py"
@@ -105,12 +115,14 @@ python3 "$ROOT/tests/smoke_v1_22_proactive_runtime_integration.py"
 python3 "$ROOT/tests/smoke_v1_22_task_contract_surface.py"
 python3 "$ROOT/tests/smoke_v1_22_schema_manifest_gate.py"
 python3 "$ROOT/tests/smoke_v1_22_synthetic_preview_outcomes.py"
+python3 "$ROOT/tests/smoke_v1_22_generic_runtime_outcomes.py"
 python3 "$ROOT/tests/smoke_v1_22_provider_broker_outcome_ordering.py"
 python3 "$ROOT/tests/smoke_v1_22_task_matcher.py"
 python3 "$ROOT/tests/smoke_v1_22_step_executor_ledger_seed.py"
 python3 "$ROOT/tests/smoke_v1_22_execute_step_queue_seed.py"
 python3 "$ROOT/tests/smoke_v1_22_plan_store_seed.py"
 python3 "$ROOT/tests/smoke_v1_22_pre_step_parity.py"
+python3 "$ROOT/tests/smoke_v1_22_pre_step_handler_map.py"
 python3 "$ROOT/tests/smoke_v1_22_planner_exports.py"
 python3 "$ROOT/tests/smoke_v1_22_planner_runtime_contracts.py"
 python3 "$ROOT/tests/smoke_v1_22_execute_step_metadata_provenance.py"

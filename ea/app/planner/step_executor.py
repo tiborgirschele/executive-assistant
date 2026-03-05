@@ -23,6 +23,10 @@ _PLANNER_PRE_EXEC_STEPS = {
     "review_health_context",
 }
 
+_PRE_STEP_KIND_OVERRIDES = {
+    "build_approval_context": "approval",
+}
+
 
 def _is_deterministic_pre_step(*, step_key: str, step_kind: str = "") -> bool:
     key = str(step_key or "").strip().lower()
@@ -34,6 +38,20 @@ def _is_deterministic_pre_step(*, step_key: str, step_kind: str = "") -> bool:
     if key in _PLANNER_PRE_EXEC_STEPS:
         return True
     return kind in {"compile", "context", "approval"}
+
+
+def _resolve_pre_step_kind(*, step_key: str, step_kind: str = "") -> str:
+    declared = str(step_kind or "").strip().lower()
+    if declared in {"compile", "context", "approval", "generic"}:
+        return declared
+    key = str(step_key or "").strip().lower()
+    if key == "compile_intent":
+        return "compile"
+    if key in _PRE_STEP_KIND_OVERRIDES:
+        return str(_PRE_STEP_KIND_OVERRIDES.get(key) or "context")
+    if key in _PLANNER_PRE_EXEC_STEPS:
+        return "context"
+    return "generic"
 
 
 def _deterministic_output_refs(*, step_key: str, step_order: int = 0) -> list[str]:
@@ -55,6 +73,166 @@ def _deterministic_execute_output_refs(
     if ref not in out:
         out.append(ref)
     return out
+
+
+def _base_pre_step_result(
+    *,
+    step_key: str,
+    domain: str,
+    task_type: str,
+    objective: str,
+    output_refs: list[str],
+    status: str,
+    handler_kind: str,
+) -> dict[str, Any]:
+    return {
+        "planner_step": step_key,
+        "status": status,
+        "domain": domain,
+        "task_type": task_type,
+        "objective_preview": objective,
+        "output_refs": output_refs,
+        "handler_kind": handler_kind,
+    }
+
+
+def _handle_compile_pre_step(
+    *,
+    step_key: str,
+    domain: str,
+    task_type: str,
+    objective: str,
+    output_refs: list[str],
+) -> dict[str, Any]:
+    return _base_pre_step_result(
+        step_key=step_key,
+        domain=domain,
+        task_type=task_type,
+        objective=objective,
+        output_refs=output_refs,
+        status="deterministic_context_ready",
+        handler_kind="compile",
+    )
+
+
+def _handle_context_pre_step(
+    *,
+    step_key: str,
+    domain: str,
+    task_type: str,
+    objective: str,
+    output_refs: list[str],
+) -> dict[str, Any]:
+    return _base_pre_step_result(
+        step_key=step_key,
+        domain=domain,
+        task_type=task_type,
+        objective=objective,
+        output_refs=output_refs,
+        status="deterministic_context_ready",
+        handler_kind="context",
+    )
+
+
+def _handle_approval_pre_step(
+    *,
+    step_key: str,
+    domain: str,
+    task_type: str,
+    objective: str,
+    output_refs: list[str],
+) -> dict[str, Any]:
+    return _base_pre_step_result(
+        step_key=step_key,
+        domain=domain,
+        task_type=task_type,
+        objective=objective,
+        output_refs=output_refs,
+        status="deterministic_context_ready",
+        handler_kind="approval",
+    )
+
+
+def _handle_generic_pre_step(
+    *,
+    step_key: str,
+    domain: str,
+    task_type: str,
+    objective: str,
+    output_refs: list[str],
+) -> dict[str, Any]:
+    return _base_pre_step_result(
+        step_key=step_key,
+        domain=domain,
+        task_type=task_type,
+        objective=objective,
+        output_refs=output_refs,
+        status="deterministic_context_ready",
+        handler_kind="generic",
+    )
+
+
+_PRE_STEP_HANDLERS = {
+    "compile": _handle_compile_pre_step,
+    "context": _handle_context_pre_step,
+    "approval": _handle_approval_pre_step,
+    "generic": _handle_generic_pre_step,
+}
+
+
+def _run_deterministic_pre_step(
+    *,
+    session_id: str,
+    step_key: str,
+    step_order: int,
+    step_kind: str,
+    domain: str,
+    task_type: str,
+    objective: str,
+    mark_step: Callable[..., None],
+    append_event: Callable[..., None],
+    from_ledger: bool = False,
+) -> None:
+    resolved_kind = _resolve_pre_step_kind(step_key=step_key, step_kind=step_kind)
+    output_refs = _deterministic_output_refs(step_key=step_key, step_order=step_order)
+    handler = _PRE_STEP_HANDLERS.get(resolved_kind) or _PRE_STEP_HANDLERS["generic"]
+    result = handler(
+        step_key=step_key,
+        domain=domain,
+        task_type=task_type,
+        objective=objective,
+        output_refs=output_refs,
+    )
+
+    mark_step(
+        session_id,
+        step_key,
+        "running",
+        evidence={"domain": domain, "task_type": task_type, "handler_kind": resolved_kind},
+        step_kind=resolved_kind,
+    )
+    mark_step(
+        session_id,
+        step_key,
+        "completed",
+        result=result,
+        output_refs=output_refs,
+        step_kind=resolved_kind,
+        provider_key="deterministic_planner",
+    )
+    source = " from ledger" if from_ledger else ""
+    append_event(
+        session_id,
+        event_type="planner_context_step_completed",
+        message=f"Planner pre-execution step completed{source}: {step_key}",
+        payload={
+            "step_key": step_key,
+            "domain": domain,
+            "task_type": task_type,
+            "output_refs": output_refs,
+            "handler_kind": resolved_kind,
+        },
+    )
 
 
 async def run_reasoning_step(
@@ -97,40 +275,17 @@ def run_pre_execution_steps(
         step_key = str((row or {}).get("step_key") or "").strip()
         if not _is_deterministic_pre_step(step_key=step_key):
             continue
-        output_refs = _deterministic_output_refs(step_key=step_key, step_order=idx)
-        mark_step(
-            session_id,
-            step_key,
-            "running",
-            evidence={"domain": domain, "task_type": task_type},
-            step_kind="context",
-        )
-        mark_step(
-            session_id,
-            step_key,
-            "completed",
-            result={
-                "planner_step": step_key,
-                "status": "deterministic_context_ready",
-                "domain": domain,
-                "task_type": task_type,
-                "objective_preview": objective,
-                "output_refs": output_refs,
-            },
-            output_refs=output_refs,
-            step_kind="context",
-            provider_key="deterministic_planner",
-        )
-        append_event(
-            session_id,
-            event_type="planner_context_step_completed",
-            message=f"Planner pre-execution step completed: {step_key}",
-            payload={
-                "step_key": step_key,
-                "domain": domain,
-                "task_type": task_type,
-                "output_refs": output_refs,
-            },
+        _run_deterministic_pre_step(
+            session_id=session_id,
+            step_key=step_key,
+            step_order=idx,
+            step_kind="",
+            domain=domain,
+            task_type=task_type,
+            objective=objective,
+            mark_step=mark_step,
+            append_event=append_event,
+            from_ledger=False,
         )
 
 
@@ -202,40 +357,17 @@ def run_pre_execution_steps_from_ledger(
     for row in queued_rows:
         step_key = str((row or {}).get("step_key") or "").strip()
         step_order = int((row or {}).get("step_order") or 0)
-        output_refs = _deterministic_output_refs(step_key=step_key, step_order=step_order)
-        mark_step(
-            session_id,
-            step_key,
-            "running",
-            evidence={"domain": domain, "task_type": task_type},
-            step_kind=str((row or {}).get("step_kind") or "context"),
-        )
-        mark_step(
-            session_id,
-            step_key,
-            "completed",
-            result={
-                "planner_step": step_key,
-                "status": "deterministic_context_ready",
-                "domain": domain,
-                "task_type": task_type,
-                "objective_preview": objective,
-                "output_refs": output_refs,
-            },
-            output_refs=output_refs,
-            step_kind=str((row or {}).get("step_kind") or "context"),
-            provider_key="deterministic_planner",
-        )
-        append_event(
-            session_id,
-            event_type="planner_context_step_completed",
-            message=f"Planner pre-execution step completed from ledger: {step_key}",
-            payload={
-                "step_key": step_key,
-                "domain": domain,
-                "task_type": task_type,
-                "output_refs": output_refs,
-            },
+        _run_deterministic_pre_step(
+            session_id=session_id,
+            step_key=step_key,
+            step_order=step_order,
+            step_kind=str((row or {}).get("step_kind") or ""),
+            domain=domain,
+            task_type=task_type,
+            objective=objective,
+            mark_step=mark_step,
+            append_event=append_event,
+            from_ledger=True,
         )
     return len(queued_rows)
 

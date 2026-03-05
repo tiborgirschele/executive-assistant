@@ -59,6 +59,7 @@ def test_followup_seed_wiring_presence() -> None:
     src = (ROOT / "ea/app/intent_runtime.py").read_text(encoding="utf-8")
     assert "_FOLLOWUP_ARTIFACT_TYPES" in src
     assert "def _seed_execution_followups(" in src
+    assert "seed_followups_for_deferred_artifacts" in src
     assert '"followup_ids": followup_ids' in src
     assert "output_refs=render_output_refs" in src
     _pass("v1.22 followup seed wiring presence")
@@ -69,13 +70,14 @@ def test_followup_seed_behavior() -> None:
     _install_optional_runtime_stubs()
     import app.intent_runtime as runtime
 
-    upsert_calls: list[dict[str, object]] = []
-    followup_calls: list[dict[str, object]] = []
+    seed_calls: list[dict[str, object]] = []
 
-    orig_upsert = runtime._upsert_commitment
-    orig_followup = runtime._create_followup
-    runtime._upsert_commitment = lambda **kwargs: upsert_calls.append(dict(kwargs or {})) or True
-    runtime._create_followup = lambda **kwargs: followup_calls.append(dict(kwargs or {})) or "fol-100"
+    orig_seed = runtime.seed_followups_for_deferred_artifacts
+    runtime.seed_followups_for_deferred_artifacts = lambda **kwargs: seed_calls.append(dict(kwargs or {})) or {
+        "followup_ids": ["fol-100"],
+        "output_refs": ["artifact:art-200", "followup:fol-100"],
+        "commitment_key": "travel:chat_100284:sess-xyz-123",
+    }
     try:
         ids = runtime._seed_execution_followups(
             tenant_key="chat_100284",
@@ -94,14 +96,13 @@ def test_followup_seed_behavior() -> None:
             rendered_text="plain",
         )
     finally:
-        runtime._upsert_commitment = orig_upsert
-        runtime._create_followup = orig_followup
+        runtime.seed_followups_for_deferred_artifacts = orig_seed
 
     assert ids == ["fol-100"]
     assert ignored == []
-    assert upsert_calls, "expected commitment upsert from followup seed"
-    assert followup_calls, "expected followup create call"
-    assert str(followup_calls[0].get("artifact_id") or "") == "art-200"
+    assert seed_calls, "expected shared followup helper call"
+    first_artifact = dict((seed_calls[0].get("artifacts") or [{}])[0] or {})
+    assert str(first_artifact.get("artifact_id") or "") == "art-200"
     _pass("v1.22 followup seed behavior")
 
 

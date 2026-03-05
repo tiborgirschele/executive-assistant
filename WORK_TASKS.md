@@ -405,12 +405,85 @@ Owner: Codex runtime worker
       - generated gate report:
         `logs/gates/docker_e2e_20260305T104258Z.json`.
 
-38. `IN_PROGRESS` - Extend followup-seed linkage into slash-skill execution path.
+38. `DONE` - Extend followup-seed linkage into slash-skill execution path.
    - Deliverables:
       - when `/skill` produces executable artifacts with deferred-action types,
         seed followups and attach refs into step/session outcomes.
       - keep synthetic-preview skill outcomes neutral for broker scoring.
       - add smoke coverage for slash-skill followup linkage and neutral scoring.
+   - Progress:
+      - added deferred skill artifact followup seeding in `callback_commands`.
+      - execute/render step updates now attach skill followup refs to
+        `output_refs_json`.
+      - typed-action finalize outcomes now include `followup_ids`.
+      - added/wired `smoke_v1_22_skill_followup_linkage.py`.
+      - maintained synthetic-preview neutrality via existing provider-outcome
+        source filtering and neutral score deltas.
+
+39. `DONE` - Consolidate followup seeding into shared planner helper.
+   - Deliverables:
+      - extract common followup-seed logic from `intent_runtime` and
+        `callback_commands` into shared planner module.
+      - keep artifact-type gating + commitment key policy consistent across
+        free-text and skill/typed-action execution paths.
+      - add smoke ensuring both callsites use shared helper.
+   - Progress:
+      - added shared helper module `ea/app/planner/followup_seeding.py`.
+      - rewired both free-text and slash-skill callback paths to shared helper.
+      - added/wired shared-helper consolidation smoke and updated linkage smokes.
+      - host gates passing after helper extraction (`run_v120_smoke.sh`,
+        `run_v119_smoke.sh`).
+
+40. `DONE` - Add hard drift guards for README scripts and role topology.
+   - Deliverables:
+      - add smoke asserting all `scripts/*.sh` references in README exist.
+      - add smoke asserting compose `EA_ROLE=*` services are runner-supported and
+        role services run through `python -m app.runner`.
+      - wire new smokes into host/CI gates.
+   - Progress:
+      - added `tests/smoke_v1_22_readme_script_refs.py`.
+      - added `tests/smoke_v1_22_role_topology_alignment.py`.
+      - wired both smokes into `run_v120_smoke.sh`, `run_v119_smoke.sh`, and
+        `.github/workflows/release-gates.yml`.
+      - host gates passing after drift-guard additions.
+
+41. `DONE` - Planner step executor handler-map seed.
+   - Deliverables:
+      - replace inline pre-step branching in `step_executor` with explicit
+        handler map keyed by step-kind.
+      - add smoke ensuring all deterministic pre-step kinds have handlers.
+   - Progress:
+      - introduced explicit handler map in `step_executor` for
+        `compile/context/approval/generic` pre-step kinds.
+      - refactored pre-step execution paths to use a shared
+        `_run_deterministic_pre_step(...)` helper.
+      - added/wired `tests/smoke_v1_22_pre_step_handler_map.py`.
+      - host gates passing after handler-map refactor.
+
+42. `DONE` - Provider outcome write-path parity for non-synthetic generic runs.
+   - Deliverables:
+      - ensure `skills/generic.py` records provider outcomes for real
+        `execute/polish/compile/generate` branches with consistent source tags.
+      - add smoke asserting non-preview generic execution writes outcome rows with
+        non-synthetic source.
+   - Progress:
+      - `skills/generic.py` now tags provider outcomes as `skill_runtime/success`
+        for runtime execution mode and keeps `synthetic_preview` neutral defaults.
+      - added/wired `tests/smoke_v1_22_generic_runtime_outcomes.py`.
+      - host gates passing with synthetic and runtime outcome-source coverage.
+
+43. `IN_PROGRESS` - Planner execute fallback hardening.
+   - Deliverables:
+      - centralize fallback reasoning execution through a shared helper in
+        `intent_runtime` so both free-text and approval-resume paths preserve
+        the same planner metadata contract.
+      - add smoke that guards fallback helper reuse across both paths.
+
+44. `PENDING` - Planner contract drift guard for fallback path.
+   - Deliverables:
+      - add smoke asserting fallback execute path persists deterministic
+        `task_type/output_artifact_type/provider_candidates` metadata shape.
+      - wire smoke into host/CI gates.
 
 ## Validation Command
 - Host gate: `EA_SKIP_FULL_GATES=1 bash scripts/run_v120_smoke.sh`

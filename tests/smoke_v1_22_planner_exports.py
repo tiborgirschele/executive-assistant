@@ -47,6 +47,8 @@ def test_planner_exports_surface() -> None:
     for name in (
         "run_pre_execution_steps_from_ledger",
         "list_queued_pre_execution_steps",
+        "seed_followups_for_deferred_artifacts",
+        "DEFERRED_ARTIFACT_TYPES",
         "fetch_session_plan_steps",
         "resolve_execute_step_metadata",
         "select_queued_execute_step",

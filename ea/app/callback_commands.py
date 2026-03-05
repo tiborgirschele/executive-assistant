@@ -23,8 +23,16 @@ from app.intake.calendar_events import normalize_extracted_calendar_events
 from app.intake.calendar_import_result import build_calendar_import_response
 from app.memory import get_button_context, save_button_context
 from app.open_loops import OpenLoops
+from app.planner.followup_seeding import seed_followups_for_deferred_artifacts
 from app.poll_ui import build_dynamic_ui, clean_html_for_telegram
 from app.skills.runtime_action_exec import execute_typed_action, payload_to_dict
+
+_DEFERRED_SKILL_ARTIFACT_TYPES = {
+    "decision_pack",
+    "strategy_pack",
+    "evidence_pack",
+    "travel_decision_pack",
+}
 
 
 def _safe_err(err: Any) -> str:
@@ -48,6 +56,51 @@ def _dispatch_skill(
         chat_id=chat_id,
         payload=dict(payload or {}),
     )
+
+
+def _seed_skill_followups(
+    *,
+    tenant_name: str,
+    session_id: str | None,
+    action_type: str,
+    result: dict[str, Any] | None,
+) -> tuple[list[str], list[str]]:
+    if not str(action_type or "").startswith("skill:"):
+        return [], []
+    tenant = str(tenant_name or "").strip()
+    session = str(session_id or "").strip()
+    if not tenant:
+        return [], []
+    artifacts = [dict(x) for x in list((result or {}).get("artifacts") or []) if isinstance(x, dict)]
+    skill_key = str(action_type.split(":", 1)[1] or "").strip().lower() or "skill"
+    commitment_key = f"skill:{skill_key}:{tenant}:{(session[:12] if session else 'seed')}"
+    artifact_specs: list[dict[str, Any]] = []
+    for artifact in artifacts:
+        artifact_type = str(artifact.get("artifact_type") or "").strip().lower()
+        if artifact_type not in _DEFERRED_SKILL_ARTIFACT_TYPES:
+            continue
+        preview = str(artifact.get("preview") or "").strip()
+        summary = preview[:220] if preview else f"Skill artifact: {artifact_type}"
+        artifact_specs.append(
+            {
+                "artifact_type": artifact_type,
+                "summary": summary,
+                "content": {"artifact": artifact, "source": "typed_action_callback"},
+                "note": f"Review {artifact_type.replace('_', ' ')} output from skill action.",
+            }
+        )
+    seeded = seed_followups_for_deferred_artifacts(
+        tenant_key=tenant,
+        session_id=session,
+        commitment_key=commitment_key,
+        domain="skill",
+        title=f"Skill follow-up: {skill_key}",
+        artifacts=artifact_specs,
+        source="typed_action_callback",
+    )
+    followup_ids = [str(x) for x in list((seeded or {}).get("followup_ids") or []) if str(x or "").strip()]
+    output_refs = [str(x) for x in list((seeded or {}).get("output_refs") or []) if str(x or "").strip()]
+    return followup_ids, output_refs
 
 
 async def _execute_typed_action_callback(
@@ -131,19 +184,36 @@ async def _execute_typed_action_callback(
         result = executed.get("result") if isinstance(executed.get("result"), dict) else {}
         exec_ok = bool((result or {}).get("ok")) if result else bool(executed.get("ok"))
         exec_status = "completed" if exec_ok else "failed"
+        followup_ids, action_output_refs = _seed_skill_followups(
+            tenant_name=str(tenant_name or ""),
+            session_id=session_id,
+            action_type=action_type,
+            result=result,
+        )
         if session_id:
             mark_execution_step_status(
                 session_id,
                 "execute_intent",
                 exec_status,
-                result={"action_status": (result or {}).get("status"), "ok": exec_ok},
+                result={
+                    "action_status": (result or {}).get("status"),
+                    "ok": exec_ok,
+                    "followup_ids": followup_ids,
+                },
+                output_refs=action_output_refs,
+                step_kind="execution",
             )
             append_execution_event(
                 session_id,
                 event_type="typed_action_executed",
                 level="info" if exec_ok else "error",
                 message="Typed action execution finished.",
-                payload={"action_type": action_type, "ok": exec_ok, "status": (result or {}).get("status")},
+                payload={
+                    "action_type": action_type,
+                    "ok": exec_ok,
+                    "status": (result or {}).get("status"),
+                    "followup_ids": followup_ids,
+                },
             )
 
         text = str(executed.get("text") or "").strip() or "⚠️ Action execution produced no response."
@@ -163,6 +233,8 @@ async def _execute_typed_action_callback(
                 "render_reply",
                 "completed",
                 result={"payload_chars": len(text)},
+                output_refs=action_output_refs,
+                step_kind="render",
             )
             finalize_execution_session(
                 session_id,
@@ -172,6 +244,7 @@ async def _execute_typed_action_callback(
                     "action_type": action_type,
                     "action_status": (result or {}).get("status"),
                     "ok": exec_ok,
+                    "followup_ids": followup_ids,
                 },
                 last_error=None if exec_ok else str((result or {}).get("status") or "typed_action_failed"),
             )

@@ -28,9 +28,8 @@ from app.planner.step_executor import (
     run_pre_execution_steps,
     run_reasoning_step,
 )
+from app.planner.followup_seeding import seed_followups_for_deferred_artifacts
 from app.planner.world_model import create_artifact as _create_artifact
-from app.planner.world_model import create_followup as _create_followup
-from app.planner.world_model import upsert_commitment as _upsert_commitment
 from app.poll_ui import build_dynamic_ui, clean_html_for_telegram
 
 _FOLLOWUP_ARTIFACT_TYPES = {
@@ -126,34 +125,33 @@ def _seed_execution_followups(
     if not commitment_key:
         suffix = (session[:12] if session else "seed").strip() or "seed"
         commitment_key = f"{domain}:{tenant}:{suffix}"
-    _upsert_commitment(
-        tenant_key=tenant,
-        commitment_key=commitment_key,
-        domain=domain or "general",
-        title=str(spec.get("objective") or "Follow-up commitment"),
-        status="open",
-        metadata={
-            "source": "execute_intent",
-            "artifact_type": artifact_type,
-            "session_id": session,
-        },
-    )
     plain = re.sub("<[^>]+>", "", str(rendered_text or "")).strip()
     if len(plain) > 240:
         plain = plain[:240]
     notes = f"Review {artifact_type.replace('_', ' ')} and decide next action."
     if plain:
         notes = f"{notes} Context: {plain}"
-    followup_id = str(
-        _create_followup(
-            tenant_key=tenant,
-            commitment_key=commitment_key,
-            artifact_id=str(artifact_id or ""),
-            notes=notes,
-        )
-        or ""
+    seeded = seed_followups_for_deferred_artifacts(
+        tenant_key=tenant,
+        session_id=session,
+        commitment_key=commitment_key,
+        domain=domain or "general",
+        title=str(spec.get("objective") or "Follow-up commitment"),
+        artifacts=[
+            {
+                "artifact_type": artifact_type,
+                "artifact_id": str(artifact_id or ""),
+                "summary": plain[:200],
+                "content": {
+                    "task_type": str((execute_meta or {}).get("task_type") or ""),
+                    "output_artifact_type": artifact_type,
+                },
+                "note": notes,
+            }
+        ],
+        source="execute_intent",
     )
-    return [followup_id] if followup_id else []
+    return [str(x) for x in list((seeded or {}).get("followup_ids") or []) if str(x or "").strip()]
 
 
 async def execute_approved_intent_action(

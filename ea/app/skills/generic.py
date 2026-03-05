@@ -49,16 +49,24 @@ def build_generic_skill_handler(
                     "preview": notes[:220] if notes else f"{key}:{op} executed",
                 }
             )
+        execution_mode = str(((payload or {}).get("execution_mode") if isinstance(payload, dict) else "") or "").strip().lower()
+        provider_executed = bool(
+            ((payload or {}).get("provider_executed") if isinstance(payload, dict) else False)
+            or execution_mode in {"provider", "runtime", "live"}
+        )
         primary = str((plan or {}).get("primary") or "").strip().lower()
         if primary:
             if status == "executed" and ok:
+                source = "skill_runtime" if provider_executed else "synthetic_preview"
+                outcome_status = "success" if provider_executed else "synthetic_preview"
+                score_delta = 1 if provider_executed else 0
                 record_provider_outcome(
                     tenant_key=str(tenant or ""),
                     provider_key=primary,
                     task_type=task_type,
-                    outcome_status="synthetic_preview",
-                    score_delta=0,
-                    source="synthetic_preview",
+                    outcome_status=outcome_status,
+                    score_delta=score_delta,
+                    source=source,
                 )
             elif status in {"not_implemented"} or not ok:
                 record_provider_outcome(
