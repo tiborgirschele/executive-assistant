@@ -6,7 +6,7 @@ Use this file as the execution queue and progress ledger.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-036 | P3 | Add optional `SUPPORT_INCLUDE_DB=0` mode to support bundle | codex | queued | Skip DB logs when unnecessary |
+| Q-037 | P3 | Add optional `SUPPORT_INCLUDE_API=0` mode to support bundle | codex | queued | Allow DB-only triage bundles |
 
 ## In Progress
 
@@ -55,6 +55,7 @@ Use this file as the execution queue and progress ledger.
 | D-035 | P3 | Add shellcheck baseline config | codex | done | Added `.shellcheckrc` |
 | D-036 | P3 | Add smoke-script explicit exit codes and runbook matrix | codex | done | Added failure codes `11/12/13` docs |
 | D-037 | P3 | Add baseline support-bundle redaction patterns | codex | done | Redacts common secret/password/token forms in captured logs |
+| D-038 | P3 | Add optional DB-log exclusion in support bundles | codex | done | Added `SUPPORT_INCLUDE_DB=0` support |
 
 ## Intake Template
 

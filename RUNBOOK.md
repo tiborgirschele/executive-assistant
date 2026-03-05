@@ -183,6 +183,8 @@ make operator-summary
 bash scripts/support_bundle.sh
 # optional log tail length
 SUPPORT_LOG_TAIL_LINES=500 bash scripts/support_bundle.sh
+# optional: skip DB logs
+SUPPORT_INCLUDE_DB=0 bash scripts/support_bundle.sh
 # or
 make support-bundle
 ```

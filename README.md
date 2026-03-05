@@ -76,6 +76,7 @@ Version fingerprint can be printed via `scripts/version_info.sh` or `make versio
 Operator summary can be printed via `scripts/operator_summary.sh` or `make operator-summary`.
 Support bundle export is available via `scripts/support_bundle.sh` or `make support-bundle`.
 Support bundles apply baseline redaction for common secret/token/password patterns.
+Set `SUPPORT_INCLUDE_DB=0` to skip DB logs in support bundle generation.
 Task archive rotation is available via `scripts/archive_tasks.sh` or `make tasks-archive`.
 Local CI-parity compile checks can be run via `make ci-local`.
 Release asset integrity can be checked via `scripts/verify_release_assets.sh` or `make verify-release-assets`.
