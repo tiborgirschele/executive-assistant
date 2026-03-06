@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.62.0",
+  "version": "0.63.0",
   "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
@@ -385,6 +385,16 @@
         "recommended_manual_transition_sequence"
       ],
       "notes": "Human task ownership transitions are now queryable via `GET /v1/human/tasks/{human_task_id}/assignment-history`, which filters the linked execution ledger down to `created`, `assigned`, `claimed`, and `returned` events so reassignment provenance survives current-state overwrites."
+    },
+    {
+      "name": "session_human_task_assignment_history_projection",
+      "status": "tested",
+      "scope": [
+        "session_assignment_history_projection",
+        "inline_reassignment_audit_chain",
+        "auto_preselected_history_projection"
+      ],
+      "notes": "Session detail responses now include `human_task_assignment_history`, exposing the same ownership transition chain used by the task-scoped history route so operator UIs can audit assignment changes without a second fetch."
     },
     {
       "name": "registry_backed_tool_execution_service",

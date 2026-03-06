@@ -13,13 +13,13 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-203 | P1 | Add operator-facing filters on task assignment history so reviewers can isolate reassignments, claims, or returns without scanning the full transition list | codex | queued | The new assignment-history route exposes the whole transition chain, but operator tooling still lacks narrow filters for escalation-only or reassignment-only review workflows |
+| Q-204 | P1 | Add last-transition summaries on human task backlog/session rows so operators can spot recent reassignments without expanding the full history chain | codex | queued | The full assignment-history chain is now available on the task route and session detail, but list views still lack a compact last-transition summary for triage-heavy operator UIs |
 
 ## In Progress
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-202 | P1 | Expose human-task assignment history directly in session projections so operator UIs do not need a second fetch to audit reassignment decisions | codex | in_progress | The task-scoped assignment-history route is now live, but session detail still omits the same transition chain even though it already carries the linked human task packet rows |
+| Q-203 | P1 | Add operator-facing filters on task assignment history so reviewers can isolate reassignments, claims, or returns without scanning the full transition list | codex | in_progress | The new assignment-history route exposes the whole transition chain, but operator tooling still lacks narrow filters for escalation-only or reassignment-only review workflows |
 
 ## Blocked
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-202 | P1 | Expose human-task assignment history directly in session projections so operator UIs do not need a second fetch to audit reassignment decisions | codex | done | `/v1/rewrite/sessions/{session_id}` now includes `human_task_assignment_history`, mirroring the task-scoped ownership transition chain inline with human task packets so reassignment audit is available in a single session fetch |
 | D-201 | P1 | Add assignment transition history so reassignments can be audited without overwriting earlier reviewer ownership provenance | codex | done | Added `GET /v1/human/tasks/{human_task_id}/assignment-history`, backed by filtered execution-ledger transitions, and expanded the smoke path to prove recommended assignment, later manual reassignment, claim, and return remain queryable after the packet state advances |
 | D-200 | P1 | Add reviewer assignment provenance timestamps and actor IDs so ownership changes are auditable beyond the current source label | codex | done | Human task packets now persist `assigned_at` and `assigned_by_actor_id` across storage, API/session projections, and ledger events, with migration `v0_30` and approved smoke/Postgres contract coverage |
 | D-199 | P1 | Add explicit assignment-source audit visibility so manual, hint-driven, and planner auto-assigned reviewer ownership are distinguishable | codex | done | Human task packets now persist `assignment_source` so session and operator projections can distinguish manual assignment, route-level recommended assignment, and planner auto-preselection after later claim and return transitions |

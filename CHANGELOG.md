@@ -26,6 +26,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Human task storage and projections now persist `assignment_source`, distinguishing manual assignment, route-level recommended assignment, and planner auto-preselection across session, backlog, and returned-packet views.
 - Human task storage and projections now also persist `assigned_at` and `assigned_by_actor_id`, so current reviewer ownership is timestamped and attributed across manual assignment, claim, return, and planner auto-preselection flows.
 - Added `GET /v1/human/tasks/{human_task_id}/assignment-history`, which exposes task-scoped ownership transitions from the execution ledger so recommended assignment, later manual reassignment, claim, and return provenance remain queryable after the packet state advances.
+- `GET /v1/rewrite/sessions/{session_id}` now also projects `human_task_assignment_history`, so operator tooling can render the same ownership transition chain inline with session detail instead of issuing a second history fetch.
 - Human task queue listings now support `role_required`, `assigned_operator_id`, and `overdue_only` filters for operator-targeted backlogs.
 - Added direct `/v1/human/tasks/backlog` and `/v1/human/tasks/mine` endpoints so operators can pull pending and assigned queues without reconstructing filter sets manually.
 - Added `POST /v1/human/tasks/{human_task_id}/assign` so operator ownership can be set while a task remains pending, before `claim` transitions it into active work.

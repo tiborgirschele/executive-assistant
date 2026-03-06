@@ -475,6 +475,27 @@ def test_human_task_assignment_history_api_is_documented_and_smoked() -> None:
     assert "ledger_backed_reassignment_audit" in capability["scope"]
 
 
+def test_session_human_task_assignment_history_projection_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "human_task_assignment_history" in readme
+    assert "human_task_assignment_history" in runbook
+    assert "human_task_assignment_history" in smoke_api
+    assert 'body["human_task_assignment_history"] == []' in smoke_runtime
+    assert 'session_body["human_task_assignment_history"]' in smoke_runtime
+    assert 'body["human_task_assignment_history"][1]["assignment_source"] == "auto_preselected"' in smoke_runtime
+
+    capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "session_human_task_assignment_history_projection"
+    )
+    assert capability["status"] == "tested"
+    assert "inline_reassignment_audit_chain" in capability["scope"]
+
+
 def test_milestone_marks_postgres_contract_matrix_tested() -> None:
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "postgres_contract_matrix")

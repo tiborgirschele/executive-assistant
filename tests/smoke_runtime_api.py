@@ -80,6 +80,7 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert body["steps"][0]["input_json"]["plan_step_key"] == "step_input_prepare"
     assert body["steps"][1]["input_json"]["plan_step_key"] == "step_policy_evaluate"
     assert body["steps"][2]["input_json"]["plan_step_key"] == "step_artifact_save"
+    assert body["human_task_assignment_history"] == []
     assert all(step["state"] in {"completed", "running", "blocked", "waiting_approval", "queued"} for step in body["steps"])
     assert len(body["queue_items"]) >= 3
     assert all(item["state"] == "done" for item in body["queue_items"])
@@ -316,6 +317,8 @@ def test_human_task_flow_and_session_projection() -> None:
     assert waiting_body["status"] == "awaiting_human"
     assert "session_paused_for_human_task" in waiting_events
     assert any(step["step_id"] == step_id and step["state"] == "waiting_human" for step in waiting_body["steps"])
+    waiting_history = waiting_body["human_task_assignment_history"]
+    assert [row["event_name"] for row in waiting_history] == ["human_task_created"]
     waiting_task = next(row for row in waiting_body["human_tasks"] if row["human_task_id"] == task_id)
     assert waiting_task["routing_hints_json"]["recommended_operator_id"] == "operator-specialist"
     assert waiting_task["routing_hints_json"]["auto_assign_operator_id"] == "operator-specialist"
@@ -481,6 +484,20 @@ def test_human_task_flow_and_session_projection() -> None:
     assert "human_task_claimed" in event_names
     assert "human_task_returned" in event_names
     assert "session_resumed_from_human_task" in event_names
+    assert [row["event_name"] for row in session_body["human_task_assignment_history"]] == [
+        "human_task_created",
+        "human_task_assigned",
+        "human_task_assigned",
+        "human_task_claimed",
+        "human_task_returned",
+    ]
+    assert [row["assigned_operator_id"] for row in session_body["human_task_assignment_history"]] == [
+        "",
+        "operator-specialist",
+        "operator-junior",
+        "operator-junior",
+        "operator-junior",
+    ]
     assert any(
         row["human_task_id"] == task_id
         and row["status"] == "returned"
@@ -905,6 +922,12 @@ def test_rewrite_compiled_human_review_branch_pauses_and_resumes() -> None:
     assert review_task["assignment_source"] == "auto_preselected"
     assert review_task["assigned_at"]
     assert review_task["assigned_by_actor_id"] == "orchestrator:auto_preselected"
+    assert [row["event_name"] for row in body["human_task_assignment_history"]] == [
+        "human_task_created",
+        "human_task_assigned",
+    ]
+    assert body["human_task_assignment_history"][1]["assigned_operator_id"] == "operator-specialist"
+    assert body["human_task_assignment_history"][1]["assignment_source"] == "auto_preselected"
     assert review_task["routing_hints_json"]["recommended_operator_id"] == "operator-specialist"
     assert review_task["routing_hints_json"]["auto_assign_operator_id"] == ""
     assert review_task["routing_hints_json"]["candidate_count"] == 1

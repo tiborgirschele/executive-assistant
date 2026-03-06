@@ -1443,6 +1443,31 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "session_human_task_assignment_history_projection")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "human_task_assignment_history" "README.md" && \
+     grep -Fq "human_task_assignment_history" "RUNBOOK.md" && \
+     grep -Fq "human_task_assignment_history" "scripts/smoke_api.sh" && \
+     grep -Fq 'body["human_task_assignment_history"] == []' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'session_body["human_task_assignment_history"]' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'body["human_task_assignment_history"][1]["assignment_source"] == "auto_preselected"' "tests/smoke_runtime_api.py"; then
+    echo "ok: session human task assignment history projection docs"
+  else
+    echo "missing: session human task assignment history projection docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: session human task assignment history projection milestone" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1

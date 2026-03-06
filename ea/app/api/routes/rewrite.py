@@ -126,6 +126,20 @@ class SessionHumanTaskOut(BaseModel):
     updated_at: str
 
 
+class SessionHumanTaskAssignmentHistoryOut(BaseModel):
+    event_id: str
+    human_task_id: str
+    step_id: str | None
+    event_name: str
+    assignment_state: str
+    assigned_operator_id: str
+    assignment_source: str
+    assigned_at: str | None
+    assigned_by_actor_id: str
+    resolution: str
+    created_at: str
+
+
 class SessionOut(BaseModel):
     session_id: str
     status: str
@@ -140,6 +154,24 @@ class SessionOut(BaseModel):
     artifacts: list[SessionArtifactOut]
     run_costs: list[SessionRunCostOut]
     human_tasks: list[SessionHumanTaskOut]
+    human_task_assignment_history: list[SessionHumanTaskAssignmentHistoryOut]
+
+
+def _to_assignment_history_out(event) -> SessionHumanTaskAssignmentHistoryOut:  # type: ignore[no-untyped-def]
+    payload = dict(getattr(event, "payload", {}) or {})
+    return SessionHumanTaskAssignmentHistoryOut(
+        event_id=event.event_id,
+        human_task_id=str(payload.get("human_task_id") or ""),
+        step_id=str(payload.get("step_id") or "") or None,
+        event_name=event.name,
+        assignment_state=str(payload.get("assignment_state") or ""),
+        assigned_operator_id=str(payload.get("assigned_operator_id") or payload.get("operator_id") or ""),
+        assignment_source=str(payload.get("assignment_source") or ""),
+        assigned_at=str(payload.get("assigned_at") or "") or None,
+        assigned_by_actor_id=str(payload.get("assigned_by_actor_id") or ""),
+        resolution=str(payload.get("resolution") or ""),
+        created_at=event.created_at,
+    )
 
 
 @router.post("/artifact")
@@ -193,6 +225,12 @@ def get_session(
         raise HTTPException(status_code=404, detail="session not found")
     session = found.session
     events = found.events
+    human_task_assignment_history = [
+        _to_assignment_history_out(event)
+        for event in events
+        if event.name in {"human_task_created", "human_task_assigned", "human_task_claimed", "human_task_returned"}
+        and str((event.payload or {}).get("human_task_id") or "").strip()
+    ]
     return SessionOut(
         session_id=session.session_id,
         status=session.status,
@@ -308,6 +346,7 @@ def get_session(
             )
             for t in found.human_tasks
         ],
+        human_task_assignment_history=human_task_assignment_history,
     )
 
 
