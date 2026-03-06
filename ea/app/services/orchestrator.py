@@ -258,6 +258,26 @@ class RewriteOrchestrator:
             **self._build_human_task_last_transition_summary(row),
         )
 
+    def _sort_human_tasks(self, rows: list[HumanTask], *, sort: str | None = None) -> list[HumanTask]:
+        sort_key = str(sort or "").strip().lower()
+        if sort_key == "created_desc":
+            return sorted(
+                rows,
+                key=lambda row: (str(row.created_at or ""), str(row.human_task_id or "")),
+                reverse=True,
+            )
+        if sort_key == "last_transition_desc":
+            return sorted(
+                rows,
+                key=lambda row: (
+                    str(row.last_transition_at or ""),
+                    str(row.created_at or ""),
+                    str(row.human_task_id or ""),
+                ),
+                reverse=True,
+            )
+        return rows
+
     def _fallback_rewrite_intent(self) -> IntentSpecV3:
         return IntentSpecV3(
             principal_id="local-user",
@@ -996,6 +1016,7 @@ class RewriteOrchestrator:
         operator_id: str | None = None,
         overdue_only: bool = False,
         limit: int = 50,
+        sort: str | None = None,
     ) -> list[HumanTask]:
         session = str(session_id or "").strip()
         if session:
@@ -1003,11 +1024,12 @@ class RewriteOrchestrator:
             if found is None:
                 return []
             rows = self._human_tasks.list_for_session(session, limit=max(limit, 1))
-            return [
+            decorated = [
                 self._decorate_human_task(row)
                 for row in rows
                 if row.principal_id == str(principal_id or "")
             ]
+            return self._sort_human_tasks(decorated, sort=sort)
         rows = self._human_tasks.list_for_principal(
             principal_id,
             status=status,
@@ -1019,11 +1041,14 @@ class RewriteOrchestrator:
         )
         resolved_operator_id = str(operator_id or "").strip()
         if not resolved_operator_id:
-            return [self._decorate_human_task(row) for row in rows]
+            return self._sort_human_tasks([self._decorate_human_task(row) for row in rows], sort=sort)
         profile = self.fetch_operator_profile(resolved_operator_id, principal_id=principal_id)
         if profile is None:
             return []
-        return [self._decorate_human_task(row) for row in rows if self._operator_matches_human_task(profile, row)]
+        return self._sort_human_tasks(
+            [self._decorate_human_task(row) for row in rows if self._operator_matches_human_task(profile, row)],
+            sort=sort,
+        )
 
     def list_human_task_assignment_history(
         self,

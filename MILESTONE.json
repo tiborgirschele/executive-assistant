@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.65.0",
+  "version": "0.66.0",
   "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
@@ -525,6 +525,16 @@
         "session_and_queue_row_summary"
       ],
       "notes": "Human task list/detail/session rows now expose compact `last_transition_*` fields derived from the latest ownership event so operator UIs can triage the newest reassignment, claim, or return state without fetching the full assignment-history chain."
+    },
+    {
+      "name": "human_task_last_transition_sorting",
+      "status": "tested",
+      "scope": [
+        "human_task_list_sort_param",
+        "human_task_backlog_sort_param",
+        "last_transition_desc_runtime_ordering"
+      ],
+      "notes": "Human task list/backlog endpoints now accept `sort=last_transition_desc` so operator queues can order pending work by the freshest ownership change instead of default repository order."
     }
   ],
   "migrations": [

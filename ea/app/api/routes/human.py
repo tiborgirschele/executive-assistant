@@ -227,6 +227,7 @@ def list_human_tasks(
     assigned_operator_id: str | None = None,
     assignment_state: str | None = None,
     overdue_only: bool = False,
+    sort: str | None = Query(default=None, pattern="^(created_desc|last_transition_desc)$"),
     limit: int = Query(default=50, ge=1, le=500),
     container: AppContainer = Depends(get_container),
     context: RequestContext = Depends(get_request_context),
@@ -241,6 +242,7 @@ def list_human_tasks(
         assignment_state=assignment_state,
         overdue_only=overdue_only,
         limit=limit,
+        sort=sort,
     )
     return [_to_out(row) for row in rows]
 
@@ -251,6 +253,7 @@ def list_human_task_backlog(
     operator_id: str | None = None,
     assignment_state: str | None = None,
     overdue_only: bool = False,
+    sort: str | None = Query(default=None, pattern="^(created_desc|last_transition_desc)$"),
     limit: int = Query(default=50, ge=1, le=500),
     container: AppContainer = Depends(get_container),
     context: RequestContext = Depends(get_request_context),
@@ -263,6 +266,7 @@ def list_human_task_backlog(
         operator_id=operator_id,
         overdue_only=overdue_only,
         limit=limit,
+        sort=sort,
     )
     return [_to_out(row) for row in rows]
 
@@ -271,6 +275,7 @@ def list_human_task_backlog(
 def list_unassigned_human_tasks(
     role_required: str | None = None,
     overdue_only: bool = False,
+    sort: str | None = Query(default=None, pattern="^(created_desc|last_transition_desc)$"),
     limit: int = Query(default=50, ge=1, le=500),
     container: AppContainer = Depends(get_container),
     context: RequestContext = Depends(get_request_context),
@@ -282,6 +287,7 @@ def list_unassigned_human_tasks(
         assignment_state="unassigned",
         overdue_only=overdue_only,
         limit=limit,
+        sort=sort,
     )
     return [_to_out(row) for row in rows]
 
@@ -290,6 +296,7 @@ def list_unassigned_human_tasks(
 def list_my_human_tasks(
     operator_id: str,
     status: str = "",
+    sort: str | None = Query(default=None, pattern="^(created_desc|last_transition_desc)$"),
     limit: int = Query(default=50, ge=1, le=500),
     container: AppContainer = Depends(get_container),
     context: RequestContext = Depends(get_request_context),
@@ -299,6 +306,7 @@ def list_my_human_tasks(
         status=status,
         assigned_operator_id=operator_id,
         limit=limit,
+        sort=sort,
     )
     return [_to_out(row) for row in rows]
 

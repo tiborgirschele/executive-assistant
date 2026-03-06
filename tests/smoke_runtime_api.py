@@ -567,6 +567,69 @@ def test_human_task_flow_and_session_projection() -> None:
     assert resumed_step["output_json"]["human_task_id"] == task_id
 
 
+def test_human_task_sort_by_last_transition_desc() -> None:
+    client = _client(storage_backend="memory")
+    create = client.post("/v1/rewrite/artifact", json={"text": "sort seed"})
+    assert create.status_code == 200
+    session_id = create.json()["execution_session_id"]
+
+    session = client.get(f"/v1/rewrite/sessions/{session_id}")
+    assert session.status_code == 200
+    step_id = session.json()["steps"][-1]["step_id"]
+
+    older = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": "communications_reviewer",
+            "brief": "Older pending task.",
+            "resume_session_on_return": False,
+        },
+    )
+    assert older.status_code == 200
+    older_task_id = older.json()["human_task_id"]
+
+    newer = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": "communications_reviewer",
+            "brief": "Newer untouched task.",
+            "resume_session_on_return": False,
+        },
+    )
+    assert newer.status_code == 200
+    newer_task_id = newer.json()["human_task_id"]
+
+    assigned = client.post(f"/v1/human/tasks/{older_task_id}/assign", json={"operator_id": "operator-sorter"})
+    assert assigned.status_code == 200
+    assert assigned.json()["last_transition_event_name"] == "human_task_assigned"
+
+    listed = client.get(
+        "/v1/human/tasks",
+        params={"status": "pending", "sort": "last_transition_desc", "limit": 10},
+    )
+    assert listed.status_code == 200
+    listed_rows = [row for row in listed.json() if row["human_task_id"] in {older_task_id, newer_task_id}]
+    assert [row["human_task_id"] for row in listed_rows[:2]] == [older_task_id, newer_task_id]
+    assert listed_rows[0]["last_transition_event_name"] == "human_task_assigned"
+    assert listed_rows[1]["last_transition_event_name"] == "human_task_created"
+
+    backlog = client.get(
+        "/v1/human/tasks/backlog",
+        params={"sort": "last_transition_desc", "limit": 10},
+    )
+    assert backlog.status_code == 200
+    backlog_rows = [row for row in backlog.json() if row["human_task_id"] in {older_task_id, newer_task_id}]
+    assert [row["human_task_id"] for row in backlog_rows[:2]] == [older_task_id, newer_task_id]
+    assert backlog_rows[0]["last_transition_event_name"] == "human_task_assigned"
+    assert backlog_rows[1]["last_transition_event_name"] == "human_task_created"
+
+
 def test_rewrite_blocked_policy_flow_has_error_envelope() -> None:
     client = _client(storage_backend="memory")
     blocked = client.post("/v1/rewrite/artifact", json={"text": "x" * 20001})

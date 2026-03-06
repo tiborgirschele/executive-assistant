@@ -318,6 +318,46 @@ if [[ "${SESSION_HUMAN_SUMMARY_FIELDS}" != "human_task_returned|True|returned|op
 fi
 echo "human tasks ok"
 
+echo "== smoke: human task last-transition sort =="
+SORT_REWRITE_JSON="$(curl -fsS -X POST "${BASE}/v1/rewrite/artifact" "${AUTH_ARGS[@]}" -H 'content-type: application/json' -d '{"text":"sort seed"}')"
+SORT_SESSION_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("execution_session_id",""))' <<<"${SORT_REWRITE_JSON}")"
+SORT_SESSION_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${SORT_SESSION_ID}" "${AUTH_ARGS[@]}")"
+SORT_STEP_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); rows=body.get("steps") or []; print(((rows[-1] or {}).get("step_id")) if rows else "")' <<<"${SORT_SESSION_JSON}")"
+if [[ -z "${SORT_STEP_ID}" ]]; then
+  fail 13 "missing sort step_id from session response"
+fi
+SORT_TASK_OLDER_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d "{\"session_id\":\"${SORT_SESSION_ID}\",\"step_id\":\"${SORT_STEP_ID}\",\"task_type\":\"communications_review\",\"role_required\":\"communications_reviewer\",\"brief\":\"Older pending task.\",\"resume_session_on_return\":false}")"
+SORT_TASK_OLDER_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("human_task_id",""))' <<<"${SORT_TASK_OLDER_JSON}")"
+SORT_TASK_NEWER_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d "{\"session_id\":\"${SORT_SESSION_ID}\",\"step_id\":\"${SORT_STEP_ID}\",\"task_type\":\"communications_review\",\"role_required\":\"communications_reviewer\",\"brief\":\"Newer untouched task.\",\"resume_session_on_return\":false}")"
+SORT_TASK_NEWER_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("human_task_id",""))' <<<"${SORT_TASK_NEWER_JSON}")"
+if [[ -z "${SORT_TASK_OLDER_ID}" || -z "${SORT_TASK_NEWER_ID}" ]]; then
+  fail 13 "missing human task ids from sort smoke setup"
+fi
+SORT_ASSIGN_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks/${SORT_TASK_OLDER_ID}/assign" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' -d '{"operator_id":"operator-sorter"}')"
+SORT_ASSIGN_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}".format(body.get("human_task_id",""), body.get("last_transition_event_name","")))' <<<"${SORT_ASSIGN_JSON}")"
+if [[ "${SORT_ASSIGN_FIELDS}" != "${SORT_TASK_OLDER_ID}|human_task_assigned" ]]; then
+  echo "expected sort-smoke assignment to mark the older task as recently assigned; got ${SORT_ASSIGN_FIELDS}" >&2
+  echo "${SORT_ASSIGN_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+SORT_LIST_JSON="$(curl -fsS "${BASE}/v1/human/tasks?status=pending&sort=last_transition_desc&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+SORT_LIST_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted=['${SORT_TASK_OLDER_ID}','${SORT_TASK_NEWER_ID}']; filtered=[row for row in rows if (row or {}).get('human_task_id') in wanted]; first=(filtered[0] if len(filtered) > 0 else {}); second=(filtered[1] if len(filtered) > 1 else {}); print('{}|{}|{}|{}'.format(first.get('human_task_id',''), first.get('last_transition_event_name',''), second.get('human_task_id',''), second.get('last_transition_event_name','')))" <<<"${SORT_LIST_JSON}")"
+if [[ "${SORT_LIST_FIELDS}" != "${SORT_TASK_OLDER_ID}|human_task_assigned|${SORT_TASK_NEWER_ID}|human_task_created" ]]; then
+  echo "expected sort=last_transition_desc to order general human task list by freshest ownership change; got ${SORT_LIST_FIELDS}" >&2
+  echo "${SORT_LIST_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+SORT_BACKLOG_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?sort=last_transition_desc&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+SORT_BACKLOG_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted=['${SORT_TASK_OLDER_ID}','${SORT_TASK_NEWER_ID}']; filtered=[row for row in rows if (row or {}).get('human_task_id') in wanted]; first=(filtered[0] if len(filtered) > 0 else {}); second=(filtered[1] if len(filtered) > 1 else {}); print('{}|{}|{}|{}'.format(first.get('human_task_id',''), first.get('last_transition_event_name',''), second.get('human_task_id',''), second.get('last_transition_event_name','')))" <<<"${SORT_BACKLOG_JSON}")"
+if [[ "${SORT_BACKLOG_FIELDS}" != "${SORT_TASK_OLDER_ID}|human_task_assigned|${SORT_TASK_NEWER_ID}|human_task_created" ]]; then
+  echo "expected backlog sort=last_transition_desc to order pending work by freshest ownership change; got ${SORT_BACKLOG_FIELDS}" >&2
+  echo "${SORT_BACKLOG_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+echo "human task last-transition sort ok"
+
 echo "== smoke: approval resume path =="
 if (( APPROVAL_THRESHOLD_CHARS >= MAX_REWRITE_CHARS )); then
   fail 12 "approval smoke misconfigured: threshold must be below max rewrite chars"

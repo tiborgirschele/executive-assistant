@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-205 | P1 | Add last-transition-aware sorting on human task backlog/list endpoints so operators can order queues by the freshest ownership churn | codex | queued | Compact `last_transition_*` summaries now exist on task rows, but list endpoints still rely on repository/default ordering instead of surfacing the newest reassignment or return work first |
+| Q-206 | P1 | Add SLA-aware sorting on human task backlog endpoints so operators can switch between freshest ownership churn and oldest due work | codex | queued | `sort=last_transition_desc` now surfaces recent churn, but operator triage still lacks an explicit overdue/SLA-first ordering mode for aging pending work |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-205 | P1 | Add last-transition-aware sorting on human task backlog/list endpoints so operators can order queues by the freshest ownership churn | codex | done | Human task list/backlog endpoints now accept `sort=last_transition_desc`, and approved smoke coverage proves a recently reassigned task sorts ahead of a newer but untouched pending packet |
 | D-204 | P1 | Add last-transition summaries on human task backlog/session rows so operators can spot recent reassignments without expanding the full history chain | codex | done | Human task list/detail/session rows now expose compact `last_transition_*` fields derived from the latest ownership event, so operators can answer “who touched this last?” without opening the full assignment-history chain |
 | D-203 | P1 | Add operator-facing filters on task assignment history so reviewers can isolate reassignments, claims, or returns without scanning the full transition list | codex | done | `GET /v1/human/tasks/{human_task_id}/assignment-history` now accepts `event_name`, `assigned_operator_id`, and `assigned_by_actor_id`, with approved smoke coverage proving reassignment-only and return-only audit views |
 | D-202 | P1 | Expose human-task assignment history directly in session projections so operator UIs do not need a second fetch to audit reassignment decisions | codex | done | `/v1/rewrite/sessions/{session_id}` now includes `human_task_assignment_history`, mirroring the task-scoped ownership transition chain inline with human task packets so reassignment audit is available in a single session fetch |
