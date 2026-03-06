@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from app.domain.models import IntentSpecV3, PlanSpec, PlanStepSpec, TaskContract, now_utc_iso
+from app.domain.models import IntentSpecV3, PlanSpec, PlanStepSpec, TaskContract, now_utc_iso, validate_plan_spec
 from app.services.task_contracts import TaskContractService
 
 
@@ -218,4 +218,5 @@ class PlannerService:
             created_at=now_utc_iso(),
             steps=self._build_rewrite_steps(intent, contract=contract),
         )
+        validate_plan_spec(plan)
         return intent, plan

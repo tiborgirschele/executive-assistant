@@ -965,6 +965,17 @@
       "notes": "Generic POST /v1/plans/execute task runs now return the same first-class awaiting-approval and awaiting-human async contract as rewrite execution, those non-rewrite task sessions resume through the shared approval and human-task endpoints, and paused generic task sessions keep the same dependency-state projection in session detail while approval or human review is still gating downstream steps."
     },
     {
+      "name": "plan_graph_validation",
+      "status": "tested",
+      "scope": [
+        "duplicate_step_key_rejection",
+        "unknown_dependency_rejection",
+        "dependency_cycle_rejection",
+        "pre_session_plan_validation"
+      ],
+      "notes": "Planner and orchestrator startup now reject duplicate step keys, unknown dependency keys, and dependency cycles before queue execution or session creation begins, and focused contract coverage keeps those graph-validation failures pinned."
+    },
+    {
       "name": "artifact_lookup_task_identity_projection",
       "status": "tested",
       "scope": [

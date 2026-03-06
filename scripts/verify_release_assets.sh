@@ -1048,6 +1048,32 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "plan_graph_validation")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq 'validates duplicate step keys, unknown dependency keys, and dependency cycles before queue execution starts' "README.md" && \
+     grep -Fq 'duplicate step keys, unknown dependency keys, and dependency cycles before any session rows are started' "RUNBOOK.md" && \
+     grep -Fq 'duplicate step keys, unknown dependency keys, and dependency cycles before queue execution or session creation begins' "CHANGELOG.md" && \
+     grep -Fq 'tests/test_plan_graph_validation_contracts.py' "scripts/test_postgres_contracts.sh" && \
+     grep -Fq 'test_validate_plan_spec_rejects_unknown_dependency_keys' "tests/test_plan_graph_validation_contracts.py" && \
+     grep -Fq 'validate_plan_spec(plan)' "ea/app/services/planner.py" && \
+     grep -Fq 'validate_plan_spec(plan)' "ea/app/services/orchestrator.py"; then
+    echo "ok: plan graph validation docs"
+  else
+    echo "missing: plan graph validation docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: plan graph validation milestone status" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "generic_task_execution_async_contracts")
 assert capability["status"] == "tested"
 PY

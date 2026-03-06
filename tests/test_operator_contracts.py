@@ -202,6 +202,22 @@ def test_plan_execute_input_contracts_are_wired_into_focused_contract_bundle() -
     assert "text_or_input_json_required" in plans_route
 
 
+def test_plan_graph_validation_contracts_are_wired_into_focused_contract_bundle() -> None:
+    script = (ROOT / "scripts/test_postgres_contracts.sh").read_text(encoding="utf-8")
+    validation_test = (ROOT / "tests/test_plan_graph_validation_contracts.py").read_text(encoding="utf-8")
+    domain_models = (ROOT / "ea/app/domain/models.py").read_text(encoding="utf-8")
+    planner = (ROOT / "ea/app/services/planner.py").read_text(encoding="utf-8")
+    orchestrator = (ROOT / "ea/app/services/orchestrator.py").read_text(encoding="utf-8")
+
+    assert "tests/test_plan_graph_validation_contracts.py" in script
+    assert "unknown_dependency:step_policy_evaluate:step_missing" in validation_test
+    assert "duplicate_step_key:step_input_prepare" in validation_test
+    assert "dependency_cycle:step_input_prepare" in validation_test
+    assert "PlanValidationError" in domain_models
+    assert "validate_plan_spec(plan)" in planner
+    assert "validate_plan_spec(plan)" in orchestrator
+
+
 def test_principal_fallback_contracts_are_wired_into_focused_contract_bundle() -> None:
     script = (ROOT / "scripts/test_postgres_contracts.sh").read_text(encoding="utf-8")
     fallback_test = (ROOT / "tests/test_principal_fallback_contracts.py").read_text(encoding="utf-8")
@@ -1791,6 +1807,20 @@ def test_generic_task_execution_runtime_is_documented_and_smoked() -> None:
     assert "test_postgres_orchestrator_executes_non_rewrite_task_contract" in postgres_contracts
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "generic_task_execution_runtime")
+    assert capability["status"] == "tested"
+
+
+def test_plan_graph_validation_is_documented_and_guarded() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "validates duplicate step keys, unknown dependency keys, and dependency cycles before queue execution starts" in readme
+    assert "duplicate step keys, unknown dependency keys, and dependency cycles before any session rows are started" in runbook
+    assert "duplicate step keys, unknown dependency keys, and dependency cycles before queue execution or session creation begins" in changelog
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "plan_graph_validation")
     assert capability["status"] == "tested"
 
 

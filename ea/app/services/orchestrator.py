@@ -23,6 +23,8 @@ from app.domain.models import (
     TaskExecutionRequest,
     ToolInvocationRequest,
     ToolReceipt,
+    PlanValidationError,
+    validate_plan_spec,
     now_utc_iso,
 )
 from app.repositories.approvals import ApprovalRepository, InMemoryApprovalRepository
@@ -1124,6 +1126,7 @@ class RewriteOrchestrator:
         else:
             intent = self._fallback_intent(task_key=task_key, principal_id=principal_id, goal=goal)
             plan = self._fallback_plan(intent)
+        validate_plan_spec(plan)
         session = self._ledger.start_session(intent)
         correlation_id = str(uuid.uuid4())
         self._ledger.append_event(

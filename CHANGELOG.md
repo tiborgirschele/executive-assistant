@@ -27,6 +27,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Connector binding status changes now honor the request principal and return `binding_not_found` for foreign-scope updates.
 - Rewrite execution now runs through a typed three-step handler path (`step_input_prepare` -> `step_policy_evaluate` -> `step_artifact_save`) instead of a thin artifact-save-only plan.
 - Queue advancement now enqueues the full ready set from satisfied `depends_on` edges instead of only the next parent-linked step, and queue leasing now skips paused sessions so joins wait for every prerequisite without running sibling work through approval or human-review holds.
+- Planner/orchestrator startup now rejects duplicate step keys, unknown dependency keys, and dependency cycles before queue execution or session creation begins, so invalid graph definitions fail fast instead of hanging the runtime.
 - Runtime-created session steps now derive `parent_step_id` only from actual single-dependency edges, so multi-prerequisite joins stop projecting fake linear ancestry while simple chains stay compatible for legacy consumers.
 - Policy decisions are now recorded from the queued `step_policy_evaluate` handler after `input_prepared`, so approval/block audit events match runtime step order instead of preflight bookkeeping.
 - Planner output can now project a first-class `human_task` review branch (`step_human_review`) from task-contract metadata via `budget_policy_json.human_review_role`.

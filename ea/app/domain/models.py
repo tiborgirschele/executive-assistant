@@ -453,6 +453,57 @@ class PlanSpec:
     steps: tuple[PlanStepSpec, ...]
 
 
+class PlanValidationError(ValueError):
+    pass
+
+
+def validate_plan_spec(plan: PlanSpec) -> None:
+    steps = tuple(plan.steps or ())
+    if not steps:
+        return
+
+    lookup: dict[str, PlanStepSpec] = {}
+    for step in steps:
+        step_key = str(step.step_key or "").strip()
+        if not step_key:
+            raise PlanValidationError("plan_step_key_required")
+        if step_key in lookup:
+            raise PlanValidationError(f"duplicate_step_key:{step_key}")
+        lookup[step_key] = step
+
+    for step in steps:
+        step_key = str(step.step_key or "").strip()
+        seen_dependency_keys: set[str] = set()
+        for raw_dependency_key in tuple(step.depends_on or ()):
+            dependency_key = str(raw_dependency_key or "").strip()
+            if not dependency_key:
+                raise PlanValidationError(f"empty_dependency_key:{step_key}")
+            if dependency_key == step_key:
+                raise PlanValidationError(f"self_dependency:{step_key}")
+            if dependency_key in seen_dependency_keys:
+                raise PlanValidationError(f"duplicate_dependency_key:{step_key}:{dependency_key}")
+            seen_dependency_keys.add(dependency_key)
+            if dependency_key not in lookup:
+                raise PlanValidationError(f"unknown_dependency:{step_key}:{dependency_key}")
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(step_key: str) -> None:
+        if step_key in visited:
+            return
+        if step_key in visiting:
+            raise PlanValidationError(f"dependency_cycle:{step_key}")
+        visiting.add(step_key)
+        for dependency_key in tuple(lookup[step_key].depends_on or ()):
+            visit(str(dependency_key))
+        visiting.remove(step_key)
+        visited.add(step_key)
+
+    for step_key in tuple(lookup):
+        visit(step_key)
+
+
 @dataclass(frozen=True)
 class ApprovalRequest:
     approval_id: str
