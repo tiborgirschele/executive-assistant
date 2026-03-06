@@ -106,6 +106,17 @@ def test_session_step_dependency_projection_is_covered_by_contract_tests() -> No
     assert '"dependency_states"] == {"step_policy_evaluate": "completed"}' in contract_test
 
 
+def test_session_step_dependency_projection_is_covered_by_smoke_runtime() -> None:
+    smoke_test = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    smoke_script = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+
+    assert 'steps_by_key["step_policy_evaluate"]["dependency_states"] == {"step_input_prepare": "completed"}' in smoke_test
+    assert 'steps_by_key["step_artifact_save"]["dependency_states"] == {"step_policy_evaluate": "completed"}' in smoke_test
+    assert "projection_ok=(" in smoke_script
+    assert "dependency_states') == {'step_policy_evaluate': 'completed'}" in smoke_script
+    assert "dependency_states') == {'step_input_prepare': 'completed'}" in smoke_script
+
+
 def test_policy_docs_and_milestone_cover_external_action_evaluation() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")

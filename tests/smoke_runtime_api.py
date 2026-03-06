@@ -95,6 +95,31 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert body["steps"][2]["input_json"]["owner"] == "tool"
     assert body["steps"][2]["input_json"]["authority_class"] == "draft"
     assert body["steps"][2]["input_json"]["timeout_budget_seconds"] == 60
+    steps_by_key = {
+        step["input_json"]["plan_step_key"]: step
+        for step in body["steps"]
+    }
+    assert steps_by_key["step_input_prepare"]["dependency_keys"] == []
+    assert steps_by_key["step_input_prepare"]["dependency_states"] == {}
+    assert steps_by_key["step_input_prepare"]["dependency_step_ids"] == {}
+    assert steps_by_key["step_input_prepare"]["blocked_dependency_keys"] == []
+    assert steps_by_key["step_input_prepare"]["dependencies_satisfied"] is True
+    assert steps_by_key["step_policy_evaluate"]["dependency_keys"] == ["step_input_prepare"]
+    assert steps_by_key["step_policy_evaluate"]["dependency_states"] == {"step_input_prepare": "completed"}
+    assert (
+        steps_by_key["step_policy_evaluate"]["dependency_step_ids"]["step_input_prepare"]
+        == steps_by_key["step_input_prepare"]["step_id"]
+    )
+    assert steps_by_key["step_policy_evaluate"]["blocked_dependency_keys"] == []
+    assert steps_by_key["step_policy_evaluate"]["dependencies_satisfied"] is True
+    assert steps_by_key["step_artifact_save"]["dependency_keys"] == ["step_policy_evaluate"]
+    assert steps_by_key["step_artifact_save"]["dependency_states"] == {"step_policy_evaluate": "completed"}
+    assert (
+        steps_by_key["step_artifact_save"]["dependency_step_ids"]["step_policy_evaluate"]
+        == steps_by_key["step_policy_evaluate"]["step_id"]
+    )
+    assert steps_by_key["step_artifact_save"]["blocked_dependency_keys"] == []
+    assert steps_by_key["step_artifact_save"]["dependencies_satisfied"] is True
     assert body["human_task_assignment_history"] == []
     assert all(step["state"] in {"completed", "running", "blocked", "waiting_approval", "queued"} for step in body["steps"])
     assert len(body["queue_items"]) >= 3
