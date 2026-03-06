@@ -123,6 +123,7 @@ Policy notes:
 - The current rewrite scaffold now executes as three explicit queued steps: `step_input_prepare`, `step_policy_evaluate`, and `step_artifact_save`.
 - `policy_decision` is now emitted from the queued `step_policy_evaluate` handler after `input_prepared`, so the ledger order matches runtime execution before approval or block transitions are recorded.
 - `POST /v1/plans/compile` exposes `depends_on`, `input_keys`, and `output_keys`, and queue advancement now chooses the next ready step from satisfied dependency edges instead of parent-linked step order.
+- `POST /v1/plans/compile` and the queued session step input payloads now also expose `owner`, `authority_class`, `review_class`, and `failure_strategy`, so operator tooling can see who owns each step and what runtime posture it expects before deeper graph execution lands.
 - `POST /v1/plans/execute` now reuses that same compiled task-contract runtime for non-`rewrite_text` artifact flows, so stakeholder briefings and similar executive contracts can run through the queue-backed graph without a rewrite-only entrypoint.
 - `POST /v1/plans/execute` now also returns the same first-class `202 awaiting_approval` and `202 awaiting_human` workflow contract as rewrite execution, and those generic task sessions resume through the shared approval and human-task endpoints.
 - Approval and human-task queue/detail payloads now stay self-describing for non-rewrite async work by returning the originating `task_key` and `deliverable_type` before the workflow completes.

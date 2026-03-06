@@ -1010,6 +1010,18 @@
         "generic_session_human_task_identity"
       ],
       "notes": "Inline session human-task packet rows now return the originating task key and deliverable type too, so paused non-rewrite packet detail stays self-describing inside the main session envelope."
+    },
+    {
+      "name": "plan_step_operational_semantics_projection",
+      "status": "tested",
+      "scope": [
+        "plan_step_owner_projection",
+        "plan_step_authority_class_projection",
+        "plan_step_review_class_projection",
+        "plan_step_failure_strategy_projection",
+        "runtime_step_input_semantics_projection"
+      ],
+      "notes": "Compiled plan steps and queued step input payloads now project explicit owner, authority/review class, and failure strategy semantics so operator tooling can inspect runtime posture before the graph grows deeper."
     }
   ],
   "migrations": [

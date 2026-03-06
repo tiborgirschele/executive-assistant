@@ -81,8 +81,16 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert "queue_item_completed" in event_names
     assert len(body["steps"]) >= 3
     assert body["steps"][0]["input_json"]["plan_step_key"] == "step_input_prepare"
+    assert body["steps"][0]["input_json"]["owner"] == "system"
+    assert body["steps"][0]["input_json"]["authority_class"] == "observe"
+    assert body["steps"][0]["input_json"]["review_class"] == "none"
+    assert body["steps"][0]["input_json"]["failure_strategy"] == "fail"
     assert body["steps"][1]["input_json"]["plan_step_key"] == "step_policy_evaluate"
+    assert body["steps"][1]["input_json"]["owner"] == "system"
+    assert body["steps"][1]["input_json"]["authority_class"] == "observe"
     assert body["steps"][2]["input_json"]["plan_step_key"] == "step_artifact_save"
+    assert body["steps"][2]["input_json"]["owner"] == "tool"
+    assert body["steps"][2]["input_json"]["authority_class"] == "draft"
     assert body["human_task_assignment_history"] == []
     assert all(step["state"] in {"completed", "running", "blocked", "waiting_approval", "queued"} for step in body["steps"])
     assert len(body["queue_items"]) >= 3
@@ -2518,12 +2526,22 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
     assert compiled.json()["intent"]["task_type"] == "rewrite_text"
     assert len(compiled.json()["plan"]["steps"]) == 3
     assert compiled.json()["plan"]["steps"][0]["step_key"] == "step_input_prepare"
+    assert compiled.json()["plan"]["steps"][0]["owner"] == "system"
+    assert compiled.json()["plan"]["steps"][0]["authority_class"] == "observe"
+    assert compiled.json()["plan"]["steps"][0]["review_class"] == "none"
+    assert compiled.json()["plan"]["steps"][0]["failure_strategy"] == "fail"
     assert compiled.json()["plan"]["steps"][1]["step_key"] == "step_policy_evaluate"
     assert compiled.json()["plan"]["steps"][1]["step_kind"] == "policy_check"
     assert compiled.json()["plan"]["steps"][1]["depends_on"] == ["step_input_prepare"]
+    assert compiled.json()["plan"]["steps"][1]["owner"] == "system"
+    assert compiled.json()["plan"]["steps"][1]["authority_class"] == "observe"
     assert compiled.json()["plan"]["steps"][1]["output_keys"] == ["allow", "requires_approval", "reason", "retention_policy"]
     assert compiled.json()["plan"]["steps"][2]["tool_name"] == "artifact_repository"
     assert compiled.json()["plan"]["steps"][2]["depends_on"] == ["step_policy_evaluate"]
+    assert compiled.json()["plan"]["steps"][2]["owner"] == "tool"
+    assert compiled.json()["plan"]["steps"][2]["authority_class"] == "draft"
+    assert compiled.json()["plan"]["steps"][2]["review_class"] == "none"
+    assert compiled.json()["plan"]["steps"][2]["failure_strategy"] == "fail"
     assert compiled.json()["plan"]["steps"][2]["approval_required"] is True
 
     review_contract = client.post(
@@ -2566,6 +2584,10 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
     assert len(compiled_review.json()["plan"]["steps"]) == 4
     assert compiled_review.json()["plan"]["steps"][2]["step_key"] == "step_human_review"
     assert compiled_review.json()["plan"]["steps"][2]["step_kind"] == "human_task"
+    assert compiled_review.json()["plan"]["steps"][2]["owner"] == "human"
+    assert compiled_review.json()["plan"]["steps"][2]["authority_class"] == "draft"
+    assert compiled_review.json()["plan"]["steps"][2]["review_class"] == "operator"
+    assert compiled_review.json()["plan"]["steps"][2]["failure_strategy"] == "fail"
     assert compiled_review.json()["plan"]["steps"][2]["task_type"] == "communications_review"
     assert compiled_review.json()["plan"]["steps"][2]["role_required"] == "communications_reviewer"
     assert compiled_review.json()["plan"]["steps"][2]["priority"] == "high"
@@ -2912,6 +2934,10 @@ def test_rewrite_compiled_human_review_branch_pauses_and_resumes() -> None:
     assert body["status"] == "awaiting_human"
     assert len(body["steps"]) == 4
     assert body["steps"][2]["input_json"]["plan_step_key"] == "step_human_review"
+    assert body["steps"][2]["input_json"]["owner"] == "human"
+    assert body["steps"][2]["input_json"]["authority_class"] == "draft"
+    assert body["steps"][2]["input_json"]["review_class"] == "operator"
+    assert body["steps"][2]["input_json"]["failure_strategy"] == "fail"
     assert body["steps"][2]["state"] == "waiting_human"
     assert body["steps"][3]["state"] == "queued"
     assert len(body["queue_items"]) == 3

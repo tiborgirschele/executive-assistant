@@ -1780,6 +1780,28 @@ def test_typed_step_handler_gateway_is_documented_and_smoked() -> None:
     assert planner_capability["status"] == "tested"
 
 
+def test_plan_step_operational_semantics_are_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    planner_test = (ROOT / "tests/test_planner.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "owner`, `authority_class`, `review_class`, and `failure_strategy`" in readme
+    assert "`owner`, `authority_class`, `review_class`, and `failure_strategy`" in runbook
+    assert "Compiled plan steps now project explicit owner, authority_class, review_class, and failure_strategy semantics" in changelog
+    assert "expected three-step plan compile response with explicit step semantics" in smoke_api
+    assert 'compiled.json()["plan"]["steps"][0]["owner"] == "system"' in smoke_runtime
+    assert 'compiled_review.json()["plan"]["steps"][2]["review_class"] == "operator"' in smoke_runtime
+    assert 'plan.steps[2].authority_class == "draft"' in planner_test
+    assert 'plan.steps[2].owner == "human"' in planner_test
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "plan_step_operational_semantics_projection")
+    assert capability["status"] == "tested"
+
+
 def test_planner_human_task_branch_projection_is_documented_and_smoked() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")

@@ -1256,6 +1256,32 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "plan_step_operational_semantics_projection")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq 'owner`, `authority_class`, `review_class`, and `failure_strategy`' "README.md" && \
+     grep -Fq '`owner`, `authority_class`, `review_class`, and `failure_strategy`' "RUNBOOK.md" && \
+     grep -Fq 'Compiled plan steps now project explicit owner, authority_class, review_class, and failure_strategy semantics' "CHANGELOG.md" && \
+     grep -Fq 'expected three-step plan compile response with explicit step semantics' "scripts/smoke_api.sh" && \
+     grep -Fq 'compiled.json()["plan"]["steps"][0]["owner"] == "system"' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'compiled_review.json()["plan"]["steps"][2]["review_class"] == "operator"' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'plan.steps[2].authority_class == "draft"' "tests/test_planner.py"; then
+    echo "ok: plan step operational semantics docs"
+  else
+    echo "missing: plan step operational semantics docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: plan step operational semantics milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "planner_human_task_branch_projection")
 assert capability["status"] == "tested"
 PY

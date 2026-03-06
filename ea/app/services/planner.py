@@ -25,6 +25,15 @@ def _policy_bool(value: object, default: bool = False) -> bool:
     return default
 
 
+def _tool_authority_class(tool_name: str) -> str:
+    normalized = str(tool_name or "").strip()
+    if normalized == "connector.dispatch":
+        return "execute"
+    if normalized == "artifact_repository":
+        return "draft"
+    return "observe"
+
+
 class PlannerService:
     def __init__(self, task_contracts: TaskContractService) -> None:
         self._task_contracts = task_contracts
@@ -75,6 +84,10 @@ class PlannerService:
             reversible=False,
             expected_artifact="",
             fallback="request_human_intervention",
+            owner="system",
+            authority_class="observe",
+            review_class="none",
+            failure_strategy="fail",
             input_keys=("source_text",),
             output_keys=("normalized_text", "text_length"),
         )
@@ -87,6 +100,10 @@ class PlannerService:
             reversible=False,
             expected_artifact="",
             fallback="pause_for_approval_or_block",
+            owner="system",
+            authority_class="observe",
+            review_class="none",
+            failure_strategy="fail",
             depends_on=("step_input_prepare",),
             input_keys=("normalized_text", "text_length"),
             output_keys=("allow", "requires_approval", "reason", "retention_policy"),
@@ -104,6 +121,10 @@ class PlannerService:
                     reversible=False,
                     expected_artifact="review_packet",
                     fallback="request_human_intervention",
+                    owner="human",
+                    authority_class="draft",
+                    review_class="operator",
+                    failure_strategy="fail",
                     depends_on=("step_policy_evaluate",),
                     input_keys=("normalized_text",),
                     output_keys=("human_resolution", "human_returned_payload_json"),
@@ -129,6 +150,10 @@ class PlannerService:
             reversible=False,
             expected_artifact=intent.deliverable_type,
             fallback="request_human_intervention",
+            owner="tool",
+            authority_class=_tool_authority_class("artifact_repository"),
+            review_class="none",
+            failure_strategy="fail",
             depends_on=save_depends_on,
             input_keys=("normalized_text",),
             output_keys=("artifact_id", "receipt_id", "cost_id"),

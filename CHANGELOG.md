@@ -17,6 +17,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Direct human-task assignment-history rows now return the same originating task identity, so operator transition logs stay self-describing for paused non-rewrite work too.
 - Inline session human-task assignment-history rows now return the same originating task identity, so one-fetch operator session views no longer lose non-rewrite task context in the embedded transition log.
 - Inline session human-task packet rows now return the same originating task identity, so paused non-rewrite packet detail stays self-describing inside the main session envelope.
+- Compiled plan steps now project explicit owner, authority_class, review_class, and failure_strategy semantics, and those same fields are copied into queued step input payloads for runtime inspection.
 - Agent-local memory and work-queue files are now gitignored, `TASKS_WORK_LOG.md` is no longer tracked, and archive/support/operator scripts treat the local task log as optional state.
 - Session-bound human task creation and session-scoped queue reads now enforce the linked execution session principal as well, so foreign principals cannot attach packets to or enumerate another principal's execution thread via `session_id`.
 - Connector binding status changes now honor the request principal and return `binding_not_found` for foreign-scope updates.

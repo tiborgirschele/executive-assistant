@@ -40,6 +40,10 @@ class PlanStepOut(BaseModel):
     step_key: str
     step_kind: str
     tool_name: str
+    owner: str
+    authority_class: str
+    review_class: str
+    failure_strategy: str
     evidence_required: list[str]
     approval_required: bool
     reversible: bool
@@ -137,6 +141,10 @@ def compile_plan(
                     step_key=s.step_key,
                     step_kind=s.step_kind,
                     tool_name=s.tool_name,
+                    owner=s.owner,
+                    authority_class=s.authority_class,
+                    review_class=s.review_class,
+                    failure_strategy=s.failure_strategy,
                     evidence_required=list(s.evidence_required),
                     approval_required=s.approval_required,
                     reversible=s.reversible,

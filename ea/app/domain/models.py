@@ -419,6 +419,10 @@ class PlanStepSpec:
     reversible: bool
     expected_artifact: str
     fallback: str
+    owner: str = "system"
+    authority_class: str = "observe"
+    review_class: str = "none"
+    failure_strategy: str = "fail"
     depends_on: tuple[str, ...] = ()
     input_keys: tuple[str, ...] = ()
     output_keys: tuple[str, ...] = ()
