@@ -1020,11 +1020,18 @@ PY
 then
   if grep -Fq '/v1/plans/execute' "README.md" && \
      grep -Fq 'non-`rewrite_text` artifact flows' "README.md" && \
+     grep -Fq 'structured `input_json` plus `context_refs`' "README.md" && \
      grep -Fq '/v1/plans/execute' "RUNBOOK.md" && \
      grep -Fq 'stakeholder briefings' "RUNBOOK.md" && \
+     grep -Fq 'structured `input_json` plus `context_refs`' "RUNBOOK.md" && \
      grep -Fq 'POST {{host}}/v1/plans/execute' "HTTP_EXAMPLES.http" && \
+     grep -Fq '"input_json": {' "HTTP_EXAMPLES.http" && \
+     grep -Fq '"context_refs": [' "HTTP_EXAMPLES.http" && \
      grep -Fq 'TASK_EXECUTE_JSON' "scripts/smoke_api.sh" && \
+     grep -Fq 'context_refs' "scripts/smoke_api.sh" && \
+     grep -Fq 'test_plan_execute_input_contracts.py' "scripts/test_postgres_contracts.sh" && \
      grep -Fq 'test_generic_task_execution_uses_compiled_contract_runtime' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'test_plan_execute_accepts_structured_input_json_and_context_refs' "tests/test_plan_execute_input_contracts.py" && \
      grep -Fq 'test_postgres_orchestrator_executes_non_rewrite_task_contract' "tests/test_postgres_contract_matrix_integration.py"; then
     echo "ok: generic task execution runtime docs"
   else

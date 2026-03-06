@@ -15,9 +15,11 @@ class RewriteRequest:
 @dataclass(frozen=True)
 class TaskExecutionRequest:
     task_key: str
-    text: str
+    text: str = ""
     principal_id: str = ""
     goal: str = ""
+    input_json: dict[str, Any] = field(default_factory=dict)
+    context_refs: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

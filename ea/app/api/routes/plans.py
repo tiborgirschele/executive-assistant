@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+from pydantic_core import PydanticCustomError
 
 from app.api.dependencies import RequestContext, get_container, get_request_context, resolve_principal_id
 from app.container import AppContainer
@@ -82,9 +83,17 @@ class PlanCompileOut(BaseModel):
 
 class PlanExecuteIn(BaseModel):
     task_key: str = Field(min_length=1, max_length=200)
-    text: str = Field(min_length=1, max_length=20000)
+    text: str = Field(default="", max_length=20000)
     principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     goal: str = Field(default="", max_length=2000)
+    input_json: dict[str, object] = Field(default_factory=dict)
+    context_refs: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _require_text_or_input_json(self) -> "PlanExecuteIn":
+        if str(self.text or "").strip() or dict(self.input_json or {}):
+            return self
+        raise PydanticCustomError("text_or_input_json_required", "text_or_input_json_required")
 
 
 class PlanExecuteOut(BaseModel):
@@ -216,6 +225,8 @@ def execute_plan(
                 text=str(body.text or ""),
                 principal_id=principal_id,
                 goal=body.goal,
+                input_json=dict(body.input_json or {}),
+                context_refs=tuple(str(value or "").strip() for value in (body.context_refs or []) if str(value or "").strip()),
             )
         )
     except ApprovalRequiredError as exc:

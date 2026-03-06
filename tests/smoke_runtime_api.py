@@ -2708,7 +2708,12 @@ def test_generic_task_execution_uses_compiled_contract_runtime() -> None:
         "/v1/plans/execute",
         json={
             "task_key": "stakeholder_briefing",
-            "text": "Board context and stakeholder sensitivities.",
+            "input_json": {
+                "source_text": "Board context and stakeholder sensitivities.",
+                "channel": "email",
+                "stakeholder_ref": "alex-exec",
+            },
+            "context_refs": ["thread:board-prep", "memory:item:stakeholder-brief"],
             "goal": "prepare a stakeholder briefing",
         },
     )
@@ -2738,6 +2743,12 @@ def test_generic_task_execution_uses_compiled_contract_runtime() -> None:
     assert session_body["steps"][1]["parent_step_id"] == session_body["steps"][0]["step_id"]
     assert session_body["steps"][2]["parent_step_id"] == session_body["steps"][1]["step_id"]
     assert session_body["steps"][2]["input_json"]["plan_step_key"] == "step_artifact_save"
+    assert session_body["steps"][0]["input_json"]["channel"] == "email"
+    assert session_body["steps"][0]["input_json"]["stakeholder_ref"] == "alex-exec"
+    assert session_body["steps"][0]["input_json"]["context_refs"] == [
+        "thread:board-prep",
+        "memory:item:stakeholder-brief",
+    ]
     plan_event = next(event for event in session_body["events"] if event["name"] == "plan_compiled")
     assert plan_event["payload"]["step_semantics"][0]["timeout_budget_seconds"] == 30
 

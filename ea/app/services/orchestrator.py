@@ -395,6 +395,23 @@ class RewriteOrchestrator:
             return "rewrite supplied text into an artifact"
         return f"execute {key} into an artifact"
 
+    def _normalized_task_input_json(self, req: TaskExecutionRequest) -> dict[str, object]:
+        payload = {str(key): value for key, value in dict(req.input_json or {}).items() if str(key).strip()}
+        context_refs = tuple(str(value or "").strip() for value in (req.context_refs or ()) if str(value or "").strip())
+        text_alias = str(req.text or "").strip()
+        structured_text = str(
+            payload.get("normalized_text") or payload.get("source_text") or payload.get("text") or ""
+        ).strip()
+        effective_text = text_alias or structured_text
+        if effective_text:
+            payload.setdefault("source_text", effective_text)
+            payload.setdefault("normalized_text", effective_text)
+        if "text_length" not in payload and effective_text:
+            payload["text_length"] = len(effective_text)
+        if context_refs:
+            payload["context_refs"] = list(context_refs)
+        return payload
+
     def _legacy_parent_step_id(
         self,
         plan_step: PlanStepSpec,
@@ -1142,7 +1159,8 @@ class RewriteOrchestrator:
                 ],
             },
         )
-        normalized_text = str(req.text or "").strip()
+        task_input_json = self._normalized_task_input_json(req)
+        normalized_text = str(task_input_json.get("source_text") or "").strip()
         plan_steps = tuple(plan.steps) or (
             PlanStepSpec(
                 step_key="step_input_prepare",
@@ -1213,8 +1231,7 @@ class RewriteOrchestrator:
                     plan_step.step_kind or "tool_call",
                     parent_step_id=self._legacy_parent_step_id(plan_step, step_ids_by_key=step_ids_by_key),
                     input_json={
-                        "source_text": normalized_text,
-                        "text_length": len(normalized_text),
+                        **task_input_json,
                         "plan_id": plan.plan_id,
                         "plan_step_key": plan_step.step_key,
                         "plan_step_kind": plan_step.step_kind,

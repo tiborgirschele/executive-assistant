@@ -948,9 +948,11 @@
       "scope": [
         "plan_execute_route",
         "non_rewrite_task_contract_runtime",
-        "principal_scoped_task_execution"
+        "principal_scoped_task_execution",
+        "structured_task_input_json",
+        "task_context_refs"
       ],
-      "notes": "POST /v1/plans/execute now runs non-rewrite task-contract keys through the same queue-backed graph runtime as rewrite execution, preserving task identity and deliverable type while enforcing the request principal contract."
+      "notes": "POST /v1/plans/execute now runs non-rewrite task-contract keys through the same queue-backed graph runtime as rewrite execution, accepts structured `input_json` plus `context_refs` alongside the legacy `text` convenience field, and preserves task identity plus deliverable type while enforcing the request principal contract."
     },
     {
       "name": "generic_task_execution_async_contracts",

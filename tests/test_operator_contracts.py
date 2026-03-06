@@ -188,6 +188,20 @@ def test_plan_scope_contracts_are_wired_into_focused_contract_bundle() -> None:
     assert 'denied.json()["error"]["code"] == "principal_scope_mismatch"' in plan_scope_test
 
 
+def test_plan_execute_input_contracts_are_wired_into_focused_contract_bundle() -> None:
+    script = (ROOT / "scripts/test_postgres_contracts.sh").read_text(encoding="utf-8")
+    execute_input_test = (ROOT / "tests/test_plan_execute_input_contracts.py").read_text(encoding="utf-8")
+    plans_route = (ROOT / "ea/app/api/routes/plans.py").read_text(encoding="utf-8")
+
+    assert "tests/test_plan_execute_input_contracts.py" in script
+    assert '"input_json"' in execute_input_test
+    assert '"context_refs"' in execute_input_test
+    assert "text_or_input_json_required" in execute_input_test
+    assert "input_json: dict[str, object]" in plans_route
+    assert "context_refs: list[str]" in plans_route
+    assert "text_or_input_json_required" in plans_route
+
+
 def test_principal_fallback_contracts_are_wired_into_focused_contract_bundle() -> None:
     script = (ROOT / "scripts/test_postgres_contracts.sh").read_text(encoding="utf-8")
     fallback_test = (ROOT / "tests/test_principal_fallback_contracts.py").read_text(encoding="utf-8")
@@ -1761,12 +1775,19 @@ def test_generic_task_execution_runtime_is_documented_and_smoked() -> None:
 
     assert "/v1/plans/execute" in readme
     assert "non-`rewrite_text` artifact flows" in readme
+    assert "structured `input_json` plus `context_refs`" in readme
     assert "/v1/plans/execute" in runbook
     assert "stakeholder briefings" in runbook
+    assert "structured `input_json` plus `context_refs`" in runbook
     assert "POST {{host}}/v1/plans/execute" in http_examples
+    assert '"input_json": {' in http_examples
+    assert '"context_refs": [' in http_examples
     assert "TASK_EXECUTE_JSON" in smoke_api
+    assert "context_refs" in smoke_api
+    assert "alex-exec" in smoke_api
     assert "generic task execution ok" in smoke_api
     assert "test_generic_task_execution_uses_compiled_contract_runtime" in smoke_runtime
+    assert 'session_body["steps"][0]["input_json"]["context_refs"] ==' in smoke_runtime
     assert "test_postgres_orchestrator_executes_non_rewrite_task_contract" in postgres_contracts
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "generic_task_execution_runtime")
