@@ -595,6 +595,10 @@ X-EA-Principal-ID: {{principal_id}}
   "goal": "prepare a decision brief"
 }
 
+### Plans -> inspect paused approval-backed session dependency projection
+GET {{host}}/v1/rewrite/sessions/{{session_id}}
+X-EA-Principal-ID: {{principal_id}}
+
 ### Plans -> execute human-review-backed task contract (expected 202 awaiting_human)
 POST {{host}}/v1/plans/execute
 Content-Type: application/json
@@ -605,6 +609,10 @@ X-EA-Principal-ID: {{principal_id}}
   "text": "Stakeholder context for human-reviewed briefing.",
   "goal": "prepare a stakeholder briefing"
 }
+
+### Plans -> inspect paused human-review-backed session dependency projection
+GET {{host}}/v1/rewrite/sessions/{{session_id}}
+X-EA-Principal-ID: {{principal_id}}
 
 ### Memory -> stage candidate
 POST {{host}}/v1/memory/candidates

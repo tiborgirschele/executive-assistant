@@ -1644,9 +1644,15 @@ def test_generic_task_execution_async_contracts_are_documented_and_smoked() -> N
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
 
     assert "same first-class `202 awaiting_approval` and `202 awaiting_human` async contract" in readme
+    assert 'step_artifact_save.state=waiting_approval' in readme
+    assert 'blocked_dependency_keys=["step_human_review"]' in readme
     assert "same first-class `202 awaiting_approval` and `202 awaiting_human` workflow contract" in runbook
+    assert 'step_artifact_save` in `waiting_approval`' in runbook
+    assert 'blocked_dependency_keys=["step_human_review"]' in runbook
     assert '"task_key": "decision_brief_approval"' in http_examples
     assert '"task_key": "stakeholder_briefing_review"' in http_examples
+    assert "inspect paused approval-backed session dependency projection" in http_examples
+    assert "inspect paused human-review-backed session dependency projection" in http_examples
     assert "GENERIC_APPROVAL_JSON" in smoke_api
     assert "GENERIC_HUMAN_JSON" in smoke_api
     assert "generic task async contracts ok" in smoke_api
@@ -1654,6 +1660,7 @@ def test_generic_task_execution_async_contracts_are_documented_and_smoked() -> N
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "generic_task_execution_async_contracts")
     assert capability["status"] == "tested"
+    assert "paused generic task sessions keep the same dependency-state projection" in capability["notes"]
 
 
 def test_artifact_lookup_task_identity_projection_is_documented_and_smoked() -> None:

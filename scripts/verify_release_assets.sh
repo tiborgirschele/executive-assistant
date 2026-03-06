@@ -969,9 +969,15 @@ assert capability["status"] == "tested"
 PY
 then
   if grep -Fq 'same first-class `202 awaiting_approval` and `202 awaiting_human` async contract' "README.md" && \
+     grep -Fq 'step_artifact_save.state=waiting_approval' "README.md" && \
+     grep -Fq 'blocked_dependency_keys=["step_human_review"]' "README.md" && \
      grep -Fq 'same first-class `202 awaiting_approval` and `202 awaiting_human` workflow contract' "RUNBOOK.md" && \
+     grep -Fq 'step_artifact_save` in `waiting_approval`' "RUNBOOK.md" && \
+     grep -Fq 'blocked_dependency_keys=["step_human_review"]' "RUNBOOK.md" && \
      grep -Fq '"task_key": "decision_brief_approval"' "HTTP_EXAMPLES.http" && \
      grep -Fq '"task_key": "stakeholder_briefing_review"' "HTTP_EXAMPLES.http" && \
+     grep -Fq 'inspect paused approval-backed session dependency projection' "HTTP_EXAMPLES.http" && \
+     grep -Fq 'inspect paused human-review-backed session dependency projection' "HTTP_EXAMPLES.http" && \
      grep -Fq 'GENERIC_APPROVAL_JSON' "scripts/smoke_api.sh" && \
      grep -Fq 'GENERIC_HUMAN_JSON' "scripts/smoke_api.sh" && \
      grep -Fq 'test_generic_task_execution_supports_async_approval_and_human_contracts' "tests/smoke_runtime_api.py"; then

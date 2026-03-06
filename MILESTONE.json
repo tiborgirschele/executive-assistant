@@ -939,7 +939,7 @@
         "plan_execute_awaiting_human",
         "generic_task_resume_shared_async_paths"
       ],
-      "notes": "Generic POST /v1/plans/execute task runs now return the same first-class awaiting-approval and awaiting-human async contract as rewrite execution, and those non-rewrite task sessions resume through the shared approval and human-task endpoints."
+      "notes": "Generic POST /v1/plans/execute task runs now return the same first-class awaiting-approval and awaiting-human async contract as rewrite execution, those non-rewrite task sessions resume through the shared approval and human-task endpoints, and paused generic task sessions keep the same dependency-state projection in session detail while approval or human review is still gating downstream steps."
     },
     {
       "name": "artifact_lookup_task_identity_projection",
