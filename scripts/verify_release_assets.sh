@@ -798,6 +798,7 @@ if grep -Fq "tests/test_postgres_contract_matrix_integration.py" "scripts/test_p
    grep -Fq "tests/test_rewrite_scope_contracts.py" "scripts/test_postgres_contracts.sh" && \
    grep -Fq "tests/test_rewrite_api_scope_contracts.py" "scripts/test_postgres_contracts.sh" && \
    grep -Fq "tests/test_rewrite_dependency_projection_contracts.py" "scripts/test_postgres_contracts.sh" && \
+   grep -Fq "tests/test_step_parent_projection_contracts.py" "scripts/test_postgres_contracts.sh" && \
    grep -Fq "tests/test_tool_execution.py" "scripts/test_postgres_contracts.sh"; then
   echo "ok: postgres contract script covers focused router and rewrite scope invariants"
 else
@@ -866,6 +867,12 @@ if grep -Fq "dependency_keys: list[str]" "ea/app/api/routes/rewrite.py" && \
    grep -Fq "plan_examples=(schemas.get('PlanExecuteAcceptedOut') or {}).get('examples') or []" "scripts/smoke_api.sh" && \
    grep -Fq "save_step.get('state',''), policy_step.get('dependency_states') == {'step_input_prepare': 'completed'}" "scripts/smoke_api.sh" && \
    grep -Fq "save_step.get('blocked_dependency_keys') == ['step_human_review']" "scripts/smoke_api.sh" && \
+   grep -Fq "policy_step.get('parent_step_id') == input_id" "scripts/smoke_api.sh" && \
+   grep -Fq "save_step.get('parent_step_id') == policy_id" "scripts/smoke_api.sh" && \
+   grep -Fq 'steps_by_key["step_policy_evaluate"]["parent_step_id"] == steps_by_key["step_input_prepare"]["step_id"]' "tests/smoke_runtime_api.py" && \
+   grep -Fq 'steps_by_key["step_artifact_save"]["parent_step_id"] == steps_by_key["step_policy_evaluate"]["step_id"]' "tests/smoke_runtime_api.py" && \
+   grep -Fq 'save_step.parent_step_id is None' "tests/test_step_parent_projection_contracts.py" && \
+   grep -Fq 'sidecar_step.parent_step_id == input_step.step_id' "tests/test_step_parent_projection_contracts.py" && \
    grep -Fq "first.get('principal_id','')" "scripts/smoke_api.sh" && \
    grep -Fq "approval-123|human-task-123|poll_or_subscribe|poll_or_subscribe|decision_brief_approval|stakeholder_briefing_review" "scripts/smoke_api.sh" && \
    grep -Fq "decision_brief_approval|awaiting_approval|waiting_approval|True|True|True|True|True" "scripts/smoke_api.sh" && \
@@ -884,6 +891,16 @@ if grep -Fq "explicit \`principal_id\` ownership" "README.md" && \
   echo "ok: artifact principal ownership docs and milestone coverage"
 else
   echo "missing: artifact principal ownership docs and milestone coverage" >&2
+  missing=1
+fi
+
+if grep -Fq "multi-prerequisite join steps stay parentless" "README.md" && \
+   grep -Fq "multi-prerequisite join steps stay parentless" "RUNBOOK.md" && \
+   grep -Fq "parent_step_id\` only from actual single-dependency edges" "CHANGELOG.md" && \
+   grep -Fq "single_dependency_parent_projection" "MILESTONE.json"; then
+  echo "ok: single-dependency parent projection docs and milestone coverage"
+else
+  echo "missing: single-dependency parent projection docs and milestone coverage" >&2
   missing=1
 fi
 

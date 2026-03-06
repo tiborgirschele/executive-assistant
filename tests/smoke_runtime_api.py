@@ -105,7 +105,9 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert steps_by_key["step_input_prepare"]["dependency_step_ids"] == {}
     assert steps_by_key["step_input_prepare"]["blocked_dependency_keys"] == []
     assert steps_by_key["step_input_prepare"]["dependencies_satisfied"] is True
+    assert steps_by_key["step_input_prepare"]["parent_step_id"] is None
     assert steps_by_key["step_policy_evaluate"]["dependency_keys"] == ["step_input_prepare"]
+    assert steps_by_key["step_policy_evaluate"]["parent_step_id"] == steps_by_key["step_input_prepare"]["step_id"]
     assert steps_by_key["step_policy_evaluate"]["dependency_states"] == {"step_input_prepare": "completed"}
     assert (
         steps_by_key["step_policy_evaluate"]["dependency_step_ids"]["step_input_prepare"]
@@ -114,6 +116,7 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert steps_by_key["step_policy_evaluate"]["blocked_dependency_keys"] == []
     assert steps_by_key["step_policy_evaluate"]["dependencies_satisfied"] is True
     assert steps_by_key["step_artifact_save"]["dependency_keys"] == ["step_policy_evaluate"]
+    assert steps_by_key["step_artifact_save"]["parent_step_id"] == steps_by_key["step_policy_evaluate"]["step_id"]
     assert steps_by_key["step_artifact_save"]["dependency_states"] == {"step_policy_evaluate": "completed"}
     assert (
         steps_by_key["step_artifact_save"]["dependency_step_ids"]["step_policy_evaluate"]
@@ -2731,6 +2734,9 @@ def test_generic_task_execution_uses_compiled_contract_runtime() -> None:
     assert session_body["artifacts"][0]["principal_id"] == "exec-1"
     assert session_body["artifacts"][0]["preview_text"] == "Board context and stakeholder sensitivities."
     assert session_body["artifacts"][0]["storage_handle"] == f"artifact://{body['artifact_id']}"
+    assert session_body["steps"][0]["parent_step_id"] is None
+    assert session_body["steps"][1]["parent_step_id"] == session_body["steps"][0]["step_id"]
+    assert session_body["steps"][2]["parent_step_id"] == session_body["steps"][1]["step_id"]
     assert session_body["steps"][2]["input_json"]["plan_step_key"] == "step_artifact_save"
     plan_event = next(event for event in session_body["events"] if event["name"] == "plan_compiled")
     assert plan_event["payload"]["step_semantics"][0]["timeout_budget_seconds"] == 30

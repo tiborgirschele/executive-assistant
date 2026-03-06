@@ -395,6 +395,21 @@ class RewriteOrchestrator:
             return "rewrite supplied text into an artifact"
         return f"execute {key} into an artifact"
 
+    def _legacy_parent_step_id(
+        self,
+        plan_step: PlanStepSpec,
+        *,
+        step_ids_by_key: dict[str, str],
+    ) -> str | None:
+        dependencies = tuple(
+            key
+            for key in (plan_step.depends_on or ())
+            if str(key or "").strip() and str(key or "").strip() in step_ids_by_key
+        )
+        if len(dependencies) == 1:
+            return step_ids_by_key[dependencies[0]]
+        return None
+
     def _require_effective_principal(self, principal_id: str) -> str:
         resolved = str(principal_id or "").strip()
         if resolved:
@@ -1190,13 +1205,13 @@ class RewriteOrchestrator:
             ),
         )
         created_steps: list[ExecutionStep] = []
-        parent_step_id: str | None = None
+        step_ids_by_key: dict[str, str] = {}
         for index, plan_step in enumerate(plan_steps):
             created_steps.append(
                 self._ledger.start_step(
                     session.session_id,
                     plan_step.step_kind or "tool_call",
-                    parent_step_id=parent_step_id,
+                    parent_step_id=self._legacy_parent_step_id(plan_step, step_ids_by_key=step_ids_by_key),
                     input_json={
                         "source_text": normalized_text,
                         "text_length": len(normalized_text),
@@ -1237,7 +1252,7 @@ class RewriteOrchestrator:
                     actor_id="orchestrator",
                 )
             )
-            parent_step_id = created_steps[-1].step_id
+            step_ids_by_key[str(plan_step.step_key or "")] = created_steps[-1].step_id
         next_step = self._next_ready_step(session.session_id)
         if next_step is None:
             raise RuntimeError(f"task queue did not resolve a ready step: {session.session_id}")

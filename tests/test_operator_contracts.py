@@ -93,6 +93,7 @@ def test_postgres_contract_script_help_and_wiring() -> None:
     assert "tests/test_rewrite_scope_contracts.py" in script
     assert "tests/test_rewrite_api_scope_contracts.py" in script
     assert "tests/test_rewrite_dependency_projection_contracts.py" in script
+    assert "tests/test_step_parent_projection_contracts.py" in script
     assert "tests/test_tool_execution.py" in script
 
 
@@ -233,6 +234,35 @@ def test_artifact_principal_ownership_docs_and_milestone_cover_explicit_scope() 
     assert "principal_id ownership" in http_examples
     assert "explicit `principal_id` ownership" in changelog
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "artifact_principal_ownership_projection")
+    assert capability["status"] == "tested"
+
+
+def test_step_parent_projection_contracts_are_wired_into_focused_contract_bundle() -> None:
+    script = (ROOT / "scripts/test_postgres_contracts.sh").read_text(encoding="utf-8")
+    parent_test = (ROOT / "tests/test_step_parent_projection_contracts.py").read_text(encoding="utf-8")
+    smoke_test = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    smoke_script = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+
+    assert "tests/test_step_parent_projection_contracts.py" in script
+    assert 'save_step.parent_step_id is None' in parent_test
+    assert 'policy_step.parent_step_id == input_step.step_id' in parent_test
+    assert 'sidecar_step.parent_step_id == input_step.step_id' in parent_test
+    assert 'steps_by_key["step_policy_evaluate"]["parent_step_id"] == steps_by_key["step_input_prepare"]["step_id"]' in smoke_test
+    assert 'steps_by_key["step_artifact_save"]["parent_step_id"] == steps_by_key["step_policy_evaluate"]["step_id"]' in smoke_test
+    assert "policy_step.get('parent_step_id') == input_id" in smoke_script
+    assert "save_step.get('parent_step_id') == policy_id" in smoke_script
+
+
+def test_single_dependency_parent_projection_docs_and_milestone_are_present() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "multi-prerequisite join steps stay parentless" in readme
+    assert "multi-prerequisite join steps stay parentless" in runbook
+    assert "parent_step_id` only from actual single-dependency edges" in changelog
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "single_dependency_parent_projection")
     assert capability["status"] == "tested"
 
 

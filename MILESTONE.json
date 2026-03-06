@@ -305,6 +305,15 @@
       "notes": "Queue advancement now enqueues the full ready set from satisfied `depends_on` edges instead of parent-linked step order, and queue leasing skips paused sessions so joins wait for all prerequisites while approval resume still uses the same dependency-aware scheduler."
     },
     {
+      "name": "single_dependency_parent_projection",
+      "status": "tested",
+      "scope": [
+        "parent_step_id_single_dependency_only",
+        "join_step_parent_null"
+      ],
+      "notes": "Runtime-created session steps now derive `parent_step_id` only from actual single-dependency edges, keeping multi-prerequisite joins parentless while `dependency_keys` and `dependency_states` carry the real graph shape."
+    },
+    {
       "name": "queued_policy_step_audit_truthfulness",
       "status": "tested",
       "scope": [
