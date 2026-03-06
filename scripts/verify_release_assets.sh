@@ -70,6 +70,8 @@ required_files=(
   "ea/schema/20260305_v0_25_human_task_resume_kernel.sql"
   "ea/schema/20260305_v0_26_human_task_assignment_state.sql"
   "ea/schema/20260305_v0_27_human_task_review_contract.sql"
+  "ea/schema/20260305_v0_28_operator_profiles_kernel.sql"
+  "ea/schema/20260305_v0_29_human_task_assignment_source.sql"
 )
 
 echo "== verify release assets =="
@@ -1349,6 +1351,36 @@ then
   fi
 else
   echo "missing: planner human task auto-preselection milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assignment_source_visibility")
+assert capability["status"] == "tested"
+assert "ea/schema/20260305_v0_29_human_task_assignment_source.sql" in milestone["migrations"]
+PY
+then
+  if grep -Fq "assignment_source" "README.md" && \
+     grep -Fq "assignment_source" "RUNBOOK.md" && \
+     grep -Fq "assignment_source" "scripts/smoke_api.sh" && \
+     grep -Fq "recommended|ready_for_send" "scripts/smoke_api.sh" && \
+     grep -Fq "auto_preselected" "scripts/smoke_api.sh" && \
+     grep -Fq 'task["assignment_source"] == ""' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'assigned.json()["assignment_source"] == "recommended"' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'review_task["assignment_source"] == "auto_preselected"' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'assignment_source="manual"' "tests/test_postgres_contract_matrix_integration.py" && \
+     grep -Fq "v0_29 human task assignment-source kernel" "scripts/db_bootstrap.sh"; then
+    echo "ok: human task assignment source visibility docs"
+  else
+    echo "missing: human task assignment source visibility docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task assignment source visibility milestone" >&2
   missing=1
 fi
 

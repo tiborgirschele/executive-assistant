@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.59.0",
+  "version": "0.60.0",
   "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
@@ -356,6 +356,16 @@
       "notes": "Task contracts can now enable `human_review_auto_assign_if_unique`, which projects onto compiled `step_human_review` nodes and lets the queue runtime pre-assign a single exact reviewer match before the packet lands in the backlog."
     },
     {
+      "name": "human_task_assignment_source_visibility",
+      "status": "tested",
+      "scope": [
+        "assignment_source_storage",
+        "assignment_source_api_projection",
+        "manual_recommended_auto_preselected_labels"
+      ],
+      "notes": "Human task packets now persist `assignment_source` so session/operator projections can distinguish manual assignment, route-level recommended assignment, and planner auto-preselection after later claim/return transitions."
+    },
+    {
       "name": "registry_backed_tool_execution_service",
       "status": "tested",
       "scope": [
@@ -491,7 +501,8 @@
     "ea/schema/20260305_v0_25_human_task_resume_kernel.sql",
     "ea/schema/20260305_v0_26_human_task_assignment_state.sql",
     "ea/schema/20260305_v0_27_human_task_review_contract.sql",
-    "ea/schema/20260305_v0_28_operator_profiles_kernel.sql"
+    "ea/schema/20260305_v0_28_operator_profiles_kernel.sql",
+    "ea/schema/20260305_v0_29_human_task_assignment_source.sql"
   ],
   "env_contract": {
     "EA_STORAGE_BACKEND": "memory|postgres|auto",

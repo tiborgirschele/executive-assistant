@@ -114,6 +114,7 @@ class SessionHumanTaskOut(BaseModel):
     status: str
     assignment_state: str
     assigned_operator_id: str
+    assignment_source: str
     resolution: str
     resume_session_on_return: bool
     returned_payload_json: dict[str, object]
@@ -292,6 +293,7 @@ def get_session(
                 status=t.status,
                 assignment_state=t.assignment_state,
                 assigned_operator_id=t.assigned_operator_id,
+                assignment_source=t.assignment_source,
                 resolution=t.resolution,
                 resume_session_on_return=t.resume_session_on_return,
                 returned_payload_json=t.returned_payload_json,

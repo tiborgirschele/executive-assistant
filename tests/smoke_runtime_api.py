@@ -296,6 +296,7 @@ def test_human_task_flow_and_session_projection() -> None:
     task_id = task["human_task_id"]
     assert task["status"] == "pending"
     assert task["assignment_state"] == "unassigned"
+    assert task["assignment_source"] == ""
     assert task["step_id"] == step_id
     assert task["resume_session_on_return"] is True
     assert task["authority_required"] == "send_on_behalf_review"
@@ -347,6 +348,7 @@ def test_human_task_flow_and_session_projection() -> None:
     assert assigned.json()["status"] == "pending"
     assert assigned.json()["assignment_state"] == "assigned"
     assert assigned.json()["assigned_operator_id"] == "operator-specialist"
+    assert assigned.json()["assignment_source"] == "recommended"
 
     assigned_backlog = client.get(
         "/v1/human/tasks/backlog",
@@ -393,6 +395,7 @@ def test_human_task_flow_and_session_projection() -> None:
     assert claimed.status_code == 200
     assert claimed.json()["status"] == "claimed"
     assert claimed.json()["assignment_state"] == "claimed"
+    assert claimed.json()["assignment_source"] == "recommended"
 
     operator_filtered = client.get(
         "/v1/human/tasks",
@@ -417,6 +420,7 @@ def test_human_task_flow_and_session_projection() -> None:
     assert returned.status_code == 200
     assert returned.json()["status"] == "returned"
     assert returned.json()["assignment_state"] == "returned"
+    assert returned.json()["assignment_source"] == "recommended"
     assert returned.json()["resolution"] == "ready_for_send"
 
     fetched = client.get(f"/v1/human/tasks/{task_id}")
@@ -850,6 +854,7 @@ def test_rewrite_compiled_human_review_branch_pauses_and_resumes() -> None:
     assert review_task["quality_rubric_json"]["checks"][0] == "tone"
     assert review_task["assignment_state"] == "assigned"
     assert review_task["assigned_operator_id"] == "operator-specialist"
+    assert review_task["assignment_source"] == "auto_preselected"
     assert review_task["routing_hints_json"]["recommended_operator_id"] == "operator-specialist"
     assert review_task["routing_hints_json"]["auto_assign_operator_id"] == ""
     assert review_task["routing_hints_json"]["candidate_count"] == 1

@@ -66,6 +66,7 @@ Removed:
 - human task packets can optionally reopen a linked step into `waiting_human`, move the session to `awaiting_human`, and resume that step to completion when the operator returns the packet
 - human task queue listings now support operator-facing `role_required`, `assigned_operator_id`, and `overdue_only` filters for targeted reviewer backlogs
 - human task payloads now include explicit `assignment_state` values (`unassigned`, `assigned`, `claimed`, `returned`) so pre-assigned pending work is first-class in session and queue projections
+- human task payloads now also persist `assignment_source` so manual assignment, route-level recommended assignment, and planner auto-preselection remain distinguishable in session/operator views after later claim and return transitions
 - human task payloads now also compute reviewer routing hints from active operator profiles, rubric-derived skill tags, and trust-tier requirements so the best reviewer candidate can be surfaced directly on each packet
 - approving a paused rewrite now resumes execution inline and completes the artifact/ledger flow instead of stopping at a dead intermediate status
 - approval-required rewrite requests now return `202 Accepted` with `session_id`, `approval_id`, and `status=awaiting_approval` instead of an error-shaped denial
@@ -114,6 +115,7 @@ Removed:
 - human task assignment-state kernel migration: `ea/schema/20260305_v0_26_human_task_assignment_state.sql`
 - human task review-contract kernel migration: `ea/schema/20260305_v0_27_human_task_review_contract.sql`
 - operator profiles kernel migration: `ea/schema/20260305_v0_28_operator_profiles_kernel.sql`
+- human task assignment-source kernel migration: `ea/schema/20260305_v0_29_human_task_assignment_source.sql`
 
 ## Auth
 

@@ -51,7 +51,13 @@ class HumanTaskRepository(Protocol):
     def claim(self, human_task_id: str, *, operator_id: str) -> HumanTask | None:
         ...
 
-    def assign(self, human_task_id: str, *, operator_id: str) -> HumanTask | None:
+    def assign(
+        self,
+        human_task_id: str,
+        *,
+        operator_id: str,
+        assignment_source: str = "manual",
+    ) -> HumanTask | None:
         ...
 
     def return_task(
@@ -108,6 +114,7 @@ class InMemoryHumanTaskRepository:
             status="pending",
             assignment_state="unassigned",
             assigned_operator_id="",
+            assignment_source="",
             resolution="",
             created_at=ts,
             updated_at=ts,
@@ -183,12 +190,19 @@ class InMemoryHumanTaskRepository:
             status="claimed",
             assignment_state="claimed",
             assigned_operator_id=str(operator_id or ""),
+            assignment_source=found.assignment_source,
             updated_at=now_utc_iso(),
         )
         self._rows[updated.human_task_id] = updated
         return updated
 
-    def assign(self, human_task_id: str, *, operator_id: str) -> HumanTask | None:
+    def assign(
+        self,
+        human_task_id: str,
+        *,
+        operator_id: str,
+        assignment_source: str = "manual",
+    ) -> HumanTask | None:
         found = self._rows.get(str(human_task_id or ""))
         if not found or found.status != "pending":
             return None
@@ -196,6 +210,7 @@ class InMemoryHumanTaskRepository:
             found,
             assignment_state="assigned",
             assigned_operator_id=str(operator_id or ""),
+            assignment_source=str(assignment_source or "manual"),
             updated_at=now_utc_iso(),
         )
         self._rows[updated.human_task_id] = updated
@@ -218,6 +233,7 @@ class InMemoryHumanTaskRepository:
             status="returned",
             assignment_state="returned",
             assigned_operator_id=str(operator_id or found.assigned_operator_id or ""),
+            assignment_source=found.assignment_source,
             resolution=str(resolution or ""),
             returned_payload_json=dict(returned_payload_json or {}),
             provenance_json=dict(provenance_json or {}),

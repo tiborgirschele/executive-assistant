@@ -59,6 +59,7 @@ class HumanTaskOut(BaseModel):
     status: str
     assignment_state: str
     assigned_operator_id: str
+    assignment_source: str
     resolution: str
     resume_session_on_return: bool
     returned_payload_json: dict[str, object]
@@ -111,6 +112,7 @@ def _to_out(row) -> HumanTaskOut:  # type: ignore[no-untyped-def]
         status=row.status,
         assignment_state=row.assignment_state,
         assigned_operator_id=row.assigned_operator_id,
+        assignment_source=row.assignment_source,
         resolution=row.resolution,
         resume_session_on_return=row.resume_session_on_return,
         returned_payload_json=row.returned_payload_json,
@@ -312,14 +314,17 @@ def assign_human_task(
     if found is None:
         raise HTTPException(status_code=404, detail="human_task_not_found")
     operator_id = str(payload.operator_id or "").strip()
+    assignment_source = "manual"
     if not operator_id:
         operator_id = str((found.routing_hints_json or {}).get("auto_assign_operator_id") or "").strip()
         if not operator_id:
             raise HTTPException(status_code=409, detail="human_task_no_auto_assign_candidate")
+        assignment_source = "recommended"
     row = container.orchestrator.assign_human_task(
         human_task_id,
         principal_id=context.principal_id,
         operator_id=operator_id,
+        assignment_source=assignment_source,
     )
     if row is None:
         raise HTTPException(status_code=409, detail="human_task_not_assignable")

@@ -477,6 +477,7 @@ class HumanTask:
     status: str
     assignment_state: str
     assigned_operator_id: str
+    assignment_source: str
     resolution: str
     created_at: str
     updated_at: str

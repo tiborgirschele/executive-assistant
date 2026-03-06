@@ -396,6 +396,34 @@ def test_planner_human_task_auto_preselection_is_documented_and_smoked() -> None
     assert "runtime_human_task_auto_assignment" in capability["scope"]
 
 
+def test_human_task_assignment_source_visibility_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    postgres_matrix = (ROOT / "tests/test_postgres_contract_matrix_integration.py").read_text(encoding="utf-8")
+    db_bootstrap = (ROOT / "scripts/db_bootstrap.sh").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "assignment_source" in readme
+    assert "assignment_source" in runbook
+    assert "assignment_source" in smoke_api
+    assert "recommended|ready_for_send" in smoke_api
+    assert "auto_preselected" in smoke_api
+    assert 'task["assignment_source"] == ""' in smoke_runtime
+    assert 'assigned.json()["assignment_source"] == "recommended"' in smoke_runtime
+    assert 'review_task["assignment_source"] == "auto_preselected"' in smoke_runtime
+    assert 'assignment_source="manual"' in postgres_matrix
+    assert "v0_29 human task assignment-source kernel" in db_bootstrap
+
+    capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assignment_source_visibility"
+    )
+    assert capability["status"] == "tested"
+    assert "manual_recommended_auto_preselected_labels" in capability["scope"]
+    assert "ea/schema/20260305_v0_29_human_task_assignment_source.sql" in milestone["migrations"]
+
+
 def test_milestone_marks_postgres_contract_matrix_tested() -> None:
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "postgres_contract_matrix")

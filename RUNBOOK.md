@@ -132,6 +132,7 @@ Policy notes:
 - `POST /v1/human/tasks/{human_task_id}/assign` sets `assigned_operator_id` while the task remains `pending`, emits `human_task_assigned`, and lets operators be pre-assigned before `claim` moves the packet into active work; if the caller omits `operator_id`, the route now uses `routing_hints_json.auto_assign_operator_id` when a single exact reviewer match is available.
 - `GET /v1/human/tasks/unassigned` and `assignment_state=assigned|unassigned` make pre-assigned pending work distinct from ownerless pending work in the backlog view.
 - Human task payloads now expose `assignment_state` directly (`unassigned`, `assigned`, `claimed`, `returned`) so session projections and operator queues do not have to infer assignment from `status` plus `assigned_operator_id`.
+- Human task payloads now also persist `assignment_source` so operators can tell whether ownership came from a manual choice, a route-level recommended assignment, or planner-time auto-preselection even after later claim/return transitions.
 
 ## Operator Script Help Index
 
@@ -271,6 +272,7 @@ Applies:
 - `ea/schema/20260305_v0_26_human_task_assignment_state.sql`
 - `ea/schema/20260305_v0_27_human_task_review_contract.sql`
 - `ea/schema/20260305_v0_28_operator_profiles_kernel.sql`
+- `ea/schema/20260305_v0_29_human_task_assignment_source.sql`
 
 Check table presence/counts:
 

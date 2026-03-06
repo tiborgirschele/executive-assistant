@@ -250,6 +250,7 @@ def test_postgres_human_tasks_create_claim_return_and_list() -> None:
     )
     assert created.status == "pending"
     assert created.assignment_state == "unassigned"
+    assert created.assignment_source == ""
     assert created.step_id == step.step_id
     assert created.resume_session_on_return is True
     assert created.authority_required == "send_on_behalf_review"
@@ -267,10 +268,16 @@ def test_postgres_human_tasks_create_claim_return_and_list() -> None:
     )
     assert any(row.human_task_id == created.human_task_id for row in listed_role)
 
+    assigned = repo.assign(created.human_task_id, operator_id="operator-1", assignment_source="manual")
+    assert assigned is not None
+    assert assigned.assignment_state == "assigned"
+    assert assigned.assignment_source == "manual"
+
     claimed = repo.claim(created.human_task_id, operator_id="operator-1")
     assert claimed is not None
     assert claimed.status == "claimed"
     assert claimed.assignment_state == "claimed"
+    assert claimed.assignment_source == "manual"
     assert claimed.assigned_operator_id == "operator-1"
 
     listed_operator = repo.list_for_principal(
@@ -291,6 +298,7 @@ def test_postgres_human_tasks_create_claim_return_and_list() -> None:
     assert returned is not None
     assert returned.status == "returned"
     assert returned.assignment_state == "returned"
+    assert returned.assignment_source == "manual"
     assert returned.resolution == "ready_for_send"
     assert returned.returned_payload_json["summary"] == "Reviewed and tightened tone."
     assert returned.resume_session_on_return is True

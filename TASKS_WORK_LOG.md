@@ -13,13 +13,13 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-200 | P1 | Add reviewer assignment provenance timestamps and actor IDs so ownership changes are auditable beyond the current source label | codex | queued | Assignment behavior is getting more autonomous, but the runtime still lacks explicit `assigned_at` and assigning-actor provenance on human task packets and session projections |
+| Q-201 | P1 | Add assignment transition history so reassignments can be audited without overwriting earlier reviewer ownership provenance | codex | queued | The runtime is about to persist timestamp and actor provenance on current ownership, but repeated reassignments would still overwrite earlier assignment evidence instead of retaining a transition log |
 
 ## In Progress
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-199 | P1 | Add explicit assignment-source audit visibility so manual, hint-driven, and planner auto-assigned reviewer ownership are distinguishable | codex | in_progress | Reviewer routing is becoming more automatic, but the human-task/session surface still does not expose whether assignment came from a manual operator choice, a client-triggered recommended assignment, or planner-time auto-preselection |
+| Q-200 | P1 | Add reviewer assignment provenance timestamps and actor IDs so ownership changes are auditable beyond the current source label | codex | in_progress | Assignment behavior is getting more autonomous, but the runtime still lacks explicit `assigned_at` and assigning-actor provenance on human task packets and session projections |
 
 ## Blocked
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-199 | P1 | Add explicit assignment-source audit visibility so manual, hint-driven, and planner auto-assigned reviewer ownership are distinguishable | codex | done | Human task packets now persist `assignment_source` so session and operator projections can distinguish manual assignment, route-level recommended assignment, and planner auto-preselection after later claim and return transitions |
 | D-198 | P1 | Let planner-native human-task creation auto-apply a unique exact reviewer preselection when policy allows | codex | done | Task contracts can now enable `human_review_auto_assign_if_unique`, which projects onto compiled `step_human_review` plan nodes and lets the queue runtime pre-assign a single exact reviewer match before the packet lands in the backlog |
 | D-197 | P1 | Add a recommended-reviewer assignment action so human tasks can use `auto_assign_operator_id` without forcing clients to submit a manual operator choice | codex | done | `POST /v1/human/tasks/{human_task_id}/assign` now accepts an omitted `operator_id` and consumes `routing_hints_json.auto_assign_operator_id`, so a single exact reviewer match can be pre-assigned without the client echoing the same operator choice back |
 | D-196 | P1 | Add backlog auto-assignment hints so specialized operator profiles can be suggested or preselected without manual backlog scanning | codex | done | Human task payloads and session-linked `human_tasks` now compute `routing_hints_json` from active operator profiles, rubric-derived skill tags, and trust-tier requirements, exposing `suggested_operator_ids`, `recommended_operator_id`, and `auto_assign_operator_id` with approved smoke and Postgres contract coverage |
