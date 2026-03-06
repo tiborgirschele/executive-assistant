@@ -787,6 +787,16 @@ else
   missing=1
 fi
 
+if grep -Fq "tests/test_postgres_contract_matrix_integration.py" "scripts/test_postgres_contracts.sh" && \
+   grep -Fq "tests/test_memory_router_contracts.py" "scripts/test_postgres_contracts.sh" && \
+   grep -Fq "tests/test_rewrite_scope_contracts.py" "scripts/test_postgres_contracts.sh" && \
+   grep -Fq "tests/test_rewrite_api_scope_contracts.py" "scripts/test_postgres_contracts.sh"; then
+  echo "ok: postgres contract script covers focused router and rewrite scope invariants"
+else
+  echo "missing: postgres contract script focused invariant coverage" >&2
+  missing=1
+fi
+
 if grep -Fq '"status_model"' "MILESTONE.json" && \
    grep -Fq '"release_tags"' "MILESTONE.json" && \
    grep -Fq '"planned"' "MILESTONE.json" && \

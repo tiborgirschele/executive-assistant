@@ -84,6 +84,9 @@ def test_postgres_contract_script_help_and_wiring() -> None:
     assert "test-postgres-contracts:" in makefile
     assert "bash scripts/test_postgres_contracts.sh" in workflow
     assert "tests/test_postgres_contract_matrix_integration.py" in script
+    assert "tests/test_memory_router_contracts.py" in script
+    assert "tests/test_rewrite_scope_contracts.py" in script
+    assert "tests/test_rewrite_api_scope_contracts.py" in script
 
 
 def test_policy_docs_and_milestone_cover_external_action_evaluation() -> None:
