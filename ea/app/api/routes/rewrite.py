@@ -38,6 +38,27 @@ class RewriteAcceptedOut(BaseModel):
     status: str
     next_action: str
 
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "session_id": "session-awaiting-approval",
+                    "approval_id": "approval-123",
+                    "human_task_id": "",
+                    "status": "awaiting_approval",
+                    "next_action": "poll_or_subscribe",
+                },
+                {
+                    "session_id": "session-awaiting-human",
+                    "approval_id": "",
+                    "human_task_id": "human-task-123",
+                    "status": "awaiting_human",
+                    "next_action": "poll_or_subscribe",
+                },
+            ]
+        }
+    }
+
 
 class SessionEventOut(BaseModel):
     event_id: str

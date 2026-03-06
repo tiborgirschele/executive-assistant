@@ -106,6 +106,29 @@ class PlanExecuteAcceptedOut(BaseModel):
     status: str
     next_action: str
 
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "task_key": "decision_brief_approval",
+                    "session_id": "session-awaiting-approval",
+                    "approval_id": "approval-123",
+                    "human_task_id": "",
+                    "status": "awaiting_approval",
+                    "next_action": "poll_or_subscribe",
+                },
+                {
+                    "task_key": "stakeholder_briefing_review",
+                    "session_id": "session-awaiting-human",
+                    "approval_id": "",
+                    "human_task_id": "human-task-123",
+                    "status": "awaiting_human",
+                    "next_action": "poll_or_subscribe",
+                },
+            ]
+        }
+    }
+
 
 @router.post("/compile")
 def compile_plan(

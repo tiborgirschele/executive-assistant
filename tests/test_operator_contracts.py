@@ -86,6 +86,7 @@ def test_postgres_contract_script_help_and_wiring() -> None:
     assert "tests/test_postgres_contract_matrix_integration.py" in script
     assert "tests/test_generic_async_dependency_projection_contracts.py" in script
     assert "tests/test_memory_router_contracts.py" in script
+    assert "tests/test_openapi_async_acceptance_examples_contracts.py" in script
     assert "tests/test_openapi_dependency_examples_contracts.py" in script
     assert "tests/test_rewrite_scope_contracts.py" in script
     assert "tests/test_rewrite_api_scope_contracts.py" in script
@@ -154,6 +155,19 @@ def test_openapi_dependency_examples_are_guarded() -> None:
     assert 'curl -fsS "${BASE}/openapi.json"' in smoke_script
     assert "waiting.get('state','')" in smoke_script
     assert "blocked.get('blocked_dependency_keys') == ['step_human_review']" in smoke_script
+
+
+def test_openapi_async_acceptance_examples_are_guarded() -> None:
+    openapi_test = (ROOT / "tests/test_openapi_async_acceptance_examples_contracts.py").read_text(encoding="utf-8")
+    smoke_script = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+
+    assert 'schemas["RewriteAcceptedOut"]["examples"]' in openapi_test
+    assert 'schemas["PlanExecuteAcceptedOut"]["examples"]' in openapi_test
+    assert 'rewrite_approval["approval_id"] == "approval-123"' in openapi_test
+    assert 'plan_human["task_key"] == "stakeholder_briefing_review"' in openapi_test
+    assert "rewrite_examples=(schemas.get('RewriteAcceptedOut') or {}).get('examples') or []" in smoke_script
+    assert "plan_examples=(schemas.get('PlanExecuteAcceptedOut') or {}).get('examples') or []" in smoke_script
+    assert "approval-123|human-task-123|poll_or_subscribe|poll_or_subscribe|decision_brief_approval|stakeholder_briefing_review" in smoke_script
 
 
 def test_policy_docs_and_milestone_cover_external_action_evaluation() -> None:
