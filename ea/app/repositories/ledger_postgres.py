@@ -523,6 +523,25 @@ class PostgresExecutionLedgerRepository:
                 rows = cur.fetchall()
         return [self._receipt_from_db_row(row) for row in rows]
 
+    def get_receipt(self, receipt_id: str) -> ToolReceipt | None:
+        rid = str(receipt_id or "")
+        if not rid:
+            return None
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT receipt_id, session_id, step_id, tool_name, action_kind, target_ref, receipt_json, created_at
+                    FROM tool_receipts
+                    WHERE receipt_id = %s
+                    """,
+                    (rid,),
+                )
+                row = cur.fetchone()
+        if not row:
+            return None
+        return self._receipt_from_db_row(row)
+
     def append_run_cost(
         self,
         session_id: str,
@@ -581,3 +600,22 @@ class PostgresExecutionLedgerRepository:
                 )
                 rows = cur.fetchall()
         return [self._cost_from_db_row(row) for row in rows]
+
+    def get_run_cost(self, cost_id: str) -> RunCost | None:
+        cid = str(cost_id or "")
+        if not cid:
+            return None
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT cost_id, session_id, model_name, tokens_in, tokens_out, cost_usd, created_at
+                    FROM run_costs
+                    WHERE cost_id = %s
+                    """,
+                    (cid,),
+                )
+                row = cur.fetchone()
+        if not row:
+            return None
+        return self._cost_from_db_row(row)

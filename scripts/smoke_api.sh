@@ -41,6 +41,16 @@ AUTH_ARGS=()
 if [[ -n "${EA_API_TOKEN:-}" ]]; then
   AUTH_ARGS=(-H "Authorization: Bearer ${EA_API_TOKEN}")
 fi
+APPROVAL_THRESHOLD_CHARS="${EA_APPROVAL_THRESHOLD_CHARS:-}"
+if [[ -z "${APPROVAL_THRESHOLD_CHARS}" && -f "${EA_ROOT}/.env" ]]; then
+  APPROVAL_THRESHOLD_CHARS="$(grep -E '^EA_APPROVAL_THRESHOLD_CHARS=' "${EA_ROOT}/.env" | tail -n1 | cut -d= -f2- || true)"
+fi
+APPROVAL_THRESHOLD_CHARS="${APPROVAL_THRESHOLD_CHARS:-5000}"
+MAX_REWRITE_CHARS="${EA_MAX_REWRITE_CHARS:-}"
+if [[ -z "${MAX_REWRITE_CHARS}" && -f "${EA_ROOT}/.env" ]]; then
+  MAX_REWRITE_CHARS="$(grep -E '^EA_MAX_REWRITE_CHARS=' "${EA_ROOT}/.env" | tail -n1 | cut -d= -f2- || true)"
+fi
+MAX_REWRITE_CHARS="${MAX_REWRITE_CHARS:-20000}"
 
 echo "== smoke: health =="
 curl -fsS "${BASE}/health" >/dev/null
@@ -63,11 +73,81 @@ fi
 
 echo "== smoke: session + policy =="
 curl -fsS "${BASE}/v1/rewrite/artifacts/${ARTIFACT_ID}" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/rewrite/sessions/${SESSION_ID}" "${AUTH_ARGS[@]}" >/dev/null
+SESSION_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${SESSION_ID}" "${AUTH_ARGS[@]}")"
+RECEIPT_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); rows=body.get("receipts") or []; print(((rows[0] or {}).get("receipt_id")) if rows else "")' <<<"${SESSION_JSON}")"
+COST_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); rows=body.get("run_costs") or []; print(((rows[0] or {}).get("cost_id")) if rows else "")' <<<"${SESSION_JSON}")"
+if [[ -z "${RECEIPT_ID}" ]]; then
+  fail 13 "missing receipt_id from session response"
+fi
+if [[ -z "${COST_ID}" ]]; then
+  fail 13 "missing cost_id from session response"
+fi
+curl -fsS "${BASE}/v1/rewrite/receipts/${RECEIPT_ID}" "${AUTH_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/rewrite/run-costs/${COST_ID}" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/policy/decisions/recent?session_id=${SESSION_ID}&limit=5" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/policy/approvals/pending?limit=5" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/policy/approvals/history?limit=5" "${AUTH_ARGS[@]}" >/dev/null
 echo "session/policy ok"
+
+echo "== smoke: approval resume path =="
+if (( APPROVAL_THRESHOLD_CHARS >= MAX_REWRITE_CHARS )); then
+  fail 12 "approval smoke misconfigured: threshold must be below max rewrite chars"
+fi
+APPROVAL_PAYLOAD="$(mktemp)"
+printf '{"text":"%s"}' "$(python3 - "${APPROVAL_THRESHOLD_CHARS}" <<'PY'
+import sys
+
+threshold = int(sys.argv[1])
+print("a" * (threshold + 10))
+PY
+)" > "${APPROVAL_PAYLOAD}"
+APPROVAL_CODE="$(curl -sS -o /tmp/ea_approval_required_resp.json -w '%{http_code}' -X POST "${BASE}/v1/rewrite/artifact" "${AUTH_ARGS[@]}" -H 'content-type: application/json' --data-binary @"${APPROVAL_PAYLOAD}")"
+rm -f "${APPROVAL_PAYLOAD}"
+if [[ "${APPROVAL_CODE}" != "409" ]]; then
+  echo "expected 409 for approval-required path; got ${APPROVAL_CODE}" >&2
+  cat /tmp/ea_approval_required_resp.json >&2 || true
+  fail 12 "policy contract mismatch"
+fi
+APPROVAL_REASON="$(python3 - <<'PY'
+import json
+from pathlib import Path
+
+path = Path("/tmp/ea_approval_required_resp.json")
+if not path.exists():
+    print("")
+    raise SystemExit(0)
+try:
+    body = json.loads(path.read_text())
+except Exception:
+    print("")
+    raise SystemExit(0)
+print(((body.get("error") or {}).get("code") or ""))
+PY
+)"
+if [[ "${APPROVAL_REASON}" != "policy_denied:approval_required" ]]; then
+  echo "expected approval-required code policy_denied:approval_required; got ${APPROVAL_REASON}" >&2
+  cat /tmp/ea_approval_required_resp.json >&2 || true
+  fail 12 "policy contract mismatch"
+fi
+PENDING_APPROVALS_JSON="$(curl -fsS "${BASE}/v1/policy/approvals/pending?limit=5" "${AUTH_ARGS[@]}")"
+APPROVAL_ID="$(python3 -c 'import json,sys; rows=json.loads(sys.stdin.read() or "[]"); print(((rows[0] or {}).get("approval_id")) if rows else "")' <<<"${PENDING_APPROVALS_JSON}")"
+APPROVAL_SESSION_ID="$(python3 -c 'import json,sys; rows=json.loads(sys.stdin.read() or "[]"); print(((rows[0] or {}).get("session_id")) if rows else "")' <<<"${PENDING_APPROVALS_JSON}")"
+if [[ -z "${APPROVAL_ID}" ]]; then
+  fail 13 "missing approval_id from pending approval response"
+fi
+if [[ -z "${APPROVAL_SESSION_ID}" ]]; then
+  fail 13 "missing session_id from pending approval response"
+fi
+curl -fsS -X POST "${BASE}/v1/policy/approvals/${APPROVAL_ID}/approve" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"decided_by":"smoke-operator","reason":"resume execution"}' >/dev/null
+APPROVED_SESSION_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${APPROVAL_SESSION_ID}" "${AUTH_ARGS[@]}")"
+APPROVED_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}|{}|{}".format(body.get("status",""), len(body.get("artifacts") or []) >= 1, len(body.get("receipts") or []) >= 1, len(body.get("run_costs") or []) >= 1))' <<<"${APPROVED_SESSION_JSON}")"
+if [[ "${APPROVED_FIELDS}" != "completed|True|True|True" ]]; then
+  echo "expected resumed session to complete with artifacts/receipts/run_costs; got ${APPROVED_FIELDS}" >&2
+  echo "${APPROVED_SESSION_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+echo "approval resume path ok"
 
 echo "== smoke: external-send policy path =="
 POLICY_EVAL_JSON="$(curl -fsS -X POST "${BASE}/v1/policy/evaluate" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \

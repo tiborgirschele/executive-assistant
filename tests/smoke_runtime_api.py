@@ -68,13 +68,26 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert body["steps"][0]["state"] in {"completed", "running", "blocked", "waiting_approval"}
     assert body["steps"][0]["input_json"]["plan_step_key"]
     assert len(body["receipts"]) >= 1
+    receipt_id = body["receipts"][0]["receipt_id"]
     assert body["artifacts"][0]["artifact_id"] == payload["artifact_id"]
+    assert len(body["run_costs"]) >= 1
+    cost_id = body["run_costs"][0]["cost_id"]
 
     fetched_artifact = client.get(f"/v1/rewrite/artifacts/{artifact_id}")
     assert fetched_artifact.status_code == 200
     assert fetched_artifact.json()["artifact_id"] == artifact_id
     assert fetched_artifact.json()["execution_session_id"] == session_id
     assert fetched_artifact.json()["content"] == "smoke"
+
+    fetched_receipt = client.get(f"/v1/rewrite/receipts/{receipt_id}")
+    assert fetched_receipt.status_code == 200
+    assert fetched_receipt.json()["receipt_id"] == receipt_id
+    assert fetched_receipt.json()["target_ref"] == artifact_id
+
+    fetched_cost = client.get(f"/v1/rewrite/run-costs/{cost_id}")
+    assert fetched_cost.status_code == 200
+    assert fetched_cost.json()["cost_id"] == cost_id
+    assert fetched_cost.json()["model_name"] == "none"
 
     policy = client.get("/v1/policy/decisions/recent", params={"session_id": session_id, "limit": 5})
     assert policy.status_code == 200
@@ -85,6 +98,14 @@ def test_rewrite_and_policy_audit_flow() -> None:
     missing_artifact = client.get("/v1/rewrite/artifacts/not-a-real-artifact-id")
     assert missing_artifact.status_code == 404
     assert missing_artifact.json()["error"]["code"] == "artifact_not_found"
+
+    missing_receipt = client.get("/v1/rewrite/receipts/not-a-real-receipt-id")
+    assert missing_receipt.status_code == 404
+    assert missing_receipt.json()["error"]["code"] == "receipt_not_found"
+
+    missing_cost = client.get("/v1/rewrite/run-costs/not-a-real-cost-id")
+    assert missing_cost.status_code == 404
+    assert missing_cost.json()["error"]["code"] == "run_cost_not_found"
 
 
 def test_rewrite_requires_approval_then_approve_flow() -> None:
@@ -123,8 +144,14 @@ def test_rewrite_requires_approval_then_approve_flow() -> None:
     session_after = client.get(f"/v1/rewrite/sessions/{session_id}")
     assert session_after.status_code == 200
     body_after = session_after.json()
-    assert body_after["status"] == "approved_pending_execution"
-    assert any(step["state"] == "queued" for step in body_after["steps"])
+    event_names_after = [event["name"] for event in body_after["events"]]
+    assert body_after["status"] == "completed"
+    assert "session_resumed_from_approval" in event_names_after
+    assert "session_completed" in event_names_after
+    assert any(step["state"] == "completed" for step in body_after["steps"])
+    assert len(body_after["artifacts"]) == 1
+    assert len(body_after["receipts"]) >= 1
+    assert len(body_after["run_costs"]) >= 1
 
 
 def test_rewrite_requires_approval_then_expire_flow() -> None:

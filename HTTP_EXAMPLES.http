@@ -2,6 +2,8 @@
 @token = replace_with_token_or_leave_blank
 @session_id = replace_me
 @artifact_id = replace_me
+@receipt_id = replace_me
+@cost_id = replace_me
 @delivery_id = replace_me
 @approval_id = replace_me
 @memory_candidate_id = replace_me
@@ -42,6 +44,12 @@ GET {{host}}/v1/rewrite/sessions/{{session_id}}
 ### Rewrite -> fetch artifact
 GET {{host}}/v1/rewrite/artifacts/{{artifact_id}}
 
+### Rewrite -> fetch receipt
+GET {{host}}/v1/rewrite/receipts/{{receipt_id}}
+
+### Rewrite -> fetch run cost
+GET {{host}}/v1/rewrite/run-costs/{{cost_id}}
+
 ### Rewrite -> blocked policy (expected 403)
 POST {{host}}/v1/rewrite/artifact
 Content-Type: application/json
@@ -73,7 +81,7 @@ GET {{host}}/v1/policy/approvals/pending?limit=20
 ### Approvals -> history
 GET {{host}}/v1/policy/approvals/history?limit=20
 
-### Approvals -> approve
+### Approvals -> approve and resume execution
 POST {{host}}/v1/policy/approvals/{{approval_id}}/approve
 Content-Type: application/json
 

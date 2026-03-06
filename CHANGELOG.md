@@ -129,6 +129,8 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Added dedicated rewrite-route coverage for `policy_denied:tool_not_allowed` so task-contract tool mismatches are asserted at the HTTP layer.
 - Added `POST /v1/policy/evaluate` plus docs/examples/tests so external-send approval checks are reachable over HTTP without going through rewrite artifact saves.
 - Added `GET /v1/rewrite/artifacts/{artifact_id}` plus docs/examples/tests so persisted artifacts are directly retrievable over HTTP.
+- Added `GET /v1/rewrite/receipts/{receipt_id}` and `GET /v1/rewrite/run-costs/{cost_id}` plus docs/examples/tests so execution proof records are directly retrievable over HTTP.
+- Approved rewrites now resume execution immediately and complete the artifact/receipt/run-cost flow instead of stopping at `approved_pending_execution`.
 - `scripts/smoke_api.sh` now asserts `/v1/policy/evaluate` returns approval-required for external-send actions, which automatically extends the existing Postgres smoke path.
 - `scripts/test_postgres_contracts.sh` now exercises approvals, policy decisions, and task contracts in addition to the existing artifact/channel-runtime Postgres repository contracts.
 - Promoted the principal-scoped memory seed API milestone slice to `tested` now that both `tests/smoke_runtime_api.py` and the approved host smoke path explicitly cover that surface.

@@ -17,8 +17,8 @@ Usage:
 Runs a Postgres-backed smoke path against an isolated smoke database:
   1) starts ea-db with docker compose
   2) resets isolated smoke DB
-  3) starts ea-api pinned to isolated DB
-  4) applies kernel migrations
+  3) applies kernel migrations
+  4) starts ea-api pinned to isolated DB
   5) verifies /health/ready reason is postgres_ready
   6) runs scripts/smoke_api.sh
   7) verifies DB row growth for core runtime tables
@@ -235,9 +235,6 @@ if [[ "${env_had_file}" == "1" ]]; then
   restore_api_env=1
 fi
 
-echo "== smoke-postgres: compose up (api) =="
-"${DC[@]}" up -d --build ea-api
-
 echo "== smoke-postgres: bootstrap migrations =="
 POSTGRES_DB="${SMOKE_DB}" bash scripts/db_bootstrap.sh
 
@@ -246,6 +243,9 @@ if [[ "${legacy_fixture}" == "1" ]]; then
   echo "smoke-postgres legacy fixture complete (${SMOKE_DB})"
   exit 0
 fi
+
+echo "== smoke-postgres: compose up (api) =="
+"${DC[@]}" up -d --build ea-api
 
 echo "== smoke-postgres: readiness check =="
 ready_json=""

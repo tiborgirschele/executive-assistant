@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-172 | P1 | Expose direct tool-receipt and run-cost lookup APIs with docs/smoke coverage | codex | queued | Session projections already include receipts and costs, but operators still lack direct lookup endpoints for those records |
+| Q-174 | P1 | Introduce a durable execution queue and inline worker path for resumable step execution | codex | queued | Approval now resumes inline, but the runtime still lacks a true queued execution engine and worker lease model |
 
 ## In Progress
 
@@ -202,6 +202,8 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | D-169 | P1 | Expand Postgres repository contract matrix beyond artifact/channel runtime surfaces | codex | done | Added approvals/policy-decisions/task-contracts Postgres integration tests, wired them into `scripts/test_postgres_contracts.sh`, updated milestone/docs, and queued the next verification slice |
 | D-170 | P1 | Promote principal-scoped memory seed APIs from wired to tested with explicit CI/assertion coverage | codex | done | Tightened milestone/release-asset/operator-contract checks around the existing memory smoke surface, promoted the milestone capability to `tested`, and queued direct artifact lookup as the next slice |
 | D-171 | P1 | Expose direct artifact lookup over the durable artifact repository with API/docs/smoke coverage | codex | done | Added `GET /v1/rewrite/artifacts/{artifact_id}`, extended API/docs/release-asset coverage, and folded the fetch path into the approved host smoke run |
+| D-172 | P1 | Expose direct tool-receipt and run-cost lookup APIs with docs/smoke coverage | codex | done | Added direct rewrite receipt/run-cost fetch routes, extended smoke/docs/milestone coverage, and queued approval-request lookup as the next slice |
+| D-173 | P1 | Make approval decisions resume rewrite execution to completion | codex | done | Persisted resumable rewrite input on the waiting step, resumed approved rewrites inline to artifact/receipt/run-cost completion, extended host smoke coverage, and queued the durable execution-queue slice next |
 
 ## Intake Template
 

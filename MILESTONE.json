@@ -186,6 +186,23 @@
         "rewrite_artifact_fetch_api"
       ],
       "notes": "Rewrite artifacts can now be fetched directly over HTTP, with README/RUNBOOK examples plus approved smoke-path coverage keeping the durable artifact store observable."
+    },
+    {
+      "name": "receipt_and_run_cost_lookup_api_exposure",
+      "status": "tested",
+      "scope": [
+        "rewrite_receipt_fetch_api",
+        "rewrite_run_cost_fetch_api"
+      ],
+      "notes": "Execution proof records now have direct HTTP lookup routes, and both in-process tests and the approved host smoke path assert them."
+    },
+    {
+      "name": "approval_resume_execution",
+      "status": "tested",
+      "scope": [
+        "approved_rewrite_inline_resume"
+      ],
+      "notes": "Approving a paused rewrite now resumes the existing execution step and completes artifact/receipt/run-cost persistence instead of leaving the session stranded in an intermediate state."
     }
   ],
   "migrations": [

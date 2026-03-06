@@ -95,6 +95,66 @@ class RewriteOrchestrator:
             steps=(step,),
         )
 
+    def _complete_rewrite_step(self, session_id: str, rewrite_step: ExecutionStep) -> Artifact:
+        input_json = dict(rewrite_step.input_json or {})
+        source_text = str(input_json.get("source_text") or "")
+        artifact_kind = str(input_json.get("expected_artifact") or "rewrite_note")
+        plan_id = str(input_json.get("plan_id") or "")
+        plan_step_key = str(input_json.get("plan_step_key") or "")
+        tool_name = str(input_json.get("tool_name") or "artifact_repository") or "artifact_repository"
+
+        self._ledger.append_event(
+            session_id,
+            "input_validated",
+            {"text_length": len(source_text)},
+        )
+        artifact = Artifact(
+            artifact_id=str(uuid.uuid4()),
+            kind=artifact_kind,
+            content=source_text,
+            execution_session_id=session_id,
+        )
+        self._artifacts.save(artifact)
+        self._ledger.append_tool_receipt(
+            session_id,
+            rewrite_step.step_id,
+            tool_name=tool_name,
+            action_kind="artifact.save",
+            target_ref=artifact.artifact_id,
+            receipt_json={"artifact_kind": artifact.kind, "plan_id": plan_id, "plan_step_key": plan_step_key},
+        )
+        self._ledger.append_run_cost(
+            session_id,
+            model_name="none",
+            tokens_in=0,
+            tokens_out=0,
+            cost_usd=0.0,
+        )
+        self._ledger.update_step(
+            rewrite_step.step_id,
+            state="completed",
+            output_json={
+                "artifact_id": artifact.artifact_id,
+                "artifact_kind": artifact.kind,
+                "plan_id": plan_id,
+                "plan_step_key": plan_step_key,
+            },
+            error_json={},
+        )
+        self._ledger.append_event(
+            session_id,
+            "artifact_persisted",
+            {
+                "artifact_id": artifact.artifact_id,
+                "artifact_kind": artifact.kind,
+                "plan_id": plan_id,
+                "plan_step_key": plan_step_key,
+            },
+        )
+        self._ledger.complete_session(session_id, status="completed")
+        self._ledger.append_event(session_id, "session_completed", {"status": "completed"})
+        return artifact
+
     def build_artifact(self, req: RewriteRequest) -> Artifact:
         if self._planner:
             intent, plan = self._planner.build_plan(
@@ -148,6 +208,7 @@ class RewriteOrchestrator:
             session.session_id,
             primary_step.step_kind or "tool_call",
             input_json={
+                "source_text": normalized_text,
                 "text_length": len(normalized_text),
                 "plan_id": plan.plan_id,
                 "plan_step_key": primary_step.step_key,
@@ -217,59 +278,16 @@ class RewriteOrchestrator:
                 {"reason": "approval_required", "approval_id": approval_request.approval_id},
             )
             raise PolicyDeniedError("approval_required")
-        self._ledger.append_event(
-            session.session_id,
-            "input_validated",
-            {"text_length": len(normalized_text)},
-        )
-        artifact = Artifact(
-            artifact_id=str(uuid.uuid4()),
-            kind="rewrite_note",
-            content=normalized_text,
-            execution_session_id=session.session_id,
-        )
-        self._artifacts.save(artifact)
-        self._ledger.append_tool_receipt(
-            session.session_id,
-            rewrite_step.step_id,
-            tool_name=primary_step.tool_name or "artifact_repository",
-            action_kind="artifact.save",
-            target_ref=artifact.artifact_id,
-            receipt_json={"artifact_kind": artifact.kind, "plan_id": plan.plan_id, "plan_step_key": primary_step.step_key},
-        )
-        self._ledger.append_run_cost(
-            session.session_id,
-            model_name="none",
-            tokens_in=0,
-            tokens_out=0,
-            cost_usd=0.0,
-        )
-        self._ledger.update_step(
-            rewrite_step.step_id,
-            state="completed",
-            output_json={
-                "artifact_id": artifact.artifact_id,
-                "artifact_kind": artifact.kind,
-                "plan_id": plan.plan_id,
-                "plan_step_key": primary_step.step_key,
-            },
-        )
-        self._ledger.append_event(
-            session.session_id,
-            "artifact_persisted",
-            {
-                "artifact_id": artifact.artifact_id,
-                "artifact_kind": artifact.kind,
-                "plan_id": plan.plan_id,
-                "plan_step_key": primary_step.step_key,
-            },
-        )
-        self._ledger.complete_session(session.session_id, status="completed")
-        self._ledger.append_event(session.session_id, "session_completed", {"status": "completed"})
-        return artifact
+        return self._complete_rewrite_step(session.session_id, rewrite_step)
 
     def fetch_artifact(self, artifact_id: str) -> Artifact | None:
         return self._artifacts.get(artifact_id)
+
+    def fetch_receipt(self, receipt_id: str) -> ToolReceipt | None:
+        return self._ledger.get_receipt(receipt_id)
+
+    def fetch_run_cost(self, cost_id: str) -> RunCost | None:
+        return self._ledger.get_run_cost(cost_id)
 
     def fetch_session(self, session_id: str) -> ExecutionSessionSnapshot | None:
         session = self._ledger.get_session(session_id)
@@ -323,13 +341,19 @@ class RewriteOrchestrator:
             },
         )
         if decision_row.decision == "approved":
-            self._ledger.update_step(
+            updated_step = self._ledger.update_step(
                 request.step_id,
                 state="queued",
                 output_json={"approval_id": request.approval_id, "decision": "approved"},
                 error_json={},
             )
-            self._ledger.complete_session(request.session_id, status="approved_pending_execution")
+            self._ledger.append_event(
+                request.session_id,
+                "session_resumed_from_approval",
+                {"approval_id": request.approval_id, "step_id": request.step_id},
+            )
+            if updated_step is not None:
+                self._complete_rewrite_step(request.session_id, updated_step)
         else:
             self._ledger.update_step(
                 request.step_id,

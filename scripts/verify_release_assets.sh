@@ -204,6 +204,56 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "receipt_and_run_cost_lookup_api_exposure")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "/v1/rewrite/receipts/{receipt_id}" "README.md" && \
+     grep -Fq "/v1/rewrite/run-costs/{cost_id}" "README.md" && \
+     grep -Fq "/v1/rewrite/receipts/{receipt_id}" "RUNBOOK.md" && \
+     grep -Fq "/v1/rewrite/run-costs/{cost_id}" "RUNBOOK.md" && \
+     grep -Fq "/v1/rewrite/receipts/{{receipt_id}}" "HTTP_EXAMPLES.http" && \
+     grep -Fq "/v1/rewrite/run-costs/{{cost_id}}" "HTTP_EXAMPLES.http" && \
+     grep -Fq '/v1/rewrite/receipts/${RECEIPT_ID}' "scripts/smoke_api.sh" && \
+     grep -Fq '/v1/rewrite/run-costs/${COST_ID}' "scripts/smoke_api.sh"; then
+    echo "ok: receipt and run-cost lookup route docs"
+  else
+    echo "missing: receipt and run-cost lookup route docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: receipt and run-cost lookup milestone status" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "approval_resume_execution")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "resumes execution inline" "README.md" && \
+     grep -Fq "resumes execution immediately" "RUNBOOK.md" && \
+     grep -Fq "approve and resume execution" "HTTP_EXAMPLES.http" && \
+     grep -Fq "approval resume path ok" "scripts/smoke_api.sh"; then
+    echo "ok: approval resume execution docs"
+  else
+    echo "missing: approval resume execution docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: approval resume execution milestone status" >&2
+  missing=1
+fi
+
 if grep -Fq 'Gate-bundle hardening flags are tracked in `MILESTONE.json` release tags' "README.md"; then
   echo "ok: README milestone gate-tag pointer"
 else

@@ -72,6 +72,9 @@ class ExecutionLedgerRepository(Protocol):
     def receipts_for(self, session_id: str) -> list[ToolReceipt]:
         ...
 
+    def get_receipt(self, receipt_id: str) -> ToolReceipt | None:
+        ...
+
     def append_run_cost(
         self,
         session_id: str,
@@ -84,6 +87,9 @@ class ExecutionLedgerRepository(Protocol):
         ...
 
     def run_costs_for(self, session_id: str) -> list[RunCost]:
+        ...
+
+    def get_run_cost(self, cost_id: str) -> RunCost | None:
         ...
 
 
@@ -238,6 +244,9 @@ class InMemoryExecutionLedgerRepository:
         sid = str(session_id or "")
         return [self._receipts[i] for i in self._receipt_order.get(sid, []) if i in self._receipts]
 
+    def get_receipt(self, receipt_id: str) -> ToolReceipt | None:
+        return self._receipts.get(str(receipt_id or ""))
+
     def append_run_cost(
         self,
         session_id: str,
@@ -266,3 +275,6 @@ class InMemoryExecutionLedgerRepository:
     def run_costs_for(self, session_id: str) -> list[RunCost]:
         sid = str(session_id or "")
         return [self._costs[i] for i in self._cost_order.get(sid, []) if i in self._costs]
+
+    def get_run_cost(self, cost_id: str) -> RunCost | None:
+        return self._costs.get(str(cost_id or ""))

@@ -202,3 +202,40 @@ def get_artifact(
         content=found.content,
         execution_session_id=found.execution_session_id,
     )
+
+
+@router.get("/receipts/{receipt_id}")
+def get_receipt(
+    receipt_id: str,
+    container: AppContainer = Depends(get_container),
+) -> SessionReceiptOut:
+    found = container.orchestrator.fetch_receipt(receipt_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="receipt_not_found")
+    return SessionReceiptOut(
+        receipt_id=found.receipt_id,
+        step_id=found.step_id,
+        tool_name=found.tool_name,
+        action_kind=found.action_kind,
+        target_ref=found.target_ref,
+        receipt_json=found.receipt_json,
+        created_at=found.created_at,
+    )
+
+
+@router.get("/run-costs/{cost_id}")
+def get_run_cost(
+    cost_id: str,
+    container: AppContainer = Depends(get_container),
+) -> SessionRunCostOut:
+    found = container.orchestrator.fetch_run_cost(cost_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="run_cost_not_found")
+    return SessionRunCostOut(
+        cost_id=found.cost_id,
+        model_name=found.model_name,
+        tokens_in=found.tokens_in,
+        tokens_out=found.tokens_out,
+        cost_usd=found.cost_usd,
+        created_at=found.created_at,
+    )

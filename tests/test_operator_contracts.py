@@ -116,6 +116,44 @@ def test_artifact_lookup_docs_and_milestone_cover_direct_fetch() -> None:
     assert capability["status"] == "tested"
 
 
+def test_receipt_and_run_cost_lookup_docs_and_milestone_cover_direct_fetch() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "/v1/rewrite/receipts/{receipt_id}" in readme
+    assert "/v1/rewrite/run-costs/{cost_id}" in readme
+    assert "/v1/rewrite/receipts/{receipt_id}" in runbook
+    assert "/v1/rewrite/run-costs/{cost_id}" in runbook
+    assert "/v1/rewrite/receipts/{{receipt_id}}" in http_examples
+    assert "/v1/rewrite/run-costs/{{cost_id}}" in http_examples
+    assert "/v1/rewrite/receipts/${RECEIPT_ID}" in smoke_api
+    assert "/v1/rewrite/run-costs/${COST_ID}" in smoke_api
+
+    capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "receipt_and_run_cost_lookup_api_exposure"
+    )
+    assert capability["status"] == "tested"
+
+
+def test_approval_resume_docs_and_milestone_cover_inline_completion() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "resumes execution inline" in readme
+    assert "resumes execution immediately" in runbook
+    assert "approve and resume execution" in http_examples
+    assert "approval resume path ok" in smoke_api
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "approval_resume_execution")
+    assert capability["status"] == "tested"
+
+
 def test_milestone_marks_postgres_contract_matrix_tested() -> None:
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "postgres_contract_matrix")
