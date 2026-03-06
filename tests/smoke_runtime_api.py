@@ -1698,6 +1698,23 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
     ]
     assert ownerless_unassigned_created_ids == [ownerless_task_id, ownerless_newer_task_id]
 
+    ownerless_list_created = client.get(
+        "/v1/human/tasks",
+        params={
+            "status": "pending",
+            "assignment_state": "unassigned",
+            "assignment_source": "none",
+            "sort": "created_asc",
+        },
+    )
+    assert ownerless_list_created.status_code == 200
+    ownerless_list_created_ids = [
+        row["human_task_id"]
+        for row in ownerless_list_created.json()
+        if row["human_task_id"] in {ownerless_task_id, ownerless_newer_task_id}
+    ]
+    assert ownerless_list_created_ids == [ownerless_task_id, ownerless_newer_task_id]
+
     auto_summary = client.get(
         "/v1/human/tasks/priority-summary",
         params={"status": "pending", "assignment_source": "auto_preselected"},
