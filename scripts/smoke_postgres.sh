@@ -226,7 +226,7 @@ fi
 if grep -q '^EA_STORAGE_BACKEND=' "${EA_ROOT}/.env"; then
   sed -i 's|^EA_STORAGE_BACKEND=.*$|EA_STORAGE_BACKEND=postgres|' "${EA_ROOT}/.env"
 elif grep -q '^EA_LEDGER_BACKEND=' "${EA_ROOT}/.env"; then
-  sed -i 's|^EA_LEDGER_BACKEND=.*$|EA_LEDGER_BACKEND=postgres|' "${EA_ROOT}/.env"
+  sed -i 's|^EA_LEDGER_BACKEND=.*$|EA_STORAGE_BACKEND=postgres|' "${EA_ROOT}/.env"
 else
   echo 'EA_STORAGE_BACKEND=postgres' >> "${EA_ROOT}/.env"
 fi

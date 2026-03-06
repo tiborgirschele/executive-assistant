@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| - | - | - | - | - | - |
+| Q-172 | P1 | Expose direct tool-receipt and run-cost lookup APIs with docs/smoke coverage | codex | queued | Session projections already include receipts and costs, but operators still lack direct lookup endpoints for those records |
 
 ## In Progress
 
@@ -188,6 +188,20 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | D-155 | P3 | Add help contracts for endpoint/version/OpenAPI helper scripts | codex | done | Added `--help` to endpoint/version/OpenAPI scripts, wired them into `make operator-help` + `scripts/smoke_help.sh`, and extended docs/guards/contracts |
 | D-156 | P3 | Add smoke-help help contract and include it in operator-help | codex | done | Added `--help` to `scripts/smoke_help.sh`, included it in `make operator-help`, and extended docs/guards/contracts |
 | D-157 | P3 | Add task-archive shortcut visibility to operator summary | codex | done | Operator summary now includes archive/prune/dry-run commands with docs, release-asset guards, and contract coverage |
+| D-158 | P1 | Canonicalize storage backend env contract and deprecate `EA_LEDGER_BACKEND` explicitly | codex | done | Added explicit deprecation warnings in settings, moved docs/env matrix to `EA_STORAGE_BACKEND`, removed alias use from smoke tests, and added release-asset coverage |
+| D-159 | P1 | Deepen policy decision inputs beyond rewrite-length guardrails | codex | done | Policy now considers tool/action/channel/risk/budget metadata, denies disallowed tools, and aligns rewrite contracts/examples/tests on `artifact_repository` |
+| D-160 | P1 | Add stronger Postgres-backed CI/test coverage beyond smoke-only flows | codex | done | Added isolated Postgres repository contract tests, `scripts/test_postgres_contracts.sh`, `make test-postgres-contracts`, and a matching GitHub Actions job |
+| D-161 | P2 | Add operator-facing DB size/pgdata explanation tests and docs parity | codex | done | `db_size.sh`, README, and RUNBOOK now explain that `ea_pgdata` is the on-disk Postgres volume at `/var/lib/postgresql/data`, not RAM, with verifier/test coverage |
+| D-162 | P2 | Rework milestone state semantics from flat features to implementation status | codex | done | `MILESTONE.json` now uses planned/coded/wired/tested/released capability statuses plus separate release tags, and docs/checks now point to release-tag parity instead of flat feature bags |
+| D-163 | P2 | Add focused rewrite API coverage for the disallowed-tool policy branch | codex | done | Added a dedicated rewrite-route test asserting `policy_denied:tool_not_allowed` when task contracts exclude the executing tool |
+| D-164 | P2 | Add script-backed Docker-volume attribution checks for `ea_pgdata` support bundles | codex | done | Support bundles now capture expected pgdata volume/mount details plus live `ea-db` mount inspection output, with docs and verifier coverage |
+| D-165 | P2 | Surface milestone capability-status summary in `version_info.sh` for quick operator truth checks | codex | done | `version_info.sh` now prints milestone status counts and release tags from `MILESTONE.json`, with docs and operator-contract coverage |
+| D-166 | P2 | Remove remaining default env-template/checklist drift toward deprecated `EA_LEDGER_BACKEND` | codex | done | Updated env templates, release checklist, and smoke-postgres env rewriting to prefer `EA_STORAGE_BACKEND` while keeping runtime alias compatibility in code |
+| D-167 | P2 | Expose an HTTP path that exercises policy approval for external-send actions | codex | done | Added `POST /v1/policy/evaluate` plus API/docs/milestone coverage so external-send approval logic is reachable without rewrite artifact execution |
+| D-168 | P2 | Extend approved smoke-script coverage to assert external-send policy evaluation | codex | done | `scripts/smoke_api.sh` now validates `/v1/policy/evaluate`, and the preapproved `scripts/smoke_postgres.sh` host path inherits that check automatically |
+| D-169 | P1 | Expand Postgres repository contract matrix beyond artifact/channel runtime surfaces | codex | done | Added approvals/policy-decisions/task-contracts Postgres integration tests, wired them into `scripts/test_postgres_contracts.sh`, updated milestone/docs, and queued the next verification slice |
+| D-170 | P1 | Promote principal-scoped memory seed APIs from wired to tested with explicit CI/assertion coverage | codex | done | Tightened milestone/release-asset/operator-contract checks around the existing memory smoke surface, promoted the milestone capability to `tested`, and queued direct artifact lookup as the next slice |
+| D-171 | P1 | Expose direct artifact lookup over the durable artifact repository with API/docs/smoke coverage | codex | done | Added `GET /v1/rewrite/artifacts/{artifact_id}`, extended API/docs/release-asset coverage, and folded the fetch path into the approved host smoke run |
 
 ## Intake Template
 

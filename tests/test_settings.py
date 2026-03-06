@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 
 from app.settings import get_settings
 
@@ -45,18 +46,24 @@ def test_settings_legacy_backend_fallback() -> None:
     _clear_env()
     os.environ["EA_LEDGER_BACKEND"] = "postgres"
     os.environ["DATABASE_URL"] = "postgresql://example.invalid/ea"
-    s = get_settings()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        s = get_settings()
     assert s.storage.backend == "postgres"
     assert s.ledger_backend == "postgres"
     assert s.database_url == "postgresql://example.invalid/ea"
+    assert any("EA_LEDGER_BACKEND is deprecated" in str(w.message) for w in caught)
 
 
 def test_settings_explicit_storage_backend_wins() -> None:
     _clear_env()
     os.environ["EA_LEDGER_BACKEND"] = "memory"
     os.environ["EA_STORAGE_BACKEND"] = "postgres"
-    s = get_settings()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        s = get_settings()
     assert s.storage.backend == "postgres"
+    assert any("ignored when EA_STORAGE_BACKEND is set" in str(w.message) for w in caught)
 
 
 def test_policy_threshold_overrides() -> None:

@@ -1,83 +1,192 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.35.0",
+  "version": "0.36.0",
   "date": "2026-03-05",
-  "features": [
-    "execution_ledger",
-    "policy_decision_audit",
-    "channel_observations",
-    "delivery_outbox",
-    "telegram_adapter_ingest",
-    "api_smoke_tests",
-    "ci_smoke_workflow",
-    "operator_runbook",
-    "dependency_injected_routes",
-    "error_envelope_contract",
-    "health_live_ready_version",
-    "token_auth_gate",
-    "durable_artifacts",
-    "execution_steps",
-    "tool_receipts",
-    "run_costs",
-    "session_projection_v2",
-    "approval_requests",
-    "approval_decisions",
-    "approval_decision_api",
-    "observation_dedupe_context",
-    "outbox_retry_idempotency",
-    "tool_registry_kernel",
-    "connector_bindings_kernel",
-    "task_contracts_kernel",
-    "contract_driven_rewrite_intent",
-    "plan_compiler_dsl",
-    "plan_step_execution_kernel",
-    "memory_kernel_seed",
-    "memory_candidate_promotion_api",
-    "semantic_entities_seed",
-    "semantic_relationships_seed",
-    "commitments_seed",
-    "principal_scoped_commitments_api",
-    "authority_bindings_seed",
-    "principal_scoped_authority_bindings_api",
-    "delivery_preferences_seed",
-    "principal_scoped_delivery_preferences_api",
-    "follow_ups_seed",
-    "principal_scoped_follow_ups_api",
-    "deadline_windows_seed",
-    "principal_scoped_deadline_windows_api",
-    "stakeholders_seed",
-    "principal_scoped_stakeholders_api",
-    "decision_windows_seed",
-    "principal_scoped_decision_windows_api",
-    "communication_policies_seed",
-    "principal_scoped_communication_policies_api",
-    "follow_up_rules_seed",
-    "principal_scoped_follow_up_rules_api",
-    "interruption_budgets_seed",
-    "principal_scoped_interruption_budgets_api",
-    "db_size_visibility",
-    "db_size_schema_filter",
-    "db_size_sort_key_selector",
-    "db_size_table_prefix_filter",
-    "db_size_min_mb_filter",
-    "db_retention_baseline",
-    "db_retention_profile_presets",
-    "db_retention_table_filters",
-    "support_bundle_db_size_snapshot",
-    "postgres_smoke_path",
-    "ci_postgres_smoke_job",
-    "ci_gates_postgres_local_target",
-    "postgres_legacy_fixture_smoke",
-    "ci_postgres_legacy_smoke_job",
-    "ci_gates_postgres_legacy_local_target",
-    "postgres_smoke_isolated_db",
-    "execution_ledger_v2_uuid_text_compat",
-    "approvals_legacy_schema_compat",
-    "env_example_template_tracked",
-    "script_help_contracts",
+  "status_model": {
+    "planned": "scoped but not yet implemented in the current branch",
+    "coded": "landed in code but not yet wired across the runtime/docs/tests surface",
+    "wired": "connected through runtime/docs with narrower verification than release-grade gates",
+    "tested": "implemented and covered by local/CI verification, but primarily operator or internal-facing",
+    "released": "implemented, wired, documented, and exposed as current branch baseline behavior"
+  },
+  "release_tags": [
     "ci_gate_bundle",
     "release_preflight_bundle",
-    "docs_verify_alias"
+    "docs_verify_alias",
+    "postgres_legacy_fixture_smoke",
+    "ci_postgres_legacy_smoke_job",
+    "ci_gates_postgres_legacy_local_target"
+  ],
+  "capabilities": [
+    {
+      "name": "runtime_api_baseline",
+      "status": "released",
+      "scope": [
+        "execution_ledger",
+        "policy_decision_audit",
+        "channel_observations",
+        "delivery_outbox",
+        "telegram_adapter_ingest",
+        "dependency_injected_routes",
+        "error_envelope_contract",
+        "health_live_ready_version",
+        "token_auth_gate"
+      ],
+      "notes": "Core FastAPI runtime routes, dependency injection, auth, and health/version contracts are wired and documented."
+    },
+    {
+      "name": "execution_and_approval_audit_kernel",
+      "status": "released",
+      "scope": [
+        "durable_artifacts",
+        "execution_steps",
+        "tool_receipts",
+        "run_costs",
+        "session_projection_v2",
+        "approval_requests",
+        "approval_decisions",
+        "approval_decision_api",
+        "execution_ledger_v2_uuid_text_compat",
+        "approvals_legacy_schema_compat"
+      ],
+      "notes": "Rewrite sessions persist durable artifacts, explicit steps, receipts, run costs, and approval state with legacy schema upgrade compatibility."
+    },
+    {
+      "name": "observation_and_delivery_reliability_kernel",
+      "status": "released",
+      "scope": [
+        "observation_dedupe_context",
+        "outbox_retry_idempotency"
+      ],
+      "notes": "Observation attribution and delivery retry/idempotency fields are wired through the current runtime APIs and repositories."
+    },
+    {
+      "name": "tool_contract_and_planner_kernel",
+      "status": "released",
+      "scope": [
+        "tool_registry_kernel",
+        "connector_bindings_kernel",
+        "task_contracts_kernel",
+        "contract_driven_rewrite_intent",
+        "plan_compiler_dsl",
+        "plan_step_execution_kernel"
+      ],
+      "notes": "Typed task contracts compile rewrite intent into plan metadata and drive the current orchestrator path."
+    },
+    {
+      "name": "principal_scoped_memory_seed_apis",
+      "status": "tested",
+      "scope": [
+        "memory_kernel_seed",
+        "memory_candidate_promotion_api",
+        "semantic_entities_seed",
+        "semantic_relationships_seed",
+        "commitments_seed",
+        "principal_scoped_commitments_api",
+        "authority_bindings_seed",
+        "principal_scoped_authority_bindings_api",
+        "delivery_preferences_seed",
+        "principal_scoped_delivery_preferences_api",
+        "follow_ups_seed",
+        "principal_scoped_follow_ups_api",
+        "deadline_windows_seed",
+        "principal_scoped_deadline_windows_api",
+        "stakeholders_seed",
+        "principal_scoped_stakeholders_api",
+        "decision_windows_seed",
+        "principal_scoped_decision_windows_api",
+        "communication_policies_seed",
+        "principal_scoped_communication_policies_api",
+        "follow_up_rules_seed",
+        "principal_scoped_follow_up_rules_api",
+        "interruption_budgets_seed",
+        "principal_scoped_interruption_budgets_api"
+      ],
+      "notes": "Principal-scoped memory seed stores and APIs are exercised by both `tests/smoke_runtime_api.py` and the approved host smoke path (`scripts/smoke_api.sh` via `scripts/smoke_postgres.sh`), so the surface is now explicitly test-backed."
+    },
+    {
+      "name": "operator_db_visibility_and_retention",
+      "status": "tested",
+      "scope": [
+        "db_size_visibility",
+        "db_size_schema_filter",
+        "db_size_sort_key_selector",
+        "db_size_table_prefix_filter",
+        "db_size_min_mb_filter",
+        "db_retention_baseline",
+        "db_retention_profile_presets",
+        "db_retention_table_filters",
+        "support_bundle_db_size_snapshot"
+      ],
+      "notes": "Operator scripts explain DB size, retention, and pgdata footprint and are checked by release-asset and operator contract tests."
+    },
+    {
+      "name": "smoke_and_release_gate_bundle",
+      "status": "tested",
+      "scope": [
+        "api_smoke_tests",
+        "ci_smoke_workflow",
+        "operator_runbook",
+        "postgres_smoke_path",
+        "ci_postgres_smoke_job",
+        "ci_gates_postgres_local_target",
+        "postgres_legacy_fixture_smoke",
+        "ci_postgres_legacy_smoke_job",
+        "ci_gates_postgres_legacy_local_target",
+        "postgres_smoke_isolated_db",
+        "env_example_template_tracked",
+        "script_help_contracts",
+        "ci_gate_bundle",
+        "release_preflight_bundle",
+        "docs_verify_alias"
+      ],
+      "notes": "Local and CI smoke gates cover memory, Postgres, legacy migration, help-contract, and release-asset verification flows."
+    },
+    {
+      "name": "postgres_contract_matrix",
+      "status": "tested",
+      "scope": [
+        "postgres_artifact_contracts",
+        "postgres_channel_runtime_contracts",
+        "postgres_approval_contracts",
+        "postgres_policy_decision_contracts",
+        "postgres_task_contract_contracts",
+        "postgres_contract_ci_matrix"
+      ],
+      "notes": "The host-side Postgres contract runner and CI job now cover artifacts, channel runtime, approvals, policy decisions, and task contracts beyond smoke-only API flows."
+    },
+    {
+      "name": "rewrite_policy_disallowed_tool_api_coverage",
+      "status": "tested",
+      "scope": [
+        "rewrite_tool_contract_denial_api"
+      ],
+      "notes": "HTTP-level coverage now asserts that rewrite contracts denying `artifact_repository` return `policy_denied:tool_not_allowed`."
+    },
+    {
+      "name": "support_bundle_pgdata_attribution",
+      "status": "tested",
+      "scope": [
+        "support_bundle_pgdata_volume_attribution"
+      ],
+      "notes": "Support bundles now capture expected volume/mount details plus live `ea-db` mount inspection output for pgdata investigations."
+    },
+    {
+      "name": "external_action_policy_api_exposure",
+      "status": "tested",
+      "scope": [
+        "policy_external_action_api_coverage"
+      ],
+      "notes": "HTTP policy evaluation now exposes external-send approval checks directly, with docs/examples and API coverage backing queue item Q-167."
+    },
+    {
+      "name": "artifact_lookup_api_exposure",
+      "status": "tested",
+      "scope": [
+        "rewrite_artifact_fetch_api"
+      ],
+      "notes": "Rewrite artifacts can now be fetched directly over HTTP, with README/RUNBOOK examples plus approved smoke-path coverage keeping the durable artifact store observable."
+    }
   ],
   "migrations": [
     "ea/schema/20260305_v0_2_execution_ledger_kernel.sql",
@@ -104,7 +213,7 @@
   ],
   "env_contract": {
     "EA_STORAGE_BACKEND": "memory|postgres|auto",
-    "EA_LEDGER_BACKEND": "legacy_alias_for_EA_STORAGE_BACKEND",
+    "EA_LEDGER_BACKEND": "deprecated_legacy_alias_for_EA_STORAGE_BACKEND",
     "DATABASE_URL": "required_for_postgres",
     "EA_BOOTSTRAP_DB": "0|1",
     "EA_API_TOKEN": "optional_bearer_token_for_non_health_routes",

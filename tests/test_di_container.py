@@ -9,6 +9,7 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
 from app.domain.models import Artifact, RewriteRequest
+from app.services.policy import PolicyDeniedError
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,18 @@ class _FakeOrchestrator:
             content="fake-content",
             execution_session_id="session-fake",
         )
+
+    def fetch_session(self, session_id: str):
+        return None
+
+    def list_policy_decisions(self, limit: int = 50, session_id: str | None = None):
+        return []
+
+
+class _FakeDeniedOrchestrator:
+    def build_artifact(self, req: RewriteRequest) -> Artifact:
+        assert req.text == "from-fake"
+        raise PolicyDeniedError("tool_not_allowed")
 
     def fetch_session(self, session_id: str):
         return None
@@ -232,6 +245,12 @@ class _FakeContainer:
         self.readiness = _FakeReadiness()
 
 
+class _FakeDeniedContainer(_FakeContainer):
+    def __init__(self) -> None:
+        super().__init__()
+        self.orchestrator = _FakeDeniedOrchestrator()
+
+
 def test_routes_use_app_state_container_dependency() -> None:
     os.environ["EA_STORAGE_BACKEND"] = "memory"
     os.environ["EA_API_TOKEN"] = ""
@@ -245,3 +264,17 @@ def test_routes_use_app_state_container_dependency() -> None:
     assert resp.status_code == 200
     assert resp.json()["artifact_id"] == "artifact-fake"
     assert resp.json()["content"] == "fake-content"
+
+
+def test_rewrite_route_maps_tool_not_allowed_policy_denial() -> None:
+    os.environ["EA_STORAGE_BACKEND"] = "memory"
+    os.environ["EA_API_TOKEN"] = ""
+    from app.api.app import create_app
+
+    app = create_app()
+    app.state.container = _FakeDeniedContainer()
+    client = TestClient(app)
+
+    resp = client.post("/v1/rewrite/artifact", json={"text": "from-fake"})
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "policy_denied:tool_not_allowed"

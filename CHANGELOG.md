@@ -42,6 +42,10 @@ All notable changes to the rewrite-kernel baseline are documented here.
   - `PlannerService` compiles `IntentSpecV3` + typed `PlanSpec`/`PlanStepSpec`
   - `POST /v1/plans/compile` emits plan projections from task contracts
   - rewrite orchestration now executes with compiled plan metadata and writes `plan_compiled` events
+- Policy decision hardening:
+  - rewrite policy now enforces declared allowed-tool contracts against the executing tool name
+  - rewrite policy approval gating now also considers task risk/budget metadata and external-send action kinds
+  - rewrite contract defaults/examples now align on `artifact_repository` instead of stale `rewrite_store`
 - Memory kernel seed primitives:
   - `memory_candidates` store for reviewable memory promotion queue entries
   - `memory_items` store for promoted durable memory entries with provenance
@@ -116,6 +120,18 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - CI/local gate bundle tooling and docs (`make ci-gates`, `make release-smoke`, `make release-preflight`, `make docs-verify`, `make release-docs`, script `--help` contracts).
 - CI smoke workflow: `.github/workflows/smoke-runtime.yml`
 - Runtime API smoke tests: `tests/smoke_runtime_api.py`
+- DB size/operator clarity:
+  - `db_size.sh` now explains that Compose volume `ea_pgdata` maps to `/var/lib/postgresql/data`
+  - README/RUNBOOK now state that large `/var/lib/docker/volumes/.../ea_pgdata` paths are on-disk Postgres state, not RAM
+- Support bundle export now includes ea-db volume/mount attribution by default (`SUPPORT_INCLUDE_DB_VOLUME`) so pgdata investigations capture the backing host path.
+- `version_info.sh` now prints milestone capability-status counts and release tags for quick operator truth checks.
+- Added `scripts/test_postgres_contracts.sh`, `make test-postgres-contracts`, a Postgres repository contract test file, and a matching CI job so Postgres wiring is exercised beyond smoke-only flows.
+- Added dedicated rewrite-route coverage for `policy_denied:tool_not_allowed` so task-contract tool mismatches are asserted at the HTTP layer.
+- Added `POST /v1/policy/evaluate` plus docs/examples/tests so external-send approval checks are reachable over HTTP without going through rewrite artifact saves.
+- Added `GET /v1/rewrite/artifacts/{artifact_id}` plus docs/examples/tests so persisted artifacts are directly retrievable over HTTP.
+- `scripts/smoke_api.sh` now asserts `/v1/policy/evaluate` returns approval-required for external-send actions, which automatically extends the existing Postgres smoke path.
+- `scripts/test_postgres_contracts.sh` now exercises approvals, policy decisions, and task contracts in addition to the existing artifact/channel-runtime Postgres repository contracts.
+- Promoted the principal-scoped memory seed API milestone slice to `tested` now that both `tests/smoke_runtime_api.py` and the approved host smoke path explicitly cover that surface.
 
 - Added tracked `.env.example` template for default Postgres-capable local profile setup.
 
@@ -126,8 +142,8 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - `v0_7` approvals migration now upgrades legacy approval table variants in place by adding runtime-required columns/indexes and backfilling IDs/status fields.
 - Deploy flow can optionally chain DB bootstrap (`EA_BOOTSTRAP_DB=1`).
 - Rewrite path now emits execution ledger events and policy audit records.
-- Milestone metadata now includes CI/docs/release gate-bundle feature tags.
-- Release checklist now includes explicit milestone gate-tag parity verification.
+- Milestone metadata now uses `planned|coded|wired|tested|released` capability statuses plus CI/docs/release gate tags.
+- Release checklist now includes explicit milestone release-tag parity verification.
 - Artifact persistence now supports durable Postgres metadata + file-backed content storage.
 - Approval-required rewrite sessions now pause with `waiting_approval` steps and transition on approve/deny/expire decisions.
 - Observation ingest now supports dedupe and source attribution; delivery outbox now supports retry scheduling and idempotent enqueue.
@@ -164,6 +180,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Endpoint, version, and OpenAPI helper scripts now expose `--help` contracts and are included in `make operator-help` / `scripts/smoke_help.sh`.
 - `scripts/smoke_help.sh` now exposes its own `--help` contract and is included in `make operator-help`.
 - Operator summary output now also includes task-archive shortcuts (`make tasks-archive`, `make tasks-archive-dry-run`, `make tasks-archive-prune`).
+- `EA_STORAGE_BACKEND` is now documented as the canonical backend env var, with `EA_LEDGER_BACKEND` kept only as a deprecated compatibility alias.
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.

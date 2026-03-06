@@ -13,9 +13,11 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | GET | `/health/live` | `200` | n/a |
 | GET | `/health/ready` | `200` | `503 not_ready:*` |
 | GET | `/version` | `200` | n/a |
-| POST | `/v1/rewrite/artifact` | `200` | `400 text is required`, `403 policy_denied:*`, `409 policy_denied:approval_required` |
+| POST | `/v1/rewrite/artifact` | `200` | `400 text is required`, `403 policy_denied:*` (including `tool_not_allowed`), `409 policy_denied:approval_required` |
+| GET | `/v1/rewrite/artifacts/{artifact_id}` | `200` | `404 artifact_not_found` |
 | GET | `/v1/rewrite/sessions/{session_id}` | `200` | `404 session not found` (returns events + steps + receipts + artifacts + costs, including `plan_compiled` event) |
 | GET | `/v1/policy/decisions/recent` | `200` | n/a |
+| POST | `/v1/policy/evaluate` | `200` | validation `422` |
 | GET | `/v1/policy/approvals/pending` | `200` | n/a |
 | GET | `/v1/policy/approvals/history` | `200` | n/a |
 | POST | `/v1/policy/approvals/{approval_id}/approve` | `200` | `404 approval_not_found` |
@@ -88,6 +90,11 @@ Auth:
 - Set `EA_API_TOKEN=<token>` to require auth for all non-health routes.
 - Use `Authorization: Bearer <token>` or `X-API-Token: <token>`.
 
+Policy notes:
+- Rewrite policy denies empty input, oversized input, and disallowed tool usage.
+- Rewrite policy requires approval for explicit approval classes, long inputs, and high-risk/high-budget or external-send actions.
+- `POST /v1/policy/evaluate` provides a direct HTTP path for previewing external-send approval requirements.
+
 ## Operator Script Help Index
 
 Use `--help` (or `-h`) on key scripts to print usage contracts quickly:
@@ -102,6 +109,7 @@ Use `--help` (or `-h`) on key scripts to print usage contracts quickly:
 | `scripts/smoke_api.sh` | `bash scripts/smoke_api.sh --help` | Run API smoke contracts |
 | `scripts/smoke_help.sh` | `bash scripts/smoke_help.sh --help` | Verify `--help` usage contracts for operator scripts |
 | `scripts/smoke_postgres.sh` | `bash scripts/smoke_postgres.sh --help` | Run end-to-end Postgres-backed smoke contract |
+| `scripts/test_postgres_contracts.sh` | `bash scripts/test_postgres_contracts.sh --help` | Run isolated Postgres-backed repository contract tests |
 | `scripts/list_endpoints.sh` | `bash scripts/list_endpoints.sh --help` | Print live endpoint inventory from OpenAPI |
 | `scripts/version_info.sh` | `bash scripts/version_info.sh --help` | Print git and milestone/version fingerprint |
 | `scripts/export_openapi.sh` | `bash scripts/export_openapi.sh --help` | Export timestamped OpenAPI snapshot |
@@ -118,6 +126,8 @@ Combined index:
 make operator-help
 ```
 
+`bash scripts/version_info.sh` now prints milestone capability-status counts and release tags in addition to git branch/revision metadata.
+
 ## CI Gate Summary
 
 `smoke-runtime` workflow currently enforces:
@@ -129,9 +139,10 @@ make operator-help
   - `make verify-release-assets`
 - Postgres smoke jobs:
   - `bash scripts/smoke_postgres.sh`
+  - `bash scripts/test_postgres_contracts.sh`
   - `bash scripts/smoke_postgres.sh --legacy-fixture`
 
-Milestone tracking linkage: `MILESTONE.json` feature tags include `ci_gate_bundle`, `release_preflight_bundle`, and `docs_verify_alias`.
+Milestone tracking linkage: `MILESTONE.json` maps capabilities to `planned|coded|wired|tested|released` and exposes release tags including `ci_gate_bundle`, `release_preflight_bundle`, and `docs_verify_alias`.
 
 Local mirror command:
 
@@ -144,6 +155,15 @@ Local mirror including Postgres smoke:
 ```bash
 make ci-gates-postgres
 ```
+
+Isolated Postgres repository-contract run:
+
+```bash
+make test-postgres-contracts
+```
+
+Current `scripts/test_postgres_contracts.sh` coverage includes artifacts, channel runtime, approvals, policy decisions, and task contracts.
+The principal-scoped memory seed APIs are covered in-process by `tests/smoke_runtime_api.py` and over HTTP by the approved `scripts/smoke_api.sh` path that `scripts/smoke_postgres.sh` invokes.
 
 Local mirror including legacy migration-regression smoke:
 
@@ -236,6 +256,13 @@ EA_DB_SIZE_SORT_KEY=index bash scripts/db_size.sh
 EA_DB_SIZE_MIN_MB=25 bash scripts/db_size.sh
 ```
 
+The Compose Postgres volume is `ea_pgdata`, mounted at `/var/lib/postgresql/data` inside `ea-db`.
+If `/var/lib/docker/volumes/.../ea_pgdata` is large on the host, that is on-disk Postgres runtime state
+(ledger, outbox, observations, memory tables, indexes), not RAM. Use `bash scripts/db_size.sh`
+to attribute the footprint by table/index size before pruning or moving data.
+`bash scripts/support_bundle.sh` now captures the expected volume name/mount and live `ea-db` mount inspection
+by default, so support bundles can answer which host path backs `/var/lib/postgresql/data`.
+
 Retention dry-run (default) and apply mode:
 
 ```bash
@@ -276,11 +303,20 @@ curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/rewrite/artifact \
   -d '{"text":"runbook smoke"}'
 ```
 
-Use returned `execution_session_id`:
+Use returned `artifact_id` and `execution_session_id`:
 
 ```bash
+curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/rewrite/artifacts/<artifact_id>"
 curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/rewrite/sessions/<session_id>"
 curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/policy/decisions/recent?session_id=<session_id>&limit=5"
+```
+
+External-send policy preview:
+
+```bash
+curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/policy/evaluate \
+  -H 'content-type: application/json' \
+  -d '{"content":"Send the board update to the distribution list.","tool_name":"connector.dispatch","action_kind":"delivery.send","channel":"email"}'
 ```
 
 ## 5) Observation + Delivery Smoke
@@ -330,7 +366,7 @@ bash scripts/smoke_postgres.sh --legacy-fixture
 make smoke-postgres-legacy
 ```
 
-The smoke script now includes a blocked-policy assertion (`403` on oversized rewrite input) and runs against an isolated smoke DB so legacy runtime data is not mutated.
+The smoke script now includes external-send policy evaluation plus a blocked-policy assertion (`403` on oversized rewrite input) and runs against an isolated smoke DB so legacy runtime data is not mutated.
 
 ## 8) Memory Candidate Promotion Smoke
 
@@ -530,6 +566,8 @@ SUPPORT_LOG_TAIL_LINES=500 bash scripts/support_bundle.sh
 SUPPORT_INCLUDE_DB=0 bash scripts/support_bundle.sh
 # optional: skip API logs
 SUPPORT_INCLUDE_API=0 bash scripts/support_bundle.sh
+# optional: skip DB volume attribution
+SUPPORT_INCLUDE_DB_VOLUME=0 bash scripts/support_bundle.sh
 # optional: skip DB size snapshot
 SUPPORT_INCLUDE_DB_SIZE=0 bash scripts/support_bundle.sh
 # optional: DB size snapshot top-table limit
@@ -589,14 +627,14 @@ Release preflight aggregate (asset checks + operator help + release smoke):
 make release-preflight
 ```
 
-`RELEASE_CHECKLIST.md` now includes an explicit milestone gate-tag parity preflight line to validate `MILESTONE.json` feature tags.
+`RELEASE_CHECKLIST.md` now includes an explicit milestone release-tag parity preflight line to validate `MILESTONE.json` release tags.
 
 ## Smoke Exit Codes
 
 `scripts/smoke_api.sh` uses these explicit non-zero codes for contract failures:
 
 - `11`: rewrite response missing `execution_session_id`
-- `12`: blocked-policy path did not return expected `403`
+- `12`: policy contract mismatch (`/v1/policy/evaluate` or blocked-policy assertion)
 - `13`: runtime response missing an expected resource id (delivery or memory flow)
 
 Other transport failures (for example `curl`) return their native non-zero exit codes.

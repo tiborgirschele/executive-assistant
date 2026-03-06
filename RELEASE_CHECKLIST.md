@@ -4,7 +4,7 @@
 
 - [ ] `git status` is clean on release branch.
 - [ ] `.env` is present with production-safe values.
-- [ ] `EA_LEDGER_BACKEND=postgres` and `DATABASE_URL` are set.
+- [ ] `EA_STORAGE_BACKEND=postgres` and `DATABASE_URL` are set.
 - [ ] CI smoke workflow is green.
 - [ ] CI gate bundle (`make smoke-help`, `make ci-local`, runtime smoke API tests, `make verify-release-assets`) is green.
 - [ ] Optional local parity run completed: `make ci-gates`.
@@ -12,7 +12,7 @@
 - [ ] Optional local parity run including legacy migration smoke completed: `make ci-gates-postgres-legacy`.
 - [ ] Optional docs parity run completed: `make docs-verify`.
 - [ ] Optional docs+usage parity run completed: `make release-docs`.
-- [ ] Docs parity confirms milestone gate tags in `MILESTONE.json` (`ci_gate_bundle`, `release_preflight_bundle`, `docs_verify_alias`).
+- [ ] Docs parity confirms milestone release tags in `MILESTONE.json` (`ci_gate_bundle`, `release_preflight_bundle`, `docs_verify_alias`).
 
 ## Build & Deploy
 

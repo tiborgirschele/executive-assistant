@@ -45,3 +45,23 @@ jobs:
       - name: Run Legacy Migration Regression Smoke
         run: |
           bash scripts/smoke_postgres.sh --legacy-fixture
+
+  postgres-runtime-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r ea/requirements.txt pytest httpx
+
+      - name: Run Postgres Repository Contract Tests
+        run: |
+          bash scripts/test_postgres_contracts.sh

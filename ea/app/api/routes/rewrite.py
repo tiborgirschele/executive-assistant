@@ -186,3 +186,19 @@ def get_session(
             for c in found.run_costs
         ],
     )
+
+
+@router.get("/artifacts/{artifact_id}")
+def get_artifact(
+    artifact_id: str,
+    container: AppContainer = Depends(get_container),
+) -> RewriteOut:
+    found = container.orchestrator.fetch_artifact(artifact_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="artifact_not_found")
+    return RewriteOut(
+        artifact_id=found.artifact_id,
+        kind=found.kind,
+        content=found.content,
+        execution_session_id=found.execution_session_id,
+    )

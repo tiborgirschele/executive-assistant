@@ -2,16 +2,17 @@
 
 ## Core Variables
 
-- `EA_LEDGER_BACKEND`:
+- `EA_STORAGE_BACKEND`:
   - `memory` -> in-process repositories only
   - `postgres` -> force Postgres repositories
   - `auto` -> try Postgres, fallback to memory
+- `EA_LEDGER_BACKEND`: deprecated compatibility alias for `EA_STORAGE_BACKEND`
 - `DATABASE_URL`: required for reliable Postgres-backed operation
 - `EA_BOOTSTRAP_DB=1`: optional deploy-time migration bootstrap
 
 ## Recommended Profiles
 
-| Environment | EA_LEDGER_BACKEND | DATABASE_URL | EA_BOOTSTRAP_DB | Rationale |
+| Environment | EA_STORAGE_BACKEND | DATABASE_URL | EA_BOOTSTRAP_DB | Rationale |
 |---|---|---|---|---|
 | Local quick dev | `memory` | optional | `0` | Fast startup, no DB dependency |
 | Local integration | `postgres` | required | `1` | Validate DB-backed runtime behavior |
@@ -22,6 +23,7 @@
 
 ## Guardrails
 
-- For production/staging, prefer `EA_LEDGER_BACKEND=postgres` instead of `auto`.
+- Prefer `EA_STORAGE_BACKEND`; use `EA_LEDGER_BACKEND` only for temporary compatibility with older env files.
+- For production/staging, prefer `EA_STORAGE_BACKEND=postgres` instead of `auto`.
 - Use `auto` only where memory fallback is acceptable.
 - Run `scripts/db_status.sh` after bootstrap to verify kernel table presence.

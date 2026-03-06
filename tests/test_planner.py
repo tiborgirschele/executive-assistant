@@ -12,7 +12,7 @@ def test_planner_uses_task_contract_defaults() -> None:
         deliverable_type="rewrite_note",
         default_risk_class="low",
         default_approval_class="manager",
-        allowed_tools=("rewrite_store",),
+        allowed_tools=("artifact_repository",),
         memory_write_policy="reviewed_only",
         budget_policy_json={"class": "low"},
     )
@@ -20,5 +20,7 @@ def test_planner_uses_task_contract_defaults() -> None:
     intent, plan = planner.build_plan(task_key="rewrite_text", principal_id="exec-1", goal="rewrite")
     assert intent.task_type == "rewrite_text"
     assert intent.approval_class == "manager"
+    assert intent.allowed_tools == ("artifact_repository",)
     assert len(plan.steps) == 1
+    assert plan.steps[0].tool_name == "artifact_repository"
     assert plan.steps[0].approval_required is True

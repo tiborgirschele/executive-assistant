@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field
 
 from app.api.dependencies import get_container
 from app.container import AppContainer
+from app.domain.models import IntentSpecV3
+from app.services.policy import PolicyDecisionService
 
 router = APIRouter(prefix="/v1/policy", tags=["policy"])
 
@@ -48,6 +50,42 @@ class ApprovalDecisionIn(BaseModel):
     reason: str = Field(default="", max_length=1000)
 
 
+class PolicyEvaluateIn(BaseModel):
+    content: str = Field(default="", max_length=50000)
+    tool_name: str = Field(default="connector.dispatch", min_length=1, max_length=200)
+    action_kind: str = Field(default="delivery.send", min_length=1, max_length=200)
+    channel: str = Field(default="email", max_length=100)
+    principal_id: str = Field(default="local-user", min_length=1, max_length=200)
+    goal: str = Field(default="evaluate outbound action policy", max_length=2000)
+    task_type: str = Field(default="external_action", min_length=1, max_length=200)
+    deliverable_type: str = Field(default="external_message", max_length=200)
+    risk_class: str = Field(default="low", max_length=100)
+    approval_class: str = Field(default="none", max_length=100)
+    budget_class: str = Field(default="low", max_length=100)
+    allowed_tools: list[str] = Field(default_factory=list)
+    memory_write_policy: str = Field(default="none", max_length=100)
+
+
+class PolicyEvaluateOut(BaseModel):
+    allow: bool
+    requires_approval: bool
+    reason: str
+    retention_policy: str
+    memory_write_allowed: bool
+    task_type: str
+    tool_name: str
+    action_kind: str
+    channel: str
+    allowed_tools: list[str]
+
+
+def _policy_service(container: AppContainer) -> PolicyDecisionService:
+    return PolicyDecisionService(
+        max_rewrite_chars=container.settings.policy.max_rewrite_chars,
+        approval_required_chars=container.settings.policy.approval_required_chars,
+    )
+
+
 @router.get("/decisions/recent")
 def list_recent_policy_decisions(
     limit: int = Query(default=50, ge=1, le=500),
@@ -68,6 +106,49 @@ def list_recent_policy_decisions(
         )
         for r in rows
     ]
+
+
+@router.post("/evaluate")
+def evaluate_policy(
+    body: PolicyEvaluateIn,
+    container: AppContainer = Depends(get_container),
+) -> PolicyEvaluateOut:
+    tool_name = str(body.tool_name or "").strip()
+    action_kind = str(body.action_kind or "").strip()
+    channel = str(body.channel or "").strip()
+    allowed_tools = tuple(str(value or "").strip() for value in body.allowed_tools if str(value or "").strip())
+    if not allowed_tools and tool_name:
+        allowed_tools = (tool_name,)
+    intent = IntentSpecV3(
+        principal_id=str(body.principal_id or "local-user").strip() or "local-user",
+        goal=str(body.goal or ""),
+        task_type=str(body.task_type or "external_action").strip() or "external_action",
+        deliverable_type=str(body.deliverable_type or "external_message").strip() or "external_message",
+        risk_class=str(body.risk_class or "low").strip() or "low",
+        approval_class=str(body.approval_class or "none").strip() or "none",
+        budget_class=str(body.budget_class or "low").strip() or "low",
+        allowed_tools=allowed_tools,
+        memory_write_policy=str(body.memory_write_policy or "none").strip() or "none",
+    )
+    decision = _policy_service(container).evaluate_rewrite(
+        intent,
+        str(body.content or ""),
+        tool_name=tool_name,
+        action_kind=action_kind,
+        channel=channel,
+    )
+    return PolicyEvaluateOut(
+        allow=decision.allow,
+        requires_approval=decision.requires_approval,
+        reason=decision.reason,
+        retention_policy=decision.retention_policy,
+        memory_write_allowed=decision.memory_write_allowed,
+        task_type=intent.task_type,
+        tool_name=tool_name,
+        action_kind=action_kind,
+        channel=channel,
+        allowed_tools=list(intent.allowed_tools),
+    )
 
 
 @router.get("/approvals/pending")

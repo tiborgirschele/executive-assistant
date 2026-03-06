@@ -71,7 +71,7 @@ class RewriteOrchestrator:
             risk_class="low",
             approval_class="none",
             budget_class="low",
-            allowed_tools=("rewrite_store",),
+            allowed_tools=("artifact_repository",),
             desired_artifact="rewrite_note",
             memory_write_policy="reviewed_only",
         )
@@ -161,7 +161,12 @@ class RewriteOrchestrator:
             actor_type="assistant",
             actor_id="orchestrator",
         )
-        policy_decision = self._policy.evaluate_rewrite(intent, normalized_text)
+        policy_decision = self._policy.evaluate_rewrite(
+            intent,
+            normalized_text,
+            tool_name=primary_step.tool_name or "artifact_repository",
+            action_kind="artifact.save",
+        )
         self._policy_repo.append(session.session_id, policy_decision)
         self._ledger.append_event(
             session.session_id,

@@ -1,6 +1,7 @@
 @host = http://localhost:8090
 @token = replace_with_token_or_leave_blank
 @session_id = replace_me
+@artifact_id = replace_me
 @delivery_id = replace_me
 @approval_id = replace_me
 @memory_candidate_id = replace_me
@@ -38,6 +39,9 @@ Authorization: Bearer {{token}}
 ### Rewrite -> fetch session
 GET {{host}}/v1/rewrite/sessions/{{session_id}}
 
+### Rewrite -> fetch artifact
+GET {{host}}/v1/rewrite/artifacts/{{artifact_id}}
+
 ### Rewrite -> blocked policy (expected 403)
 POST {{host}}/v1/rewrite/artifact
 Content-Type: application/json
@@ -51,6 +55,17 @@ GET {{host}}/v1/policy/decisions/recent?limit=20
 
 ### Policy audit -> by session
 GET {{host}}/v1/policy/decisions/recent?session_id={{session_id}}&limit=20
+
+### Policy -> evaluate external-send approval
+POST {{host}}/v1/policy/evaluate
+Content-Type: application/json
+
+{
+  "content": "Send the board update to the distribution list.",
+  "tool_name": "connector.dispatch",
+  "action_kind": "delivery.send",
+  "channel": "email"
+}
 
 ### Approvals -> pending
 GET {{host}}/v1/policy/approvals/pending?limit=20
@@ -231,7 +246,7 @@ Content-Type: application/json
   "default_risk_class": "low",
   "default_approval_class": "none",
   "allowed_tools": [
-    "rewrite_store"
+    "artifact_repository"
   ],
   "evidence_requirements": [],
   "memory_write_policy": "reviewed_only",

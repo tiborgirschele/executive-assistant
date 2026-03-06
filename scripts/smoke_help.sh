@@ -20,6 +20,7 @@ SCRIPTS=(
   scripts/db_retention.sh
   scripts/smoke_api.sh
   scripts/smoke_postgres.sh
+  scripts/test_postgres_contracts.sh
   scripts/list_endpoints.sh
   scripts/version_info.sh
   scripts/export_openapi.sh

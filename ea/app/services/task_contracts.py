@@ -53,7 +53,7 @@ class TaskContractService:
                 deliverable_type="rewrite_note",
                 default_risk_class="low",
                 default_approval_class="none",
-                allowed_tools=("rewrite_store",),
+                allowed_tools=("artifact_repository",),
                 evidence_requirements=(),
                 memory_write_policy="reviewed_only",
                 budget_policy_json={"class": "low"},

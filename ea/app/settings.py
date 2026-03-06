@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from dataclasses import dataclass
 
 
@@ -111,7 +112,20 @@ def get_settings() -> Settings:
     tenant_id = (os.environ.get("EA_TENANT_ID") or "default").strip() or "default"
 
     legacy_backend = (os.environ.get("EA_LEDGER_BACKEND") or "").strip().lower()
-    storage_backend = (os.environ.get("EA_STORAGE_BACKEND") or legacy_backend or "auto").strip().lower() or "auto"
+    configured_storage_backend = (os.environ.get("EA_STORAGE_BACKEND") or "").strip().lower()
+    if legacy_backend and not configured_storage_backend:
+        warnings.warn(
+            "EA_LEDGER_BACKEND is deprecated; use EA_STORAGE_BACKEND instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    elif legacy_backend and configured_storage_backend:
+        warnings.warn(
+            "EA_LEDGER_BACKEND is deprecated and ignored when EA_STORAGE_BACKEND is set.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    storage_backend = (configured_storage_backend or legacy_backend or "auto").strip().lower() or "auto"
     database_url = (os.environ.get("DATABASE_URL") or "").strip()
     artifacts_dir = (os.environ.get("EA_ARTIFACTS_DIR") or "/tmp/ea_artifacts").strip() or "/tmp/ea_artifacts"
 

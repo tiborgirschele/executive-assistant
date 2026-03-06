@@ -22,6 +22,8 @@ now_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 milestone="unknown"
 version="unknown"
+status_summary=""
+release_tags=""
 if [[ -f "${EA_ROOT}/MILESTONE.json" ]]; then
   milestone="$(python3 - <<'PY'
 import json
@@ -45,6 +47,35 @@ except Exception:
     print("unknown")
 PY
 )"
+  status_summary="$(python3 - <<'PY'
+import json
+import pathlib
+
+p = pathlib.Path("MILESTONE.json")
+try:
+    d = json.loads(p.read_text())
+    counts = {"planned": 0, "coded": 0, "wired": 0, "tested": 0, "released": 0}
+    for row in d.get("capabilities", []):
+        status = str(row.get("status", "")).strip().lower()
+        if status in counts:
+            counts[status] += 1
+    print(",".join(f"{key}:{counts[key]}" for key in ("planned", "coded", "wired", "tested", "released")))
+except Exception:
+    print("")
+PY
+)"
+  release_tags="$(python3 - <<'PY'
+import json
+import pathlib
+
+p = pathlib.Path("MILESTONE.json")
+try:
+    d = json.loads(p.read_text())
+    print(",".join(str(v) for v in d.get("release_tags", [])))
+except Exception:
+    print("")
+PY
+)"
 fi
 
 echo "branch=${git_branch}"
@@ -52,4 +83,10 @@ echo "revision=${git_rev}"
 echo "dirty_files=${git_dirty}"
 echo "milestone=${milestone}"
 echo "version=${version}"
+if [[ -n "${status_summary}" ]]; then
+  echo "milestone_status_counts=${status_summary}"
+fi
+if [[ -n "${release_tags}" ]]; then
+  echo "milestone_release_tags=${release_tags}"
+fi
 echo "generated_utc=${now_utc}"

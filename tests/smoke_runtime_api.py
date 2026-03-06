@@ -16,7 +16,7 @@ def _client(
     approval_threshold_chars: int | None = None,
 ) -> TestClient:
     os.environ["EA_STORAGE_BACKEND"] = storage_backend
-    os.environ["EA_LEDGER_BACKEND"] = storage_backend  # backward-compat path
+    os.environ.pop("EA_LEDGER_BACKEND", None)
     os.environ["EA_API_TOKEN"] = auth_token
     if approval_threshold_chars is None:
         os.environ.pop("EA_APPROVAL_THRESHOLD_CHARS", None)
@@ -55,6 +55,7 @@ def test_rewrite_and_policy_audit_flow() -> None:
     create = client.post("/v1/rewrite/artifact", json={"text": "smoke"})
     assert create.status_code == 200
     payload = create.json()
+    artifact_id = payload["artifact_id"]
     session_id = payload["execution_session_id"]
 
     session = client.get(f"/v1/rewrite/sessions/{session_id}")
@@ -69,11 +70,21 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert len(body["receipts"]) >= 1
     assert body["artifacts"][0]["artifact_id"] == payload["artifact_id"]
 
+    fetched_artifact = client.get(f"/v1/rewrite/artifacts/{artifact_id}")
+    assert fetched_artifact.status_code == 200
+    assert fetched_artifact.json()["artifact_id"] == artifact_id
+    assert fetched_artifact.json()["execution_session_id"] == session_id
+    assert fetched_artifact.json()["content"] == "smoke"
+
     policy = client.get("/v1/policy/decisions/recent", params={"session_id": session_id, "limit": 5})
     assert policy.status_code == 200
     decisions = policy.json()
     assert len(decisions) >= 1
     assert decisions[0]["reason"] == "allowed"
+
+    missing_artifact = client.get("/v1/rewrite/artifacts/not-a-real-artifact-id")
+    assert missing_artifact.status_code == 404
+    assert missing_artifact.json()["error"]["code"] == "artifact_not_found"
 
 
 def test_rewrite_requires_approval_then_approve_flow() -> None:
@@ -139,6 +150,28 @@ def test_rewrite_requires_approval_then_expire_flow() -> None:
     session_after = client.get(f"/v1/rewrite/sessions/{session_id}")
     assert session_after.status_code == 200
     assert session_after.json()["status"] == "blocked"
+
+
+def test_policy_evaluate_external_send_requires_approval() -> None:
+    client = _client(storage_backend="memory")
+    resp = client.post(
+        "/v1/policy/evaluate",
+        json={
+            "content": "Send the board update to the distribution list.",
+            "tool_name": "connector.dispatch",
+            "action_kind": "delivery.send",
+            "channel": "email",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["allow"] is True
+    assert body["requires_approval"] is True
+    assert body["reason"] == "allowed"
+    assert body["tool_name"] == "connector.dispatch"
+    assert body["action_kind"] == "delivery.send"
+    assert body["channel"] == "email"
+    assert body["allowed_tools"] == ["connector.dispatch"]
 
 
 def test_rewrite_blocked_policy_flow_has_error_envelope() -> None:
@@ -315,7 +348,7 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
             "deliverable_type": "rewrite_note",
             "default_risk_class": "low",
             "default_approval_class": "manager",
-            "allowed_tools": ["rewrite_store"],
+            "allowed_tools": ["artifact_repository"],
             "evidence_requirements": [],
             "memory_write_policy": "reviewed_only",
             "budget_policy_json": {"class": "low"},

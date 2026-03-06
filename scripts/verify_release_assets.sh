@@ -34,6 +34,7 @@ required_files=(
   "scripts/db_retention.sh"
   "scripts/smoke_api.sh"
   "scripts/smoke_postgres.sh"
+  "scripts/test_postgres_contracts.sh"
   "scripts/smoke_help.sh"
   "scripts/export_openapi.sh"
   "scripts/diff_openapi.sh"
@@ -105,6 +106,13 @@ else
   missing=1
 fi
 
+if grep -Fq "make test-postgres-contracts" "README.md"; then
+  echo "ok: README postgres contract test reference"
+else
+  echo "missing: README postgres contract test reference" >&2
+  missing=1
+fi
+
 if grep -Fq "make ci-gates-postgres-legacy" "README.md"; then
   echo "ok: README legacy postgres parity reference"
 else
@@ -140,14 +148,70 @@ else
   missing=1
 fi
 
-if grep -Fq 'Gate-bundle hardening flags are tracked in `MILESTONE.json` feature tags' "README.md"; then
+if grep -Fq "temporary backward-compatible alias" "README.md"; then
+  echo "ok: README backend alias deprecation note"
+else
+  echo "missing: README backend alias deprecation note" >&2
+  missing=1
+fi
+
+if grep -Fq "ea_pgdata" "README.md" && \
+   grep -Fq "/var/lib/postgresql/data" "README.md" && \
+   grep -Fq "not RAM" "README.md"; then
+  echo "ok: README pgdata note"
+else
+  echo "missing: README pgdata note" >&2
+  missing=1
+fi
+
+if grep -Fq "policy_denied:tool_not_allowed" "README.md"; then
+  echo "ok: README policy tool contract note"
+else
+  echo "missing: README policy tool contract note" >&2
+  missing=1
+fi
+
+if grep -Fq "/v1/policy/evaluate" "README.md" && \
+   grep -Fq "/v1/policy/evaluate" "RUNBOOK.md" && \
+   grep -Fq "/v1/policy/evaluate" "HTTP_EXAMPLES.http" && \
+   grep -Fq "/v1/policy/evaluate" "scripts/smoke_api.sh"; then
+  echo "ok: external-action policy evaluation route docs"
+else
+  echo "missing: external-action policy evaluation route docs" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "artifact_lookup_api_exposure")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "/v1/rewrite/artifacts/{artifact_id}" "README.md" && \
+     grep -Fq "/v1/rewrite/artifacts/{artifact_id}" "RUNBOOK.md" && \
+     grep -Fq "/v1/rewrite/artifacts/{{artifact_id}}" "HTTP_EXAMPLES.http" && \
+     grep -Fq '/v1/rewrite/artifacts/${ARTIFACT_ID}' "scripts/smoke_api.sh"; then
+    echo "ok: artifact lookup route docs"
+  else
+    echo "missing: artifact lookup route docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: artifact lookup milestone status" >&2
+  missing=1
+fi
+
+if grep -Fq 'Gate-bundle hardening flags are tracked in `MILESTONE.json` release tags' "README.md"; then
   echo "ok: README milestone gate-tag pointer"
 else
   echo "missing: README milestone gate-tag pointer" >&2
   missing=1
 fi
 
-if grep -Fq 'Release preflight checklist includes milestone gate-tag parity verification in `RELEASE_CHECKLIST.md`.' "README.md"; then
+if grep -Fq 'Release preflight checklist includes milestone release-tag parity verification in `RELEASE_CHECKLIST.md`.' "README.md"; then
   echo "ok: README checklist milestone parity note"
 else
   echo "missing: README checklist milestone parity note" >&2
@@ -182,6 +246,21 @@ else
   missing=1
 fi
 
+if grep -Fq '`scripts/version_info.sh` now also prints milestone capability-status counts and release tags' "README.md"; then
+  echo "ok: README version-info milestone summary note"
+else
+  echo "missing: README version-info milestone summary note" >&2
+  missing=1
+fi
+
+if grep -Fq "SUPPORT_INCLUDE_DB_VOLUME=0" "README.md" && \
+   grep -Fq "live \`ea-db\` mount inspection output" "README.md"; then
+  echo "ok: README support bundle volume note"
+else
+  echo "missing: README support bundle volume note" >&2
+  missing=1
+fi
+
 if grep -Fq "Operator Script Help Index" "RUNBOOK.md"; then
   echo "ok: RUNBOOK script help index"
 else
@@ -189,10 +268,43 @@ else
   missing=1
 fi
 
+if grep -Fq "EA_STORAGE_BACKEND" "ENVIRONMENT_MATRIX.md" && \
+   grep -Fq "deprecated compatibility alias" "ENVIRONMENT_MATRIX.md"; then
+  echo "ok: ENVIRONMENT_MATRIX canonical backend env note"
+else
+  echo "missing: ENVIRONMENT_MATRIX canonical backend env note" >&2
+  missing=1
+fi
+
 if grep -Fq "scripts/operator_summary.sh" "RUNBOOK.md"; then
   echo "ok: RUNBOOK operator-summary help reference"
 else
   echo "missing: RUNBOOK operator-summary help reference" >&2
+  missing=1
+fi
+
+if grep -Fq "ea_pgdata" "RUNBOOK.md" && \
+   grep -Fq "/var/lib/postgresql/data" "RUNBOOK.md" && \
+   grep -Fq "not RAM" "RUNBOOK.md"; then
+  echo "ok: RUNBOOK pgdata note"
+else
+  echo "missing: RUNBOOK pgdata note" >&2
+  missing=1
+fi
+
+if grep -Fq "tool_not_allowed" "RUNBOOK.md" && \
+   grep -Fq "high-risk/high-budget or external-send actions" "RUNBOOK.md"; then
+  echo "ok: RUNBOOK policy metadata note"
+else
+  echo "missing: RUNBOOK policy metadata note" >&2
+  missing=1
+fi
+
+if grep -Fq '"artifact_repository"' "HTTP_EXAMPLES.http" && \
+   grep -Fq '"allowed_tools":["artifact_repository"]' "scripts/smoke_api.sh"; then
+  echo "ok: task-contract examples align on artifact_repository"
+else
+  echo "missing: task-contract examples align on artifact_repository" >&2
   missing=1
 fi
 
@@ -207,10 +319,33 @@ else
   missing=1
 fi
 
+if grep -Fq "scripts/test_postgres_contracts.sh" "RUNBOOK.md" && \
+   grep -Fq "make test-postgres-contracts" "RUNBOOK.md"; then
+  echo "ok: RUNBOOK postgres contract test reference"
+else
+  echo "missing: RUNBOOK postgres contract test reference" >&2
+  missing=1
+fi
+
+if grep -Fq '`bash scripts/version_info.sh` now prints milestone capability-status counts and release tags' "RUNBOOK.md"; then
+  echo "ok: RUNBOOK version-info milestone summary note"
+else
+  echo "missing: RUNBOOK version-info milestone summary note" >&2
+  missing=1
+fi
+
 if grep -Fq "scripts/smoke_help.sh" "RUNBOOK.md"; then
   echo "ok: RUNBOOK smoke-help reference"
 else
   echo "missing: RUNBOOK smoke-help reference" >&2
+  missing=1
+fi
+
+if grep -Fq "SUPPORT_INCLUDE_DB_VOLUME=0 bash scripts/support_bundle.sh" "RUNBOOK.md" && \
+   grep -Fq "live \`ea-db\` mount inspection" "RUNBOOK.md"; then
+  echo "ok: RUNBOOK support bundle volume note"
+else
+  echo "missing: RUNBOOK support bundle volume note" >&2
   missing=1
 fi
 
@@ -277,14 +412,14 @@ else
   missing=1
 fi
 
-if grep -Fq 'Milestone tracking linkage: `MILESTONE.json` feature tags include `ci_gate_bundle`' "RUNBOOK.md"; then
+if grep -Fq 'Milestone tracking linkage: `MILESTONE.json` maps capabilities to `planned|coded|wired|tested|released`' "RUNBOOK.md"; then
   echo "ok: RUNBOOK milestone gate-tag linkage note"
 else
   echo "missing: RUNBOOK milestone gate-tag linkage note" >&2
   missing=1
 fi
 
-if grep -Fq 'RELEASE_CHECKLIST.md` now includes an explicit milestone gate-tag parity preflight line' "RUNBOOK.md"; then
+if grep -Fq 'RELEASE_CHECKLIST.md` now includes an explicit milestone release-tag parity preflight line' "RUNBOOK.md"; then
   echo "ok: RUNBOOK checklist milestone parity linkage note"
 else
   echo "missing: RUNBOOK checklist milestone parity linkage note" >&2
@@ -340,7 +475,7 @@ else
   missing=1
 fi
 
-if grep -Fq 'Docs parity confirms milestone gate tags in `MILESTONE.json`' "RELEASE_CHECKLIST.md"; then
+if grep -Fq 'Docs parity confirms milestone release tags in `MILESTONE.json`' "RELEASE_CHECKLIST.md"; then
   echo "ok: RELEASE_CHECKLIST milestone gate-tag line"
 else
   echo "missing: RELEASE_CHECKLIST milestone gate-tag line" >&2
@@ -403,6 +538,14 @@ else
   missing=1
 fi
 
+if grep -Fq "EA_STORAGE_BACKEND" "CHANGELOG.md" && \
+   grep -Fq "deprecated compatibility alias" "CHANGELOG.md"; then
+  echo "ok: CHANGELOG backend env deprecation note"
+else
+  echo "missing: CHANGELOG backend env deprecation note" >&2
+  missing=1
+fi
+
 if grep -Fq 'Operator summary output now also includes `make release-smoke` and `make all-local`' "CHANGELOG.md"; then
   echo "ok: CHANGELOG operator summary readiness note"
 else
@@ -424,6 +567,13 @@ else
   missing=1
 fi
 
+if grep -Fq '`version_info.sh` now prints milestone capability-status counts and release tags' "CHANGELOG.md"; then
+  echo "ok: CHANGELOG version-info milestone summary note"
+else
+  echo "missing: CHANGELOG version-info milestone summary note" >&2
+  missing=1
+fi
+
 if grep -Fq 'scripts/smoke_help.sh` now exposes its own `--help` contract' "CHANGELOG.md"; then
   echo "ok: CHANGELOG smoke-help help-contract note"
 else
@@ -431,17 +581,24 @@ else
   missing=1
 fi
 
-if grep -Fq "Milestone metadata now includes CI/docs/release gate-bundle feature tags." "CHANGELOG.md"; then
+if grep -Fq "Milestone metadata now uses \`planned|coded|wired|tested|released\` capability statuses plus CI/docs/release gate tags." "CHANGELOG.md"; then
   echo "ok: CHANGELOG milestone gate-tag note"
 else
   echo "missing: CHANGELOG milestone gate-tag note" >&2
   missing=1
 fi
 
-if grep -Fq "Release checklist now includes explicit milestone gate-tag parity verification." "CHANGELOG.md"; then
+if grep -Fq "Release checklist now includes explicit milestone release-tag parity verification." "CHANGELOG.md"; then
   echo "ok: CHANGELOG checklist milestone-tag note"
 else
   echo "missing: CHANGELOG checklist milestone-tag note" >&2
+  missing=1
+fi
+
+if grep -Fq "SUPPORT_INCLUDE_DB_VOLUME" "CHANGELOG.md"; then
+  echo "ok: CHANGELOG support bundle volume note"
+else
+  echo "missing: CHANGELOG support bundle volume note" >&2
   missing=1
 fi
 
@@ -459,6 +616,13 @@ else
   missing=1
 fi
 
+if grep -Fq "scripts/test_postgres_contracts.sh" ".github/workflows/smoke-runtime.yml"; then
+  echo "ok: smoke-runtime workflow includes postgres contract job"
+else
+  echo "missing: smoke-runtime workflow postgres contract job" >&2
+  missing=1
+fi
+
 if grep -Fq -- "--legacy-fixture" ".github/workflows/smoke-runtime.yml"; then
   echo "ok: smoke-runtime workflow includes legacy migration smoke job"
 else
@@ -469,6 +633,7 @@ fi
 if grep -Fq "make smoke-postgres-legacy" "scripts/operator_summary.sh" && \
    grep -Fq "Usage:" "scripts/operator_summary.sh" && \
    grep -Fq "make release-smoke" "scripts/operator_summary.sh" && \
+   grep -Fq "make test-postgres-contracts" "scripts/operator_summary.sh" && \
    grep -Fq "make all-local" "scripts/operator_summary.sh" && \
    grep -Fq "make ci-gates-postgres-legacy" "scripts/operator_summary.sh" && \
    grep -Fq "make release-preflight" "scripts/operator_summary.sh" && \
@@ -500,11 +665,13 @@ fi
 
 if grep -Fq "scripts/list_endpoints.sh" "scripts/smoke_help.sh" && \
    grep -Fq "scripts/version_info.sh" "scripts/smoke_help.sh" && \
+   grep -Fq "scripts/test_postgres_contracts.sh" "scripts/smoke_help.sh" && \
    grep -Fq "scripts/export_openapi.sh" "scripts/smoke_help.sh" && \
    grep -Fq "scripts/diff_openapi.sh" "scripts/smoke_help.sh" && \
    grep -Fq "scripts/prune_openapi.sh" "scripts/smoke_help.sh" && \
    grep -Fq "scripts/list_endpoints.sh" "Makefile" && \
    grep -Fq "scripts/version_info.sh" "Makefile" && \
+   grep -Fq "scripts/test_postgres_contracts.sh" "Makefile" && \
    grep -Fq "scripts/export_openapi.sh" "Makefile" && \
    grep -Fq "scripts/diff_openapi.sh" "Makefile" && \
    grep -Fq "scripts/prune_openapi.sh" "Makefile"; then
@@ -514,15 +681,50 @@ else
   missing=1
 fi
 
-if grep -Fq '"ci_gate_bundle"' "MILESTONE.json" && \
+if grep -Fq '"status_model"' "MILESTONE.json" && \
+   grep -Fq '"release_tags"' "MILESTONE.json" && \
+   grep -Fq '"planned"' "MILESTONE.json" && \
+   grep -Fq '"coded"' "MILESTONE.json" && \
+   grep -Fq '"wired"' "MILESTONE.json" && \
+   grep -Fq '"tested"' "MILESTONE.json" && \
+   grep -Fq '"released"' "MILESTONE.json" && \
+   grep -Fq '"ci_gate_bundle"' "MILESTONE.json" && \
    grep -Fq '"release_preflight_bundle"' "MILESTONE.json" && \
    grep -Fq '"docs_verify_alias"' "MILESTONE.json" && \
    grep -Fq '"postgres_legacy_fixture_smoke"' "MILESTONE.json" && \
    grep -Fq '"ci_postgres_legacy_smoke_job"' "MILESTONE.json" && \
    grep -Fq '"ci_gates_postgres_legacy_local_target"' "MILESTONE.json"; then
-  echo "ok: MILESTONE gate-bundle and legacy-smoke feature tags"
+  echo "ok: MILESTONE status model and release tags"
 else
-  echo "missing: MILESTONE gate-bundle and legacy-smoke feature tags" >&2
+  echo "missing: MILESTONE status model and release tags" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "principal_scoped_memory_seed_apis")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "/v1/memory/candidates" "README.md" && \
+     grep -Fq "/v1/memory/stakeholders" "README.md" && \
+     grep -Fq "/v1/memory/interruption-budgets" "README.md" && \
+     grep -Fq "/v1/memory/candidates" "RUNBOOK.md" && \
+     grep -Fq "/v1/memory/stakeholders" "RUNBOOK.md" && \
+     grep -Fq "/v1/memory/interruption-budgets" "RUNBOOK.md" && \
+     grep -Fq "/v1/memory/candidates" "scripts/smoke_api.sh" && \
+     grep -Fq "/v1/memory/stakeholders" "scripts/smoke_api.sh" && \
+     grep -Fq "/v1/memory/interruption-budgets" "scripts/smoke_api.sh"; then
+    echo "ok: principal-scoped memory seed API coverage"
+  else
+    echo "missing: principal-scoped memory seed API coverage" >&2
+    missing=1
+  fi
+else
+  echo "missing: principal-scoped memory seed API milestone status" >&2
   missing=1
 fi
 

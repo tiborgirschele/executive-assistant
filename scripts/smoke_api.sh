@@ -18,7 +18,7 @@ Auth:
 
 Exit codes:
   11 missing execution_session_id
-  12 blocked-policy contract mismatch
+  12 policy contract mismatch
   13 missing resource id from runtime response
 EOF
   exit 0
@@ -52,17 +52,33 @@ echo "health/version ok"
 echo "== smoke: rewrite =="
 REWRITE_JSON="$(curl -fsS -X POST "${BASE}/v1/rewrite/artifact" "${AUTH_ARGS[@]}" -H 'content-type: application/json' -d '{"text":"smoke run"}')"
 echo "${REWRITE_JSON}"
+ARTIFACT_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("artifact_id",""))' <<<"${REWRITE_JSON}")"
 SESSION_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("execution_session_id",""))' <<<"${REWRITE_JSON}")"
+if [[ -z "${ARTIFACT_ID}" ]]; then
+  fail 13 "missing artifact_id from rewrite response"
+fi
 if [[ -z "${SESSION_ID}" ]]; then
   fail 11 "missing execution_session_id from rewrite response"
 fi
 
 echo "== smoke: session + policy =="
+curl -fsS "${BASE}/v1/rewrite/artifacts/${ARTIFACT_ID}" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/rewrite/sessions/${SESSION_ID}" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/policy/decisions/recent?session_id=${SESSION_ID}&limit=5" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/policy/approvals/pending?limit=5" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/policy/approvals/history?limit=5" "${AUTH_ARGS[@]}" >/dev/null
 echo "session/policy ok"
+
+echo "== smoke: external-send policy path =="
+POLICY_EVAL_JSON="$(curl -fsS -X POST "${BASE}/v1/policy/evaluate" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"content":"Send the board update to the distribution list.","tool_name":"connector.dispatch","action_kind":"delivery.send","channel":"email"}')"
+POLICY_EVAL_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}|{}".format(body.get("allow", False), body.get("requires_approval", False), body.get("reason", "")))' <<<"${POLICY_EVAL_JSON}")"
+if [[ "${POLICY_EVAL_FIELDS}" != "True|True|allowed" ]]; then
+  echo "expected policy evaluate response True|True|allowed; got ${POLICY_EVAL_FIELDS}" >&2
+  echo "${POLICY_EVAL_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+echo "external-send policy path ok"
 
 echo "== smoke: blocked policy path =="
 BLOCKED_PAYLOAD="$(mktemp)"
@@ -75,7 +91,7 @@ rm -f "${BLOCKED_PAYLOAD}"
 if [[ "${BLOCKED_CODE}" != "403" ]]; then
   echo "expected 403 for blocked policy path; got ${BLOCKED_CODE}" >&2
   cat /tmp/ea_blocked_policy_resp.json >&2 || true
-  fail 12 "blocked policy contract mismatch"
+  fail 12 "policy contract mismatch"
 fi
 BLOCKED_REASON="$(python3 - <<'PY'
 import json
@@ -95,7 +111,7 @@ PY
 if [[ "${BLOCKED_REASON}" != "policy_denied:input_too_large" ]]; then
   echo "expected blocked policy code policy_denied:input_too_large; got ${BLOCKED_REASON}" >&2
   cat /tmp/ea_blocked_policy_resp.json >&2 || true
-  fail 12 "blocked policy contract mismatch"
+  fail 12 "policy contract mismatch"
 fi
 echo "blocked policy path ok"
 
@@ -137,7 +153,7 @@ echo "tools/connectors ok"
 
 echo "== smoke: task contracts =="
 curl -fsS -X POST "${BASE}/v1/tasks/contracts" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
-  -d '{"task_key":"rewrite_text","deliverable_type":"rewrite_note","default_risk_class":"low","default_approval_class":"none","allowed_tools":["rewrite_store"],"evidence_requirements":[],"memory_write_policy":"reviewed_only","budget_policy_json":{"class":"low"}}' >/dev/null
+  -d '{"task_key":"rewrite_text","deliverable_type":"rewrite_note","default_risk_class":"low","default_approval_class":"none","allowed_tools":["artifact_repository"],"evidence_requirements":[],"memory_write_policy":"reviewed_only","budget_policy_json":{"class":"low"}}' >/dev/null
 curl -fsS "${BASE}/v1/tasks/contracts?limit=5" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/tasks/contracts/rewrite_text" "${AUTH_ARGS[@]}" >/dev/null
 echo "task contracts ok"

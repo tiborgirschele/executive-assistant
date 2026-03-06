@@ -11,6 +11,10 @@ Prints Postgres runtime size diagnostics:
   - total table/index/relation footprints
   - largest user tables with table/index/total sizes
 
+The Compose Postgres volume is typically named `ea_pgdata` and is mounted at
+`/var/lib/postgresql/data` inside `ea-db`. Large host paths under
+`/var/lib/docker/volumes/.../ea_pgdata` reflect on-disk Postgres state, not RAM.
+
 Environment:
   EA_DB_CONTAINER          Postgres container name (default: ea-db)
   POSTGRES_USER            Postgres user (default: postgres)
@@ -87,6 +91,7 @@ if [[ "${MIN_MB}" -gt 0 ]]; then
 fi
 
 echo "== EA DB size =="
+echo "pgdata_volume_note=ea_pgdata -> /var/lib/postgresql/data (on-disk Postgres runtime state, not RAM)"
 "${DC[@]}" up -d ea-db >/dev/null
 
 for _ in $(seq 1 30); do

@@ -17,6 +17,7 @@ Removed:
 - `app.main` exposes a FastAPI app
 - `/health`, `/health/live`, `/health/ready`, `/version` provide liveness/readiness/version probes
 - `/v1/rewrite/artifact` creates an artifact and an execution session
+- `/v1/rewrite/artifacts/{artifact_id}` fetches persisted artifact content directly from the durable artifact store
 - `/v1/rewrite/sessions/{session_id}` exposes execution ledger detail (events, steps, receipts, artifacts, costs)
 - `/v1/observations/ingest` and `/v1/observations/recent` provide channel-agnostic observation intake
 - `/v1/delivery/outbox` endpoints provide channel-agnostic queued delivery tracking
@@ -39,11 +40,13 @@ Removed:
 - `/v1/memory/communication-policies*` upserts/list/gets principal-scoped communication policies
 - `/v1/memory/follow-up-rules*` upserts/list/gets principal-scoped follow-up automation rules
 - `/v1/memory/interruption-budgets*` upserts/list/gets principal-scoped interruption budgets
+The principal-scoped memory seed surface is explicitly covered by both `tests/smoke_runtime_api.py` and the approved host smoke path (`scripts/smoke_api.sh` via `scripts/smoke_postgres.sh`).
 - rewrite execution now records `plan_compiled` and executes the primary typed plan step in the ledger
 - observation intake supports `source_id`/`external_id`/`dedupe_key` attribution and auth/raw-payload pointers
 - delivery outbox supports idempotency keys plus retry/dead-letter state fields
 - `/v1/channels/telegram/ingest` maps raw Telegram updates into normalized observation events
 - `/v1/policy/decisions/recent` exposes persisted policy decision audit records
+- `/v1/policy/evaluate` exposes direct policy checks for tool/action/channel combinations, including external-send approval branches
 - `/v1/policy/approvals/*` exposes pending/history plus approve/deny/expire decision endpoints
 - `app.runner` supports role-based startup (`EA_ROLE=api` or idle worker roles)
 - `app.domain.IntentSpecV3` and execution session/event models provide a typed kernel scaffold
@@ -59,7 +62,7 @@ Removed:
 - `EA_STORAGE_BACKEND=postgres` forces Postgres-backed repositories (`DATABASE_URL` required)
 - `EA_STORAGE_BACKEND=memory` keeps repositories in-process (dev/test convenience)
 - `EA_STORAGE_BACKEND=auto` (default) attempts Postgres first, then falls back to memory
-- `EA_LEDGER_BACKEND` is still accepted as a backward-compatible alias
+- `EA_LEDGER_BACKEND` is still accepted as a temporary backward-compatible alias, but it is deprecated in favor of `EA_STORAGE_BACKEND`
 - baseline schema migration: `ea/schema/20260305_v0_2_execution_ledger_kernel.sql`
 - channel runtime migration: `ea/schema/20260305_v0_3_channel_runtime_kernel.sql`
 - policy audit migration: `ea/schema/20260305_v0_4_policy_decisions_kernel.sql`
@@ -90,6 +93,8 @@ Removed:
 
 - `EA_APPROVAL_THRESHOLD_CHARS` sets rewrite input length requiring approval (default `5000`).
 - `EA_APPROVAL_TTL_MINUTES` sets default approval request expiration window (default `120`).
+- Policy decisions also consider declared tool/action metadata plus task risk and budget classes; disallowed tools fail closed with `policy_denied:tool_not_allowed`.
+- `POST /v1/policy/evaluate` can dry-run external-send approval checks over HTTP without going through rewrite artifact creation.
 
 ## Quick Start
 
@@ -117,15 +122,16 @@ A compact runtime surface map is documented in `ARCHITECTURE_MAP.md`.
 Runnable endpoint samples are in `HTTP_EXAMPLES.http`.
 Release notes are tracked in `CHANGELOG.md`.
 Environment/profile recommendations are in `ENVIRONMENT_MATRIX.md`.
-Current machine-readable milestone checkpoint is `MILESTONE.json`.
-Gate-bundle hardening flags are tracked in `MILESTONE.json` feature tags (`ci_gate_bundle`, `release_preflight_bundle`, `docs_verify_alias`).
-Release preflight checklist includes milestone gate-tag parity verification in `RELEASE_CHECKLIST.md`.
+Current machine-readable milestone checkpoint is `MILESTONE.json`, which tracks capabilities by `planned|coded|wired|tested|released` plus separate release tags.
+Gate-bundle hardening flags are tracked in `MILESTONE.json` release tags (`ci_gate_bundle`, `release_preflight_bundle`, `docs_verify_alias`).
+Release preflight checklist includes milestone release-tag parity verification in `RELEASE_CHECKLIST.md`.
 Release operations checklist is `RELEASE_CHECKLIST.md`.
 OpenAPI snapshot export is available via `scripts/export_openapi.sh` or `make openapi-export`.
 Snapshot diff is available via `scripts/diff_openapi.sh` or `make openapi-diff`.
 Snapshot pruning is available via `scripts/prune_openapi.sh` or `make openapi-prune`.
 Endpoint inventory can be printed via `scripts/list_endpoints.sh` or `make endpoints`.
 Version fingerprint can be printed via `scripts/version_info.sh` or `make version-info`.
+`scripts/version_info.sh` now also prints milestone capability-status counts and release tags from `MILESTONE.json`.
 Operator summary can be printed via `scripts/operator_summary.sh` or `make operator-summary`.
 The operator summary includes smoke, readiness, CI parity, release/support, and task-archive shortcuts.
 `bash scripts/operator_summary.sh --help` prints the usage contract and is included in `make operator-help`.
@@ -135,6 +141,7 @@ Support bundle export is available via `scripts/support_bundle.sh` or `make supp
 Support bundles apply baseline redaction for common secret/token/password patterns.
 Set `SUPPORT_INCLUDE_DB=0` to skip DB logs in support bundle generation.
 Set `SUPPORT_INCLUDE_API=0` to skip API logs in support bundle generation.
+Set `SUPPORT_INCLUDE_DB_VOLUME=0` to skip ea-db mount/volume attribution in support bundles.
 Set `SUPPORT_INCLUDE_DB_SIZE=0` to skip DB size snapshots in support bundle generation.
 Set `SUPPORT_DB_SIZE_LIMIT=<n>` to control top-table count in DB size snapshots.
 Set `SUPPORT_INCLUDE_QUEUE=0` to skip queued-task snapshot in support bundles.
@@ -144,10 +151,13 @@ HTTP script host-port resolution details are documented at the top of `RUNBOOK.m
 Task archive rotation is available via `scripts/archive_tasks.sh` or `make tasks-archive`.
 Retention pruning dry-runs are available via `scripts/db_retention.sh` or `make db-retention` (`EA_RETENTION_PROFILE=aggressive|standard|conservative`, optional `EA_RETENTION_TABLES`/`EA_RETENTION_SKIP_TABLES` filters).
 DB size inspection supports optional schema/sort/prefix/size scoping via `EA_DB_SIZE_SCHEMA=<schema>`, `EA_DB_SIZE_SORT_KEY=total|table|index`, `EA_DB_SIZE_TABLE_PREFIX=<prefix>`, and `EA_DB_SIZE_MIN_MB=<n>`.
+The Compose Postgres volume is `ea_pgdata`, mounted at `/var/lib/postgresql/data` in `ea-db`; large host paths under `/var/lib/docker/volumes/.../ea_pgdata` are on-disk Postgres state, not RAM.
+Support bundles now include the expected volume name/mount plus live `ea-db` mount inspection output by default, so host-disk investigations start from captured evidence instead of guesswork.
 Script help contract smoke is available via `scripts/smoke_help.sh` or `make smoke-help`.
 `bash scripts/smoke_help.sh --help` is included in `make operator-help`.
 Release smoke aggregate is available via `make release-smoke`.
 Postgres-backed smoke run is available via `scripts/smoke_postgres.sh` or `make smoke-postgres`.
+Postgres-backed repository contract tests are available via `scripts/test_postgres_contracts.sh` or `make test-postgres-contracts`; the current matrix covers artifacts, channel runtime, approvals, policy decisions, and task contracts.
 Legacy migration-regression smoke is available via `bash scripts/smoke_postgres.sh --legacy-fixture` or `make smoke-postgres-legacy`.
 The script targets an isolated smoke database (`EA_SMOKE_DB`, default `ea_smoke_runtime`) and restores local `.env` state after the run.
 Local CI-parity compile checks can be run via `make ci-local`.
@@ -161,5 +171,5 @@ Release preflight aggregate is available via `make release-preflight`.
 Recommended sequencing: run `make release-docs` before `make release-preflight`.
 One-command local readiness check: `make all-local`.
 `make all-local` is a lighter local readiness pass; use `make release-preflight` for release-stage smoke + operator checks.
-CI gate sequence is documented in `RUNBOOK.md` and includes the API gate bundle (`smoke-help`, `ci-local`, `test-api`, release-asset verification), a Postgres-backed smoke job (`scripts/smoke_postgres.sh`), and a legacy migration-regression job (`bash scripts/smoke_postgres.sh --legacy-fixture`).
+CI gate sequence is documented in `RUNBOOK.md` and includes the API gate bundle (`smoke-help`, `ci-local`, `test-api`, release-asset verification), Postgres-backed smoke and repository-contract jobs (`scripts/smoke_postgres.sh`, `scripts/test_postgres_contracts.sh`), and a legacy migration-regression job (`bash scripts/smoke_postgres.sh --legacy-fixture`).
 Shell script lint config is tracked in `.shellcheckrc`.

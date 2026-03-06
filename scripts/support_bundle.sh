@@ -15,6 +15,7 @@ Environment:
   SUPPORT_LOG_TAIL_LINES=<n>            Number of log lines to capture (default: 300)
   SUPPORT_INCLUDE_API=0|1               Include ea-api logs (default: 1)
   SUPPORT_INCLUDE_DB=0|1                Include ea-db logs (default: 1)
+  SUPPORT_INCLUDE_DB_VOLUME=0|1         Include ea-db mount/volume attribution (default: 1)
   SUPPORT_INCLUDE_DB_SIZE=0|1           Include DB size snapshot via db_size.sh (default: 1)
   SUPPORT_DB_SIZE_LIMIT=<n>             Top table count for DB size snapshot (default: 10)
   SUPPORT_INCLUDE_QUEUE=0|1             Include queued task snapshot (default: 1)
@@ -37,9 +38,11 @@ OUT_FILE="${OUT_DIR}/${PREFIX}_${STAMP}.txt"
 TAIL_LINES="${SUPPORT_LOG_TAIL_LINES:-300}"
 INCLUDE_DB="${SUPPORT_INCLUDE_DB:-1}"
 INCLUDE_API="${SUPPORT_INCLUDE_API:-1}"
+INCLUDE_DB_VOLUME="${SUPPORT_INCLUDE_DB_VOLUME:-1}"
 INCLUDE_DB_SIZE="${SUPPORT_INCLUDE_DB_SIZE:-1}"
 DB_SIZE_LIMIT="${SUPPORT_DB_SIZE_LIMIT:-10}"
 INCLUDE_QUEUE="${SUPPORT_INCLUDE_QUEUE:-1}"
+DB_CONTAINER="${EA_DB_CONTAINER:-ea-db}"
 
 redact() {
   sed -E \
@@ -81,6 +84,23 @@ redact() {
   else
     echo "-- ea-db logs --"
     echo "skipped (SUPPORT_INCLUDE_DB=${INCLUDE_DB})"
+    echo
+  fi
+
+  if [[ "${INCLUDE_DB_VOLUME}" == "1" ]]; then
+    echo "-- ea-db volume attribution --"
+    echo "expected_runtime_volume=ea_pgdata"
+    echo "expected_container_mount=/var/lib/postgresql/data"
+    echo "compose_declared_volumes=$("${DC[@]}" config --volumes 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | sed 's/^ *//; s/ *$//')"
+    if docker inspect "${DB_CONTAINER}" >/dev/null 2>&1; then
+      docker inspect "${DB_CONTAINER}" --format '{{range .Mounts}}{{println .Name "|" .Source "|" .Destination "|" .Type}}{{end}}' 2>/dev/null | redact || true
+    else
+      echo "ea-db mount inspection unavailable"
+    fi
+    echo
+  else
+    echo "-- ea-db volume attribution --"
+    echo "skipped (SUPPORT_INCLUDE_DB_VOLUME=${INCLUDE_DB_VOLUME})"
     echo
   fi
 
