@@ -116,6 +116,17 @@ class OperatorProfileOut(BaseModel):
     updated_at: str
 
 
+class HumanTaskPrioritySummaryOut(BaseModel):
+    status: str
+    role_required: str
+    assigned_operator_id: str
+    assignment_state: str
+    overdue_only: bool
+    counts_json: dict[str, int]
+    total: int
+    highest_priority: str
+
+
 def _to_out(row) -> HumanTaskOut:  # type: ignore[no-untyped-def]
     return HumanTaskOut(
         human_task_id=row.human_task_id,
@@ -250,6 +261,30 @@ def list_human_tasks(
         sort=sort,
     )
     return [_to_out(row) for row in rows]
+
+
+@router.get("/priority-summary")
+def get_human_task_priority_summary(
+    principal_id: str | None = None,
+    status: str = "pending",
+    role_required: str | None = None,
+    assigned_operator_id: str | None = None,
+    assignment_state: str | None = None,
+    overdue_only: bool = False,
+    container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
+) -> HumanTaskPrioritySummaryOut:
+    resolved_principal = resolve_principal_id(principal_id, context)
+    return HumanTaskPrioritySummaryOut(
+        **container.orchestrator.summarize_human_task_priorities(
+            principal_id=resolved_principal,
+            status=status,
+            role_required=role_required,
+            assigned_operator_id=assigned_operator_id,
+            assignment_state=assignment_state,
+            overdue_only=overdue_only,
+        )
+    )
 
 
 @router.get("/backlog")

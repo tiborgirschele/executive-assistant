@@ -1169,6 +1169,48 @@ class RewriteOrchestrator:
             sort=sort,
         )
 
+    def summarize_human_task_priorities(
+        self,
+        *,
+        principal_id: str,
+        status: str = "pending",
+        role_required: str | None = None,
+        assigned_operator_id: str | None = None,
+        assignment_state: str | None = None,
+        overdue_only: bool = False,
+    ) -> dict[str, object]:
+        counts = self._human_tasks.count_by_priority_for_principal(
+            principal_id,
+            status=status,
+            role_required=role_required,
+            assigned_operator_id=assigned_operator_id,
+            assignment_state=assignment_state,
+            overdue_only=overdue_only,
+        )
+        normalized = {
+            "urgent": int(counts.get("urgent", 0)),
+            "high": int(counts.get("high", 0)),
+            "normal": int(counts.get("normal", 0)),
+            "low": int(counts.get("low", 0)),
+        }
+        extra = {
+            key: int(value)
+            for key, value in counts.items()
+            if key not in normalized
+        }
+        ordered = {**normalized, **dict(sorted(extra.items()))}
+        highest_priority = next((key for key in ("urgent", "high", "normal", "low") if ordered.get(key, 0) > 0), "")
+        return {
+            "status": status,
+            "role_required": str(role_required or ""),
+            "assigned_operator_id": str(assigned_operator_id or ""),
+            "assignment_state": str(assignment_state or ""),
+            "overdue_only": bool(overdue_only),
+            "counts_json": ordered,
+            "total": sum(ordered.values()),
+            "highest_priority": highest_priority,
+        }
+
     def list_human_task_assignment_history(
         self,
         human_task_id: str,

@@ -573,6 +573,50 @@ if [[ "${MULTI_PRIORITY_MINE_FIELDS}" != "${PRIORITY_FILTER_URGENT_MINE_ID}|${PR
 fi
 echo "human task multi-priority filter ok"
 
+echo "== smoke: human task priority summary =="
+PRIORITY_SUMMARY_REWRITE_JSON="$(curl -fsS -X POST "${BASE}/v1/rewrite/artifact" "${AUTH_ARGS[@]}" -H 'content-type: application/json' -d '{"text":"priority summary seed"}')"
+PRIORITY_SUMMARY_SESSION_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("execution_session_id",""))' <<<"${PRIORITY_SUMMARY_REWRITE_JSON}")"
+PRIORITY_SUMMARY_SESSION_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${PRIORITY_SUMMARY_SESSION_ID}" "${AUTH_ARGS[@]}")"
+PRIORITY_SUMMARY_STEP_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); rows=body.get("steps") or []; print(((rows[-1] or {}).get("step_id")) if rows else "")' <<<"${PRIORITY_SUMMARY_SESSION_JSON}")"
+PRIORITY_SUMMARY_ROLE="priority_summary_reviewer"
+if [[ -z "${PRIORITY_SUMMARY_STEP_ID}" ]]; then
+  fail 13 "missing priority summary step_id from session response"
+fi
+curl -fsS -X POST "${BASE}/v1/human/tasks" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d "{\"session_id\":\"${PRIORITY_SUMMARY_SESSION_ID}\",\"step_id\":\"${PRIORITY_SUMMARY_STEP_ID}\",\"task_type\":\"communications_review\",\"role_required\":\"${PRIORITY_SUMMARY_ROLE}\",\"brief\":\"Urgent task.\",\"priority\":\"urgent\",\"resume_session_on_return\":false}" >/tmp/ea_priority_summary_urgent.json
+PRIORITY_SUMMARY_HIGH_ASSIGNED_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d "{\"session_id\":\"${PRIORITY_SUMMARY_SESSION_ID}\",\"step_id\":\"${PRIORITY_SUMMARY_STEP_ID}\",\"task_type\":\"communications_review\",\"role_required\":\"${PRIORITY_SUMMARY_ROLE}\",\"brief\":\"High assigned task.\",\"priority\":\"high\",\"resume_session_on_return\":false}")"
+PRIORITY_SUMMARY_HIGH_ASSIGNED_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("human_task_id",""))' <<<"${PRIORITY_SUMMARY_HIGH_ASSIGNED_JSON}")"
+curl -fsS -X POST "${BASE}/v1/human/tasks" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d "{\"session_id\":\"${PRIORITY_SUMMARY_SESSION_ID}\",\"step_id\":\"${PRIORITY_SUMMARY_STEP_ID}\",\"task_type\":\"communications_review\",\"role_required\":\"${PRIORITY_SUMMARY_ROLE}\",\"brief\":\"High unassigned task.\",\"priority\":\"high\",\"resume_session_on_return\":false}" >/tmp/ea_priority_summary_high_unassigned.json
+curl -fsS -X POST "${BASE}/v1/human/tasks" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d "{\"session_id\":\"${PRIORITY_SUMMARY_SESSION_ID}\",\"step_id\":\"${PRIORITY_SUMMARY_STEP_ID}\",\"task_type\":\"communications_review\",\"role_required\":\"${PRIORITY_SUMMARY_ROLE}\",\"brief\":\"Normal task.\",\"priority\":\"normal\",\"resume_session_on_return\":false}" >/tmp/ea_priority_summary_normal.json
+PRIORITY_SUMMARY_OPERATOR="operator-priority-summary"
+curl -fsS -X POST "${BASE}/v1/human/tasks/${PRIORITY_SUMMARY_HIGH_ASSIGNED_ID}/assign" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' -d "{\"operator_id\":\"${PRIORITY_SUMMARY_OPERATOR}\"}" >/dev/null
+PRIORITY_SUMMARY_JSON="$(curl -fsS "${BASE}/v1/human/tasks/priority-summary?status=pending&role_required=${PRIORITY_SUMMARY_ROLE}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+PRIORITY_SUMMARY_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); counts=body.get('counts_json') or {}; print('{}|{}|{}|{}|{}|{}'.format(body.get('total',''), body.get('highest_priority',''), counts.get('urgent',''), counts.get('high',''), counts.get('normal',''), counts.get('low','')))" <<<"${PRIORITY_SUMMARY_JSON}")"
+if [[ "${PRIORITY_SUMMARY_FIELDS}" != "4|urgent|1|2|1|0" ]]; then
+  echo "expected priority summary to expose urgent/high/normal queue counts; got ${PRIORITY_SUMMARY_FIELDS}" >&2
+  echo "${PRIORITY_SUMMARY_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+PRIORITY_SUMMARY_UNASSIGNED_JSON="$(curl -fsS "${BASE}/v1/human/tasks/priority-summary?status=pending&role_required=${PRIORITY_SUMMARY_ROLE}&assignment_state=unassigned" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+PRIORITY_SUMMARY_UNASSIGNED_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); counts=body.get('counts_json') or {}; print('{}|{}|{}|{}|{}|{}'.format(body.get('total',''), body.get('highest_priority',''), counts.get('urgent',''), counts.get('high',''), counts.get('normal',''), counts.get('low','')))" <<<"${PRIORITY_SUMMARY_UNASSIGNED_JSON}")"
+if [[ "${PRIORITY_SUMMARY_UNASSIGNED_FIELDS}" != "3|urgent|1|1|1|0" ]]; then
+  echo "expected unassigned priority summary to remove the assigned high-priority task while preserving band counts; got ${PRIORITY_SUMMARY_UNASSIGNED_FIELDS}" >&2
+  echo "${PRIORITY_SUMMARY_UNASSIGNED_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+PRIORITY_SUMMARY_ASSIGNED_JSON="$(curl -fsS "${BASE}/v1/human/tasks/priority-summary?status=pending&role_required=${PRIORITY_SUMMARY_ROLE}&assigned_operator_id=${PRIORITY_SUMMARY_OPERATOR}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+PRIORITY_SUMMARY_ASSIGNED_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); counts=body.get('counts_json') or {}; print('{}|{}|{}|{}|{}|{}|{}'.format(body.get('assigned_operator_id',''), body.get('total',''), body.get('highest_priority',''), counts.get('urgent',''), counts.get('high',''), counts.get('normal',''), counts.get('low','')))" <<<"${PRIORITY_SUMMARY_ASSIGNED_JSON}")"
+if [[ "${PRIORITY_SUMMARY_ASSIGNED_FIELDS}" != "${PRIORITY_SUMMARY_OPERATOR}|1|high|0|1|0|0" ]]; then
+  echo "expected assigned-operator priority summary to isolate only the assigned reviewer queue; got ${PRIORITY_SUMMARY_ASSIGNED_FIELDS}" >&2
+  echo "${PRIORITY_SUMMARY_ASSIGNED_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+rm -f /tmp/ea_priority_summary_urgent.json /tmp/ea_priority_summary_high_unassigned.json /tmp/ea_priority_summary_normal.json
+echo "human task priority summary ok"
+
 echo "== smoke: human task SLA sort =="
 SLA_REWRITE_JSON="$(curl -fsS -X POST "${BASE}/v1/rewrite/artifact" "${AUTH_ARGS[@]}" -H 'content-type: application/json' -d '{"text":"sla sort seed"}')"
 SLA_SESSION_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("execution_session_id",""))' <<<"${SLA_REWRITE_JSON}")"

@@ -227,6 +227,8 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Human task queue views now accept `sort=priority_desc_created_asc`, keeping urgent and high packets ahead of normal work while preserving oldest-created order within each priority band across list, backlog, unassigned, and assigned-my-queue views.
 - Human task queue views now accept exact `priority` filters, letting operators isolate `urgent`, `high`, `normal`, or `low` work across list, backlog, unassigned, and assigned-my-queue views before applying sort order.
 - Human task queue views now accept comma-separated `priority` filters such as `urgent,high`, so operators can pull a combined action queue without multiple requests or client-side merging.
+- Human task queues now expose `GET /v1/human/tasks/priority-summary`, returning per-band counts plus `total` and `highest_priority` so operators can choose a filter strategy before opening a backlog view.
+- Human task priority summaries now accept `assigned_operator_id`, so assigned reviewer queues can expose their own band counts without fetching the full list first.
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.

@@ -1757,6 +1757,59 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_priority_summary")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "GET /v1/human/tasks/priority-summary" "README.md" && \
+     grep -Fq "/v1/human/tasks/priority-summary" "RUNBOOK.md" && \
+     grep -Fq "human task priority summary ok" "scripts/smoke_api.sh" && \
+     grep -Fq "PRIORITY_SUMMARY_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq "PRIORITY_SUMMARY_UNASSIGNED_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq 'params={"status": "pending", "role_required": role_required}' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'params={"status": "pending", "role_required": role_required, "assignment_state": "unassigned"}' "tests/smoke_runtime_api.py" && \
+     grep -Fq "/v1/human/tasks/priority-summary?status=pending&role_required=communications_reviewer" "HTTP_EXAMPLES.http" && \
+     grep -Fq '@router.get("/priority-summary")' "ea/app/api/routes/human.py"; then
+    echo "ok: human task priority summary docs"
+  else
+    echo "missing: human task priority summary docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task priority summary milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assigned_priority_summary")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "also accepts \`assigned_operator_id\`" "README.md" && \
+     grep -Fq "assigned_operator_id" "RUNBOOK.md" && \
+     grep -Fq "PRIORITY_SUMMARY_ASSIGNED_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq "PRIORITY_SUMMARY_ASSIGNED_FIELDS" "scripts/smoke_api.sh" && \
+     grep -Fq 'params={"status": "pending", "role_required": role_required, "assigned_operator_id": operator_id}' "tests/smoke_runtime_api.py" && \
+     grep -Fq "/v1/human/tasks/priority-summary?status=pending&role_required=communications_reviewer&assigned_operator_id=operator" "HTTP_EXAMPLES.http"; then
+    echo "ok: human task assigned priority summary docs"
+  else
+    echo "missing: human task assigned priority summary docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task assigned priority summary milestone" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1

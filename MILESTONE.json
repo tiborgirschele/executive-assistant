@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.73.0",
+  "version": "0.75.0",
   "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
@@ -605,6 +605,26 @@
         "combined_priority_band_queue_views"
       ],
       "notes": "Human task list/backlog/unassigned/mine endpoints now accept comma-separated `priority` filters such as `urgent,high`, so operators can pull combined priority-band queues without client-side request merging."
+    },
+    {
+      "name": "human_task_priority_summary",
+      "status": "tested",
+      "scope": [
+        "human_task_priority_summary_endpoint",
+        "priority_band_count_projection",
+        "priority_summary_assignment_state_filter"
+      ],
+      "notes": "Human task queues now expose `GET /v1/human/tasks/priority-summary`, returning per-band counts plus `total` and `highest_priority` so operators can choose a queue filter strategy before opening a backlog view."
+    },
+    {
+      "name": "human_task_assigned_priority_summary",
+      "status": "tested",
+      "scope": [
+        "priority_summary_assigned_operator_filter",
+        "mine_queue_priority_band_projection",
+        "assigned_reviewer_queue_counts"
+      ],
+      "notes": "Human task priority summaries now accept `assigned_operator_id`, so assigned reviewer queues can expose their own urgent/high/normal totals without fetching the full packet list."
     }
   ],
   "migrations": [

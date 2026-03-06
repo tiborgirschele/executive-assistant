@@ -380,6 +380,52 @@ class PostgresHumanTaskRepository:
                 rows = cur.fetchall()
         return [self._from_row(row) for row in rows]
 
+    def count_by_priority_for_principal(
+        self,
+        principal_id: str,
+        *,
+        status: str | None = None,
+        role_required: str | None = None,
+        assigned_operator_id: str | None = None,
+        assignment_state: str | None = None,
+        overdue_only: bool = False,
+    ) -> dict[str, int]:
+        principal = str(principal_id or "")
+        status_filter = str(status or "").strip()
+        role_filter = str(role_required or "").strip()
+        operator_filter = str(assigned_operator_id or "").strip()
+        assignment_filter = str(assignment_state or "").strip().lower()
+        clauses = ["principal_id = %s"]
+        params: list[object] = [principal]
+        if status_filter:
+            clauses.append("status = %s")
+            params.append(status_filter)
+        if role_filter:
+            clauses.append("role_required = %s")
+            params.append(role_filter)
+        if operator_filter:
+            clauses.append("assigned_operator_id = %s")
+            params.append(operator_filter)
+        if assignment_filter:
+            clauses.append("assignment_state = %s")
+            params.append(assignment_filter)
+        if overdue_only:
+            clauses.append("sla_due_at IS NOT NULL")
+            clauses.append("sla_due_at <= NOW()")
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT LOWER(priority) AS priority_key, COUNT(*)
+                    FROM human_tasks
+                    WHERE {' AND '.join(clauses)}
+                    GROUP BY LOWER(priority)
+                    """,
+                    tuple(params),
+                )
+                rows = cur.fetchall()
+        return {str(priority_key or "normal"): int(count) for priority_key, count in rows}
+
     def claim(
         self,
         human_task_id: str,

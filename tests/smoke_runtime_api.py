@@ -1142,6 +1142,175 @@ def test_human_task_multi_priority_filter_across_queue_views() -> None:
     assert normal_unassigned_id not in backlog_ids
 
 
+def test_human_task_priority_summary_view() -> None:
+    client = _client(storage_backend="memory")
+    create = client.post("/v1/rewrite/artifact", json={"text": "priority summary seed"})
+    assert create.status_code == 200
+    session_id = create.json()["execution_session_id"]
+
+    session = client.get(f"/v1/rewrite/sessions/{session_id}")
+    assert session.status_code == 200
+    step_id = session.json()["steps"][-1]["step_id"]
+    role_required = "priority_summary_reviewer"
+
+    urgent = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": role_required,
+            "brief": "Urgent task.",
+            "priority": "urgent",
+            "resume_session_on_return": False,
+        },
+    )
+    assert urgent.status_code == 200
+
+    high_assigned = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": role_required,
+            "brief": "High assigned task.",
+            "priority": "high",
+            "resume_session_on_return": False,
+        },
+    )
+    assert high_assigned.status_code == 200
+    high_assigned_id = high_assigned.json()["human_task_id"]
+
+    high_unassigned = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": role_required,
+            "brief": "High unassigned task.",
+            "priority": "high",
+            "resume_session_on_return": False,
+        },
+    )
+    assert high_unassigned.status_code == 200
+
+    normal = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": role_required,
+            "brief": "Normal task.",
+            "priority": "normal",
+            "resume_session_on_return": False,
+        },
+    )
+    assert normal.status_code == 200
+
+    assert client.post(f"/v1/human/tasks/{high_assigned_id}/assign", json={"operator_id": "operator-sorter"}).status_code == 200
+
+    summary = client.get(
+        "/v1/human/tasks/priority-summary",
+        params={"status": "pending", "role_required": role_required},
+    )
+    assert summary.status_code == 200
+    body = summary.json()
+    assert body["total"] == 4
+    assert body["highest_priority"] == "urgent"
+    assert body["counts_json"]["urgent"] == 1
+    assert body["counts_json"]["high"] == 2
+    assert body["counts_json"]["normal"] == 1
+    assert body["counts_json"]["low"] == 0
+
+    unassigned_summary = client.get(
+        "/v1/human/tasks/priority-summary",
+        params={"status": "pending", "role_required": role_required, "assignment_state": "unassigned"},
+    )
+    assert unassigned_summary.status_code == 200
+    unassigned_body = unassigned_summary.json()
+    assert unassigned_body["total"] == 3
+    assert unassigned_body["highest_priority"] == "urgent"
+    assert unassigned_body["counts_json"]["urgent"] == 1
+    assert unassigned_body["counts_json"]["high"] == 1
+    assert unassigned_body["counts_json"]["normal"] == 1
+
+
+def test_human_task_priority_summary_for_assigned_operator() -> None:
+    client = _client(storage_backend="memory")
+    create = client.post("/v1/rewrite/artifact", json={"text": "assigned priority summary seed"})
+    assert create.status_code == 200
+    session_id = create.json()["execution_session_id"]
+
+    session = client.get(f"/v1/rewrite/sessions/{session_id}")
+    assert session.status_code == 200
+    step_id = session.json()["steps"][-1]["step_id"]
+    role_required = "assigned_priority_summary_reviewer"
+    operator_id = "operator-priority-summary"
+
+    urgent_assigned = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": role_required,
+            "brief": "Urgent assigned task.",
+            "priority": "urgent",
+            "resume_session_on_return": False,
+        },
+    )
+    assert urgent_assigned.status_code == 200
+    urgent_assigned_id = urgent_assigned.json()["human_task_id"]
+
+    high_assigned = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": role_required,
+            "brief": "High assigned task.",
+            "priority": "high",
+            "resume_session_on_return": False,
+        },
+    )
+    assert high_assigned.status_code == 200
+    high_assigned_id = high_assigned.json()["human_task_id"]
+
+    normal_unassigned = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": role_required,
+            "brief": "Normal unassigned task.",
+            "priority": "normal",
+            "resume_session_on_return": False,
+        },
+    )
+    assert normal_unassigned.status_code == 200
+
+    assert client.post(f"/v1/human/tasks/{urgent_assigned_id}/assign", json={"operator_id": operator_id}).status_code == 200
+    assert client.post(f"/v1/human/tasks/{high_assigned_id}/assign", json={"operator_id": operator_id}).status_code == 200
+
+    summary = client.get(
+        "/v1/human/tasks/priority-summary",
+        params={"status": "pending", "role_required": role_required, "assigned_operator_id": operator_id},
+    )
+    assert summary.status_code == 200
+    body = summary.json()
+    assert body["assigned_operator_id"] == operator_id
+    assert body["total"] == 2
+    assert body["highest_priority"] == "urgent"
+    assert body["counts_json"]["urgent"] == 1
+    assert body["counts_json"]["high"] == 1
+    assert body["counts_json"]["normal"] == 0
+
+
 def test_human_task_sort_by_sla_due_at_asc() -> None:
     client = _client(storage_backend="memory")
     create = client.post("/v1/rewrite/artifact", json={"text": "sla sort seed"})

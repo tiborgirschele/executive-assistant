@@ -49,6 +49,18 @@ class HumanTaskRepository(Protocol):
     def list_for_session(self, session_id: str, *, limit: int = 200) -> list[HumanTask]:
         ...
 
+    def count_by_priority_for_principal(
+        self,
+        principal_id: str,
+        *,
+        status: str | None = None,
+        role_required: str | None = None,
+        assigned_operator_id: str | None = None,
+        assignment_state: str | None = None,
+        overdue_only: bool = False,
+    ) -> dict[str, int]:
+        ...
+
     def claim(
         self,
         human_task_id: str,
@@ -198,6 +210,53 @@ class InMemoryHumanTaskRepository:
         rows = [self._rows[row_id] for row_id in self._order if row_id in self._rows]
         rows = [row for row in rows if row.session_id == session]
         return rows[:n]
+
+    def count_by_priority_for_principal(
+        self,
+        principal_id: str,
+        *,
+        status: str | None = None,
+        role_required: str | None = None,
+        assigned_operator_id: str | None = None,
+        assignment_state: str | None = None,
+        overdue_only: bool = False,
+    ) -> dict[str, int]:
+        principal = str(principal_id or "")
+        status_filter = str(status or "").strip()
+        role_filter = str(role_required or "").strip()
+        operator_filter = str(assigned_operator_id or "").strip()
+        assignment_filter = str(assignment_state or "").strip().lower()
+        rows = [self._rows[row_id] for row_id in self._order if row_id in self._rows]
+        rows = [row for row in rows if row.principal_id == principal]
+        if status_filter:
+            rows = [row for row in rows if row.status == status_filter]
+        if role_filter:
+            rows = [row for row in rows if row.role_required == role_filter]
+        if operator_filter:
+            rows = [row for row in rows if row.assigned_operator_id == operator_filter]
+        if assignment_filter:
+            rows = [row for row in rows if row.assignment_state == assignment_filter]
+        if overdue_only:
+            now = datetime.now(timezone.utc)
+            overdue_rows: list[HumanTask] = []
+            for row in rows:
+                raw = str(row.sla_due_at or "").strip()
+                if not raw:
+                    continue
+                try:
+                    due = datetime.fromisoformat(raw)
+                except ValueError:
+                    continue
+                if due.tzinfo is None:
+                    due = due.replace(tzinfo=timezone.utc)
+                if due <= now:
+                    overdue_rows.append(row)
+            rows = overdue_rows
+        counts: dict[str, int] = {}
+        for row in rows:
+            key = str(row.priority or "").strip().lower() or "normal"
+            counts[key] = counts.get(key, 0) + 1
+        return counts
 
     def claim(
         self,

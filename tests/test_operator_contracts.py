@@ -748,6 +748,50 @@ def test_human_task_multi_priority_filters_are_documented_and_smoked() -> None:
     assert "combined_priority_band_queue_views" in capability["scope"]
 
 
+def test_human_task_priority_summary_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    human_route = (ROOT / "ea/app/api/routes/human.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "GET /v1/human/tasks/priority-summary" in readme
+    assert "/v1/human/tasks/priority-summary" in runbook
+    assert "human task priority summary ok" in smoke_api
+    assert "PRIORITY_SUMMARY_JSON" in smoke_api
+    assert "PRIORITY_SUMMARY_UNASSIGNED_JSON" in smoke_api
+    assert 'params={"status": "pending", "role_required": role_required}' in smoke_runtime
+    assert 'params={"status": "pending", "role_required": role_required, "assignment_state": "unassigned"}' in smoke_runtime
+    assert "/v1/human/tasks/priority-summary?status=pending&role_required=communications_reviewer" in http_examples
+    assert '@router.get("/priority-summary")' in human_route
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_priority_summary")
+    assert capability["status"] == "tested"
+    assert "priority_band_count_projection" in capability["scope"]
+
+
+def test_human_task_assigned_priority_summary_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "also accepts `assigned_operator_id`" in readme
+    assert "assigned_operator_id" in runbook
+    assert "PRIORITY_SUMMARY_ASSIGNED_JSON" in smoke_api
+    assert "PRIORITY_SUMMARY_ASSIGNED_FIELDS" in smoke_api
+    assert 'params={"status": "pending", "role_required": role_required, "assigned_operator_id": operator_id}' in smoke_runtime
+    assert "/v1/human/tasks/priority-summary?status=pending&role_required=communications_reviewer&assigned_operator_id=operator" in http_examples
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assigned_priority_summary")
+    assert capability["status"] == "tested"
+    assert "mine_queue_priority_band_projection" in capability["scope"]
+
+
 def test_milestone_marks_postgres_contract_matrix_tested() -> None:
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "postgres_contract_matrix")
