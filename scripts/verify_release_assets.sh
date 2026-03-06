@@ -2333,6 +2333,34 @@ from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(
+    entry
+    for entry in milestone["capabilities"]
+    if entry["name"] == "human_task_session_ownerless_unsorted_mixed_source_isolation"
+)
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "unsorted session-scoped \`session_id=<id>&assignment_source=none\` slice is now also explicitly covered after mixed-source churn" "README.md" && \
+     grep -Fq "unsorted session-scoped \`session_id=<id>&assignment_source=none\` slice is now also covered after mixed-source churn" "RUNBOOK.md" && \
+     grep -Fq "SESSION_HUMAN_NONE_MIXED_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq "stay ownerless-only after mixed-source churn" "scripts/smoke_api.sh" && \
+     grep -Fq "ownerless_session_list_after_churn_ids ==" "tests/smoke_runtime_api.py"; then
+    echo "ok: human task session ownerless unsorted mixed-source isolation docs"
+  else
+    echo "missing: human task session ownerless unsorted mixed-source isolation docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task session ownerless unsorted mixed-source isolation milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(
     entry for entry in milestone["capabilities"] if entry["name"] == "session_ownerless_projection_created_order"
 )
 assert capability["status"] == "tested"

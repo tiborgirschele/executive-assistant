@@ -1218,6 +1218,28 @@ def test_human_task_ownerless_unsorted_queue_mixed_source_isolation_is_documente
     assert "ownerless_list_unsorted_excludes_non_ownerless_after_churn" in capability["scope"]
 
 
+def test_human_task_session_ownerless_unsorted_mixed_source_isolation_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "unsorted session-scoped `session_id=<id>&assignment_source=none` slice is now also explicitly covered after mixed-source churn" in readme
+    assert "unsorted session-scoped `session_id=<id>&assignment_source=none` slice is now also covered after mixed-source churn" in runbook
+    assert "SESSION_HUMAN_NONE_MIXED_JSON" in smoke_api
+    assert "stay ownerless-only after mixed-source churn" in smoke_api
+    assert "ownerless_session_list_after_churn_ids ==" in smoke_runtime
+
+    capability = next(
+        entry
+        for entry in milestone["capabilities"]
+        if entry["name"] == "human_task_session_ownerless_unsorted_mixed_source_isolation"
+    )
+    assert capability["status"] == "tested"
+    assert "session_ownerless_unsorted_excludes_non_ownerless_after_churn" in capability["scope"]
+
+
 def test_session_ownerless_projection_created_order_is_documented_and_smoked() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")

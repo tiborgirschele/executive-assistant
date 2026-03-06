@@ -268,6 +268,13 @@ if [[ "${HUMAN_OWNERLESS_BACKLOG_MIXED_FIELDS}" != "2|True|True" ]]; then
   echo "${HUMAN_OWNERLESS_BACKLOG_MIXED_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+SESSION_HUMAN_NONE_MIXED_JSON="$(curl -fsS "${BASE}/v1/human/tasks?session_id=${SESSION_ID}&assignment_source=none&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+SESSION_HUMAN_NONE_MIXED_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); ids={(row or {}).get('human_task_id','') for row in rows}; wanted={'${HUMAN_OWNERLESS_ID}','${HUMAN_OWNERLESS_NEWER_ID}'}; blocked='${HUMAN_TASK_ID}'; print('{}|{}|{}'.format(len(rows), ids == wanted, blocked not in ids))" <<<"${SESSION_HUMAN_NONE_MIXED_JSON}")"
+if [[ "${SESSION_HUMAN_NONE_MIXED_FIELDS}" != "2|True|True" ]]; then
+  echo "expected unsorted session-scoped assignment_source=none slice to stay ownerless-only after mixed-source churn; got ${SESSION_HUMAN_NONE_MIXED_FIELDS}" >&2
+  echo "${SESSION_HUMAN_NONE_MIXED_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 HUMAN_OWNERLESS_BACKLOG_CREATED_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?assignment_state=unassigned&assignment_source=none&sort=created_asc&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
 HUMAN_OWNERLESS_BACKLOG_CREATED_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); blocked='${HUMAN_TASK_ID}'; current_only=all((row or {}).get('human_task_id') != blocked for row in rows); print('{}|{}'.format('|'.join((row or {}).get('human_task_id','') for row in rows[:2]), current_only))" <<<"${HUMAN_OWNERLESS_BACKLOG_CREATED_JSON}")"
 if [[ "${HUMAN_OWNERLESS_BACKLOG_CREATED_FIELDS}" != "${HUMAN_OWNERLESS_ID}|${HUMAN_OWNERLESS_NEWER_ID}|True" ]]; then
