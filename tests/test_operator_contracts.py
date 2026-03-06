@@ -1115,6 +1115,29 @@ def test_human_task_session_ownerless_last_transition_sort_is_documented_and_smo
     assert "session_ownerless_last_transition_desc_ordering" in capability["scope"]
 
 
+def test_session_ownerless_projection_created_order_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "human_task_assignment_source=none" in readme
+    assert "human_task_assignment_source=none" in runbook
+    assert "SESSION_HUMAN_NONE_PROJECTION_JSON" in smoke_api
+    assert 'params={"human_task_assignment_source": "none"}' in smoke_runtime
+    assert "ownerless_session_projection_ids == [ownerless_task_id, ownerless_newer_task_id]" in smoke_runtime
+    assert "ownerless_session_history_ids == [ownerless_task_id, ownerless_newer_task_id]" in smoke_runtime
+    assert "/v1/rewrite/sessions/{{session_id}}?human_task_assignment_source=none" in http_examples
+
+    capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "session_ownerless_projection_created_order"
+    )
+    assert capability["status"] == "tested"
+    assert "session_ownerless_projection_human_tasks_created_asc" in capability["scope"]
+
+
 def test_human_task_assignment_history_source_filter_is_documented_and_smoked() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")

@@ -1756,6 +1756,25 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
     ]
     assert ownerless_session_transition_ids == [ownerless_newer_task_id, ownerless_task_id]
 
+    ownerless_session_projection = client.get(
+        f"/v1/rewrite/sessions/{session_id}",
+        params={"human_task_assignment_source": "none"},
+    )
+    assert ownerless_session_projection.status_code == 200
+    ownerless_session_projection_body = ownerless_session_projection.json()
+    ownerless_session_projection_ids = [
+        row["human_task_id"]
+        for row in ownerless_session_projection_body["human_tasks"]
+        if row["human_task_id"] in {ownerless_task_id, ownerless_newer_task_id}
+    ]
+    assert ownerless_session_projection_ids == [ownerless_task_id, ownerless_newer_task_id]
+    ownerless_session_history_ids = [
+        row["human_task_id"]
+        for row in ownerless_session_projection_body["human_task_assignment_history"]
+        if row["human_task_id"] in {ownerless_task_id, ownerless_newer_task_id}
+    ]
+    assert ownerless_session_history_ids == [ownerless_task_id, ownerless_newer_task_id]
+
     auto_summary = client.get(
         "/v1/human/tasks/priority-summary",
         params={"status": "pending", "assignment_source": "auto_preselected"},

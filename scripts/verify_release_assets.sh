@@ -2205,6 +2205,34 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(
+    entry for entry in milestone["capabilities"] if entry["name"] == "session_ownerless_projection_created_order"
+)
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "human_task_assignment_source=none" "README.md" && \
+     grep -Fq "human_task_assignment_source=none" "RUNBOOK.md" && \
+     grep -Fq "SESSION_HUMAN_NONE_PROJECTION_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq 'params={"human_task_assignment_source": "none"}' "tests/smoke_runtime_api.py" && \
+     grep -Fq "ownerless_session_projection_ids == [ownerless_task_id, ownerless_newer_task_id]" "tests/smoke_runtime_api.py" && \
+     grep -Fq "ownerless_session_history_ids == [ownerless_task_id, ownerless_newer_task_id]" "tests/smoke_runtime_api.py" && \
+     grep -Fq "/v1/rewrite/sessions/{{session_id}}?human_task_assignment_source=none" "HTTP_EXAMPLES.http"; then
+    echo "ok: session ownerless projection created order docs"
+  else
+    echo "missing: session ownerless projection created order docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: session ownerless projection created order milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assignment_history_source_filter")
 assert capability["status"] == "tested"
 PY

@@ -296,6 +296,13 @@ if [[ "${SESSION_HUMAN_NONE_TRANSITION_FIELDS}" != "${HUMAN_OWNERLESS_NEWER_ID}|
   echo "${SESSION_HUMAN_NONE_TRANSITION_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+SESSION_HUMAN_NONE_PROJECTION_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${SESSION_ID}?human_task_assignment_source=none" "${AUTH_ARGS[@]}")"
+SESSION_HUMAN_NONE_PROJECTION_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); wanted=['${HUMAN_OWNERLESS_ID}','${HUMAN_OWNERLESS_NEWER_ID}']; tasks=[row for row in (body.get('human_tasks') or []) if (row or {}).get('human_task_id') in wanted]; history=[row for row in (body.get('human_task_assignment_history') or []) if (row or {}).get('human_task_id') in wanted]; print('{}|{}'.format('|'.join((row or {}).get('human_task_id','') for row in tasks[:2]), '|'.join((row or {}).get('human_task_id','') for row in history[:2])))" <<<"${SESSION_HUMAN_NONE_PROJECTION_JSON}")"
+if [[ "${SESSION_HUMAN_NONE_PROJECTION_FIELDS}" != "${HUMAN_OWNERLESS_ID}|${HUMAN_OWNERLESS_NEWER_ID}|${HUMAN_OWNERLESS_ID}|${HUMAN_OWNERLESS_NEWER_ID}" ]]; then
+  echo "expected session detail human_task_assignment_source=none projection to preserve oldest-first ownerless task and history ordering; got ${SESSION_HUMAN_NONE_PROJECTION_FIELDS}" >&2
+  echo "${SESSION_HUMAN_NONE_PROJECTION_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 HUMAN_ASSIGNED_BACKLOG_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?role_required=communications_reviewer&overdue_only=true&assignment_state=assigned&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
 HUMAN_ASSIGNED_BACKLOG_MATCH="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); task_id='${HUMAN_TASK_ID}'; print(any((row or {}).get('human_task_id') == task_id for row in rows))" <<<"${HUMAN_ASSIGNED_BACKLOG_JSON}")"
 if [[ "${HUMAN_ASSIGNED_BACKLOG_MATCH}" != "True" ]]; then

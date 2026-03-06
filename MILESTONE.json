@@ -757,6 +757,15 @@
       "notes": "Session-scoped list queries now have explicit smoke/docs coverage for `session_id=<id>&assignment_source=none&sort=last_transition_desc`, keeping per-session untouched-ownerless newest-first ordering aligned with the global queue views."
     },
     {
+      "name": "session_ownerless_projection_created_order",
+      "status": "tested",
+      "scope": [
+        "session_ownerless_projection_human_tasks_created_asc",
+        "session_ownerless_projection_history_created_asc"
+      ],
+      "notes": "Rewrite session detail now has explicit smoke/docs coverage for `human_task_assignment_source=none`, keeping both filtered ownerless `human_tasks` rows and inline assignment-history rows in oldest-first order when multiple ownerless packets exist."
+    },
+    {
       "name": "human_task_assignment_history_source_filter",
       "status": "tested",
       "scope": [

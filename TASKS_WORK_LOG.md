@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-232 | P1 | Add explicit ownerless alias FIFO coverage on session-scoped assignment-history or session-detail projections so multi-task ownerless sessions expose stable oldest-first ordering in docs and smoke too | codex | queued | Session-scoped ownerless list fetches now align on both FIFO and newest-first ordering, but the session detail and assignment-history surfaces still do not explicitly document or smoke stable multi-task ownerless ordering |
+| Q-233 | P1 | Add explicit ownerless alias ordering coverage on the filtered session-detail history projection after mixed-source churn so `human_task_assignment_source=none` stays oldest-first even after manual and auto rows coexist | codex | queued | Session detail now has explicit oldest-first ownerless projection coverage for multiple ownerless packets, but it still lacks a dedicated smoke/docs slice proving that the same filtered history order survives alongside manual and auto-preselected rows after later churn |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-232 | P1 | Add explicit ownerless alias FIFO coverage on session-scoped assignment-history or session-detail projections so multi-task ownerless sessions expose stable oldest-first ordering in docs and smoke too | codex | done | Added approved smoke/docs coverage proving `GET /v1/rewrite/sessions/{session_id}?human_task_assignment_source=none` keeps both filtered ownerless `human_tasks` rows and inline `human_task_assignment_history` rows in oldest-first order after multiple ownerless packets are present |
 | D-231 | P1 | Add ownerless alias freshest-transition coverage on session-scoped human-task lists so `/v1/human/tasks?session_id=<id>&assignment_source=none&sort=last_transition_desc` is explicitly mirrored in smoke/docs too | codex | done | Added approved smoke/docs coverage proving session-scoped ownerless list fetches preserve the same newest-first untouched-ownerless transition ordering as the global list, backlog, and direct unassigned queues under `sort=last_transition_desc` |
 | D-230 | P1 | Add ownerless alias FIFO coverage on session-scoped human-task lists so `/v1/human/tasks?session_id=<id>&assignment_source=none&sort=created_asc` is explicitly mirrored in smoke/docs too | codex | done | Added approved smoke/docs coverage proving session-scoped ownerless list fetches preserve the same oldest-first FIFO ordering as the global list, backlog, and direct unassigned queues under `sort=created_asc` |
 | D-229 | P1 | Add ownerless alias freshest-transition coverage on the general pending human-task list so `/v1/human/tasks?status=pending&assignment_state=unassigned&assignment_source=none&sort=last_transition_desc` is explicitly mirrored in smoke/docs too | codex | done | Added approved smoke/docs coverage proving the general pending list preserves the same newest-first untouched-ownerless transition ordering as the backlog and direct unassigned queues under `sort=last_transition_desc` |
