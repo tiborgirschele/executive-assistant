@@ -84,6 +84,7 @@ def test_postgres_contract_script_help_and_wiring() -> None:
     assert "test-postgres-contracts:" in makefile
     assert "bash scripts/test_postgres_contracts.sh" in workflow
     assert "tests/test_postgres_contract_matrix_integration.py" in script
+    assert "tests/test_generic_async_dependency_projection_contracts.py" in script
     assert "tests/test_memory_router_contracts.py" in script
     assert "tests/test_rewrite_scope_contracts.py" in script
     assert "tests/test_rewrite_api_scope_contracts.py" in script
@@ -104,6 +105,8 @@ def test_session_step_dependency_projection_is_covered_by_contract_tests() -> No
     assert '["step_input_prepare"]' in contract_test
     assert '["step_policy_evaluate"]' in contract_test
     assert '"dependency_states"] == {"step_policy_evaluate": "completed"}' in contract_test
+    assert 'steps["step_artifact_save"]["state"] == "waiting_approval"' in contract_test
+    assert 'steps["step_artifact_save"]["blocked_dependency_keys"] == ["step_human_review"]' in contract_test
 
 
 def test_session_step_dependency_projection_is_covered_by_smoke_runtime() -> None:
@@ -112,9 +115,17 @@ def test_session_step_dependency_projection_is_covered_by_smoke_runtime() -> Non
 
     assert 'steps_by_key["step_policy_evaluate"]["dependency_states"] == {"step_input_prepare": "completed"}' in smoke_test
     assert 'steps_by_key["step_artifact_save"]["dependency_states"] == {"step_policy_evaluate": "completed"}' in smoke_test
+    assert 'approval_steps["step_artifact_save"]["state"] == "waiting_approval"' in smoke_test
+    assert 'review_steps["step_artifact_save"]["blocked_dependency_keys"] == ["step_human_review"]' in smoke_test
+    assert 'generic_approval_steps["step_artifact_save"]["state"] == "waiting_approval"' in smoke_test
+    assert 'generic_review_steps["step_artifact_save"]["blocked_dependency_keys"] == ["step_human_review"]' in smoke_test
     assert "projection_ok=(" in smoke_script
     assert "dependency_states') == {'step_policy_evaluate': 'completed'}" in smoke_script
     assert "dependency_states') == {'step_input_prepare': 'completed'}" in smoke_script
+    assert "save_step.get('state',''), policy_step.get('dependency_states') == {'step_input_prepare': 'completed'}" in smoke_script
+    assert "save_step.get('blocked_dependency_keys') == ['step_human_review']" in smoke_script
+    assert "decision_brief_approval|awaiting_approval|waiting_approval|True|True|True|True|True" in smoke_script
+    assert "stakeholder_briefing_review|awaiting_human|waiting_human|True|True|True|True|queued|True|True|True" in smoke_script
 
 
 def test_policy_docs_and_milestone_cover_external_action_evaluation() -> None:

@@ -278,9 +278,24 @@ def test_rewrite_requires_approval_then_approve_flow() -> None:
     assert len(body["queue_items"]) == 2
     assert all(item["state"] == "done" for item in body["queue_items"])
     assert len(body["receipts"]) == 0
-    assert body["steps"][0]["state"] == "completed"
-    assert body["steps"][1]["state"] == "completed"
-    assert body["steps"][2]["state"] == "waiting_approval"
+    approval_steps = {
+        step["input_json"]["plan_step_key"]: step
+        for step in body["steps"]
+    }
+    assert approval_steps["step_input_prepare"]["state"] == "completed"
+    assert approval_steps["step_policy_evaluate"]["state"] == "completed"
+    assert approval_steps["step_policy_evaluate"]["dependency_states"] == {"step_input_prepare": "completed"}
+    assert approval_steps["step_policy_evaluate"]["blocked_dependency_keys"] == []
+    assert approval_steps["step_policy_evaluate"]["dependencies_satisfied"] is True
+    assert approval_steps["step_artifact_save"]["state"] == "waiting_approval"
+    assert approval_steps["step_artifact_save"]["dependency_keys"] == ["step_policy_evaluate"]
+    assert approval_steps["step_artifact_save"]["dependency_states"] == {"step_policy_evaluate": "completed"}
+    assert (
+        approval_steps["step_artifact_save"]["dependency_step_ids"]["step_policy_evaluate"]
+        == approval_steps["step_policy_evaluate"]["step_id"]
+    )
+    assert approval_steps["step_artifact_save"]["blocked_dependency_keys"] == []
+    assert approval_steps["step_artifact_save"]["dependencies_satisfied"] is True
 
     approve = client.post(
         f"/v1/policy/approvals/{approval_id}/approve",
@@ -2780,8 +2795,22 @@ def test_generic_task_execution_supports_async_approval_and_human_contracts() ->
 
     approval_session = client.get(f"/v1/rewrite/sessions/{approval_session_id}")
     assert approval_session.status_code == 200
-    assert approval_session.json()["intent_task_type"] == "decision_brief_approval"
-    assert approval_session.json()["status"] == "awaiting_approval"
+    approval_session_body = approval_session.json()
+    assert approval_session_body["intent_task_type"] == "decision_brief_approval"
+    assert approval_session_body["status"] == "awaiting_approval"
+    generic_approval_steps = {
+        step["input_json"]["plan_step_key"]: step
+        for step in approval_session_body["steps"]
+    }
+    assert generic_approval_steps["step_artifact_save"]["state"] == "waiting_approval"
+    assert generic_approval_steps["step_artifact_save"]["dependency_keys"] == ["step_policy_evaluate"]
+    assert generic_approval_steps["step_artifact_save"]["dependency_states"] == {"step_policy_evaluate": "completed"}
+    assert (
+        generic_approval_steps["step_artifact_save"]["dependency_step_ids"]["step_policy_evaluate"]
+        == generic_approval_steps["step_policy_evaluate"]["step_id"]
+    )
+    assert generic_approval_steps["step_artifact_save"]["blocked_dependency_keys"] == []
+    assert generic_approval_steps["step_artifact_save"]["dependencies_satisfied"] is True
 
     pending_approvals = client.get("/v1/policy/approvals/pending", params={"limit": 10})
     assert pending_approvals.status_code == 200
@@ -2859,6 +2888,27 @@ def test_generic_task_execution_supports_async_approval_and_human_contracts() ->
     review_session_body = review_session.json()
     assert review_session_body["intent_task_type"] == "stakeholder_briefing_review"
     assert review_session_body["status"] == "awaiting_human"
+    generic_review_steps = {
+        step["input_json"]["plan_step_key"]: step
+        for step in review_session_body["steps"]
+    }
+    assert generic_review_steps["step_human_review"]["state"] == "waiting_human"
+    assert generic_review_steps["step_human_review"]["dependency_states"] == {"step_policy_evaluate": "completed"}
+    assert (
+        generic_review_steps["step_human_review"]["dependency_step_ids"]["step_policy_evaluate"]
+        == generic_review_steps["step_policy_evaluate"]["step_id"]
+    )
+    assert generic_review_steps["step_human_review"]["blocked_dependency_keys"] == []
+    assert generic_review_steps["step_human_review"]["dependencies_satisfied"] is True
+    assert generic_review_steps["step_artifact_save"]["state"] == "queued"
+    assert generic_review_steps["step_artifact_save"]["dependency_keys"] == ["step_human_review"]
+    assert generic_review_steps["step_artifact_save"]["dependency_states"] == {"step_human_review": "waiting_human"}
+    assert (
+        generic_review_steps["step_artifact_save"]["dependency_step_ids"]["step_human_review"]
+        == generic_review_steps["step_human_review"]["step_id"]
+    )
+    assert generic_review_steps["step_artifact_save"]["blocked_dependency_keys"] == ["step_human_review"]
+    assert generic_review_steps["step_artifact_save"]["dependencies_satisfied"] is False
     assert review_session_body["human_tasks"][0]["task_key"] == "stakeholder_briefing_review"
     assert review_session_body["human_tasks"][0]["deliverable_type"] == "stakeholder_briefing"
     assert review_session_body["human_task_assignment_history"][0]["task_key"] == "stakeholder_briefing_review"
@@ -2987,8 +3037,28 @@ def test_rewrite_compiled_human_review_branch_pauses_and_resumes() -> None:
     assert body["steps"][2]["input_json"]["review_class"] == "operator"
     assert body["steps"][2]["input_json"]["failure_strategy"] == "fail"
     assert body["steps"][2]["input_json"]["timeout_budget_seconds"] == 3600
-    assert body["steps"][2]["state"] == "waiting_human"
-    assert body["steps"][3]["state"] == "queued"
+    review_steps = {
+        step["input_json"]["plan_step_key"]: step
+        for step in body["steps"]
+    }
+    assert review_steps["step_human_review"]["state"] == "waiting_human"
+    assert review_steps["step_human_review"]["dependency_keys"] == ["step_policy_evaluate"]
+    assert review_steps["step_human_review"]["dependency_states"] == {"step_policy_evaluate": "completed"}
+    assert (
+        review_steps["step_human_review"]["dependency_step_ids"]["step_policy_evaluate"]
+        == review_steps["step_policy_evaluate"]["step_id"]
+    )
+    assert review_steps["step_human_review"]["blocked_dependency_keys"] == []
+    assert review_steps["step_human_review"]["dependencies_satisfied"] is True
+    assert review_steps["step_artifact_save"]["state"] == "queued"
+    assert review_steps["step_artifact_save"]["dependency_keys"] == ["step_human_review"]
+    assert review_steps["step_artifact_save"]["dependency_states"] == {"step_human_review": "waiting_human"}
+    assert (
+        review_steps["step_artifact_save"]["dependency_step_ids"]["step_human_review"]
+        == review_steps["step_human_review"]["step_id"]
+    )
+    assert review_steps["step_artifact_save"]["blocked_dependency_keys"] == ["step_human_review"]
+    assert review_steps["step_artifact_save"]["dependencies_satisfied"] is False
     assert len(body["queue_items"]) == 3
     assert all(item["state"] == "done" for item in body["queue_items"])
     assert any(row["human_task_id"] == human_task_id and row["status"] == "pending" for row in body["human_tasks"])

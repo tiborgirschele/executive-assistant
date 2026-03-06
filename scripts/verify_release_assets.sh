@@ -788,6 +788,7 @@ else
 fi
 
 if grep -Fq "tests/test_postgres_contract_matrix_integration.py" "scripts/test_postgres_contracts.sh" && \
+   grep -Fq "tests/test_generic_async_dependency_projection_contracts.py" "scripts/test_postgres_contracts.sh" && \
    grep -Fq "tests/test_memory_router_contracts.py" "scripts/test_postgres_contracts.sh" && \
    grep -Fq "tests/test_rewrite_scope_contracts.py" "scripts/test_postgres_contracts.sh" && \
    grep -Fq "tests/test_rewrite_api_scope_contracts.py" "scripts/test_postgres_contracts.sh" && \
@@ -807,10 +808,19 @@ if grep -Fq "dependency_keys: list[str]" "ea/app/api/routes/rewrite.py" && \
    grep -Fq "step_policy_evaluate" "tests/test_rewrite_dependency_projection_contracts.py" && \
    grep -Fq '["step_policy_evaluate"]' "tests/test_rewrite_dependency_projection_contracts.py" && \
    grep -Fq '"dependency_states"] == {"step_policy_evaluate": "completed"}' "tests/test_rewrite_dependency_projection_contracts.py" && \
+   grep -Fq 'steps["step_artifact_save"]["state"] == "waiting_approval"' "tests/test_rewrite_dependency_projection_contracts.py" && \
+   grep -Fq 'steps["step_artifact_save"]["blocked_dependency_keys"] == ["step_human_review"]' "tests/test_rewrite_dependency_projection_contracts.py" && \
    grep -Fq 'steps_by_key["step_policy_evaluate"]["dependency_states"] == {"step_input_prepare": "completed"}' "tests/smoke_runtime_api.py" && \
    grep -Fq 'steps_by_key["step_artifact_save"]["dependency_states"] == {"step_policy_evaluate": "completed"}' "tests/smoke_runtime_api.py" && \
+   grep -Fq 'approval_steps["step_artifact_save"]["state"] == "waiting_approval"' "tests/smoke_runtime_api.py" && \
+   grep -Fq 'review_steps["step_artifact_save"]["blocked_dependency_keys"] == ["step_human_review"]' "tests/smoke_runtime_api.py" && \
+   grep -Fq 'generic_approval_steps["step_artifact_save"]["state"] == "waiting_approval"' "tests/smoke_runtime_api.py" && \
+   grep -Fq 'generic_review_steps["step_artifact_save"]["blocked_dependency_keys"] == ["step_human_review"]' "tests/smoke_runtime_api.py" && \
    grep -Fq "projection_ok=(" "scripts/smoke_api.sh" && \
-   grep -Fq "dependency_states') == {'step_policy_evaluate': 'completed'}" "scripts/smoke_api.sh"; then
+   grep -Fq "save_step.get('state',''), policy_step.get('dependency_states') == {'step_input_prepare': 'completed'}" "scripts/smoke_api.sh" && \
+   grep -Fq "save_step.get('blocked_dependency_keys') == ['step_human_review']" "scripts/smoke_api.sh" && \
+   grep -Fq "decision_brief_approval|awaiting_approval|waiting_approval|True|True|True|True|True" "scripts/smoke_api.sh" && \
+   grep -Fq "stakeholder_briefing_review|awaiting_human|waiting_human|True|True|True|True|queued|True|True|True" "scripts/smoke_api.sh"; then
   echo "ok: session step dependency projection contract and smoke coverage"
 else
   echo "missing: session step dependency projection contract and smoke coverage" >&2
