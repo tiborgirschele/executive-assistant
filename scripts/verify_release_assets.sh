@@ -2271,6 +2271,36 @@ from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(
+    entry
+    for entry in milestone["capabilities"]
+    if entry["name"] == "human_task_ownerless_priority_summary_mixed_source_counts"
+)
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "ownerless \`priority-summary?assignment_state=unassigned&assignment_source=none\` slice is now explicitly covered after mixed-source churn" "README.md" && \
+     grep -Fq "ownerless \`priority-summary?status=pending&assignment_state=unassigned&assignment_source=none\` slice is now also covered after mixed-source churn" "RUNBOOK.md" && \
+     grep -Fq "PRIORITY_SUMMARY_NONE_MIXED_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq "stay ownerless-only after mixed-source churn" "scripts/smoke_api.sh" && \
+     grep -Fq "ownerless_summary_after_churn" "tests/smoke_runtime_api.py" && \
+     grep -Fq 'ownerless_summary_after_churn_body["total"] == 2' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'ownerless_summary_after_churn_body["counts_json"]["low"] == 2' "tests/smoke_runtime_api.py"; then
+    echo "ok: human task ownerless priority summary mixed-source counts docs"
+  else
+    echo "missing: human task ownerless priority summary mixed-source counts docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task ownerless priority summary mixed-source counts milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(
     entry for entry in milestone["capabilities"] if entry["name"] == "session_ownerless_projection_created_order"
 )
 assert capability["status"] == "tested"

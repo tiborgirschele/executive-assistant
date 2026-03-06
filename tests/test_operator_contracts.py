@@ -1168,6 +1168,30 @@ def test_human_task_ownerless_sorted_queue_mixed_source_isolation_is_documented_
     assert "ownerless_backlog_sorted_excludes_non_ownerless" in capability["scope"]
 
 
+def test_human_task_ownerless_priority_summary_mixed_source_counts_are_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "ownerless `priority-summary?assignment_state=unassigned&assignment_source=none` slice is now explicitly covered after mixed-source churn" in readme
+    assert "ownerless `priority-summary?status=pending&assignment_state=unassigned&assignment_source=none` slice is now also covered after mixed-source churn" in runbook
+    assert "PRIORITY_SUMMARY_NONE_MIXED_JSON" in smoke_api
+    assert "stay ownerless-only after mixed-source churn" in smoke_api
+    assert "ownerless_summary_after_churn" in smoke_runtime
+    assert 'ownerless_summary_after_churn_body["total"] == 2' in smoke_runtime
+    assert 'ownerless_summary_after_churn_body["counts_json"]["low"] == 2' in smoke_runtime
+
+    capability = next(
+        entry
+        for entry in milestone["capabilities"]
+        if entry["name"] == "human_task_ownerless_priority_summary_mixed_source_counts"
+    )
+    assert capability["status"] == "tested"
+    assert "ownerless_priority_summary_total_excludes_non_ownerless_after_churn" in capability["scope"]
+
+
 def test_session_ownerless_projection_created_order_is_documented_and_smoked() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")

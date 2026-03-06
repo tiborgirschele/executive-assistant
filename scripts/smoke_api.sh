@@ -240,6 +240,13 @@ HUMAN_OWNERLESS_NEWER_ID="$(python3 -c 'import json,sys; print(json.loads(sys.st
 if [[ -z "${HUMAN_OWNERLESS_NEWER_ID}" ]]; then
   fail 13 "missing human_task_id from newer ownerless human task response"
 fi
+PRIORITY_SUMMARY_NONE_MIXED_JSON="$(curl -fsS "${BASE}/v1/human/tasks/priority-summary?status=pending&assignment_state=unassigned&assignment_source=none" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+PRIORITY_SUMMARY_NONE_MIXED_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); counts=body.get('counts_json') or {}; print('{}|{}|{}|{}|{}|{}|{}'.format(body.get('assignment_source',''), body.get('total',''), body.get('highest_priority',''), counts.get('urgent',''), counts.get('high',''), counts.get('normal',''), counts.get('low','')))" <<<"${PRIORITY_SUMMARY_NONE_MIXED_JSON}")"
+if [[ "${PRIORITY_SUMMARY_NONE_MIXED_FIELDS}" != "none|2|low|0|0|0|2" ]]; then
+  echo "expected assignment_source=none summary to stay ownerless-only after mixed-source churn; got ${PRIORITY_SUMMARY_NONE_MIXED_FIELDS}" >&2
+  echo "${PRIORITY_SUMMARY_NONE_MIXED_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 HUMAN_OWNERLESS_BACKLOG_CREATED_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?assignment_state=unassigned&assignment_source=none&sort=created_asc&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
 HUMAN_OWNERLESS_BACKLOG_CREATED_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); blocked='${HUMAN_TASK_ID}'; current_only=all((row or {}).get('human_task_id') != blocked for row in rows); print('{}|{}'.format('|'.join((row or {}).get('human_task_id','') for row in rows[:2]), current_only))" <<<"${HUMAN_OWNERLESS_BACKLOG_CREATED_JSON}")"
 if [[ "${HUMAN_OWNERLESS_BACKLOG_CREATED_FIELDS}" != "${HUMAN_OWNERLESS_ID}|${HUMAN_OWNERLESS_NEWER_ID}|True" ]]; then

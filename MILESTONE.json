@@ -794,6 +794,15 @@
       "notes": "Ownerless backlog, unassigned, and general pending sorted queue slices now have explicit smoke/docs coverage proving both `sort=created_asc` and `sort=last_transition_desc` keep non-ownerless neighbors out while preserving ownerless ordering under mixed-source churn."
     },
     {
+      "name": "human_task_ownerless_priority_summary_mixed_source_counts",
+      "status": "tested",
+      "scope": [
+        "ownerless_priority_summary_total_excludes_non_ownerless_after_churn",
+        "ownerless_priority_summary_priority_counts_exclude_non_ownerless_after_churn"
+      ],
+      "notes": "The ownerless `priority-summary?status=pending&assignment_state=unassigned&assignment_source=none` slice now has explicit smoke/docs coverage proving total and low-priority counts stay ownerless-only after mixed-source churn introduces manual and auto-preselected neighbors."
+    },
+    {
       "name": "human_task_assignment_history_source_filter",
       "status": "tested",
       "scope": [

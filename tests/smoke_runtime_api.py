@@ -1642,6 +1642,20 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
     assert ownerless_newer_task.status_code == 200
     ownerless_newer_task_id = ownerless_newer_task.json()["human_task_id"]
 
+    ownerless_summary_after_churn = client.get(
+        "/v1/human/tasks/priority-summary",
+        params={"status": "pending", "assignment_state": "unassigned", "assignment_source": "none"},
+    )
+    assert ownerless_summary_after_churn.status_code == 200
+    ownerless_summary_after_churn_body = ownerless_summary_after_churn.json()
+    assert ownerless_summary_after_churn_body["assignment_source"] == "none"
+    assert ownerless_summary_after_churn_body["total"] == 2
+    assert ownerless_summary_after_churn_body["highest_priority"] == "low"
+    assert ownerless_summary_after_churn_body["counts_json"]["urgent"] == 0
+    assert ownerless_summary_after_churn_body["counts_json"]["high"] == 0
+    assert ownerless_summary_after_churn_body["counts_json"]["normal"] == 0
+    assert ownerless_summary_after_churn_body["counts_json"]["low"] == 2
+
     ownerless_backlog_created = client.get(
         "/v1/human/tasks/backlog",
         params={
