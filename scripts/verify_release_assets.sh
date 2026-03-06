@@ -2149,6 +2149,34 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(
+    entry
+    for entry in milestone["capabilities"]
+    if entry["name"] == "human_task_session_ownerless_created_sort"
+)
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "session_id=<id>&assignment_source=none&sort=created_asc" "README.md" && \
+     grep -Fq "session_id=<id>&assignment_source=none&sort=created_asc" "RUNBOOK.md" && \
+     grep -Fq "SESSION_HUMAN_NONE_CREATED_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq 'params={"session_id": session_id, "assignment_source": "none", "sort": "created_asc"}' "tests/smoke_runtime_api.py" && \
+     grep -Fq "/v1/human/tasks?session_id={{session_id}}&assignment_source=none&sort=created_asc&limit=20" "HTTP_EXAMPLES.http"; then
+    echo "ok: human task session ownerless created sort docs"
+  else
+    echo "missing: human task session ownerless created sort docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task session ownerless created sort milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assignment_history_source_filter")
 assert capability["status"] == "tested"
 PY
