@@ -2,6 +2,13 @@
 
 All notable changes to the rewrite-kernel baseline are documented here.
 
+## 2026-03-06
+
+### Changed
+- Principal-scoped connector and memory routes now derive the effective principal from `X-EA-Principal-ID` or `EA_DEFAULT_PRINCIPAL_ID` instead of trusting caller-supplied body/query values.
+- Caller-supplied `principal_id` on those routes is now a compatibility filter only; mismatches fail with `403 principal_scope_mismatch`.
+- Connector binding status changes now honor the request principal and return `binding_not_found` for foreign-scope updates.
+
 ## 2026-03-05
 
 ### Added

@@ -1,7 +1,7 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.36.0",
-  "date": "2026-03-05",
+  "version": "0.37.0",
+  "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
     "coded": "landed in code but not yet wired across the runtime/docs/tests surface",
@@ -222,6 +222,19 @@
         "storage_fallback_guard"
       ],
       "notes": "Setting `EA_RUNTIME_MODE=prod` now forces durable Postgres boot, rejects memory/auto fallback degradation, and is asserted by the approved Postgres smoke path."
+    },
+    {
+      "name": "principal_request_context_guardrails",
+      "status": "tested",
+      "scope": [
+        "x_ea_principal_header",
+        "default_principal_env",
+        "memory_route_principal_derivation",
+        "connector_route_principal_derivation",
+        "principal_scope_mismatch_403",
+        "foreign_connector_status_hidden"
+      ],
+      "notes": "Principal-scoped connector and memory routes now derive scope from request context, fall back to `EA_DEFAULT_PRINCIPAL_ID`, reject caller-supplied mismatches with `403 principal_scope_mismatch`, and hide foreign connector updates."
     }
   ],
   "migrations": [
@@ -250,10 +263,12 @@
   ],
   "env_contract": {
     "EA_STORAGE_BACKEND": "memory|postgres|auto",
+    "EA_RUNTIME_MODE": "dev|test|prod",
     "EA_LEDGER_BACKEND": "deprecated_legacy_alias_for_EA_STORAGE_BACKEND",
     "DATABASE_URL": "required_for_postgres",
     "EA_BOOTSTRAP_DB": "0|1",
     "EA_API_TOKEN": "optional_bearer_token_for_non_health_routes",
+    "EA_DEFAULT_PRINCIPAL_ID": "fallback_request_principal_for_connector_and_memory_routes",
     "EA_APPROVAL_THRESHOLD_CHARS": "rewrite inputs at or above this size require approval",
     "EA_APPROVAL_TTL_MINUTES": "default approval request expiration window"
   }

@@ -38,6 +38,7 @@ class StorageSettings:
 @dataclass(frozen=True)
 class AuthSettings:
     api_token: str
+    default_principal_id: str
 
     @property
     def enabled(self) -> bool:
@@ -165,6 +166,7 @@ def get_settings() -> Settings:
     artifacts_dir = (os.environ.get("EA_ARTIFACTS_DIR") or "/tmp/ea_artifacts").strip() or "/tmp/ea_artifacts"
 
     api_token = (os.environ.get("EA_API_TOKEN") or "").strip()
+    default_principal_id = (os.environ.get("EA_DEFAULT_PRINCIPAL_ID") or "local-user").strip() or "local-user"
     max_rewrite_chars = max(1, _to_int(os.environ.get("EA_MAX_REWRITE_CHARS") or "20000", 20000))
     approval_required_chars = max(1, _to_int(os.environ.get("EA_APPROVAL_THRESHOLD_CHARS") or "5000", 5000))
     approval_ttl_minutes = max(1, _to_int(os.environ.get("EA_APPROVAL_TTL_MINUTES") or "120", 120))
@@ -186,7 +188,7 @@ def get_settings() -> Settings:
             database_url=database_url,
             artifacts_dir=artifacts_dir,
         ),
-        auth=AuthSettings(api_token=api_token),
+        auth=AuthSettings(api_token=api_token, default_principal_id=default_principal_id),
         policy=PolicySettings(
             max_rewrite_chars=max_rewrite_chars,
             approval_required_chars=approval_required_chars,

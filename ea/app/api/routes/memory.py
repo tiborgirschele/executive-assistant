@@ -3,14 +3,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.api.dependencies import get_container
+from app.api.dependencies import RequestContext, get_container, get_request_context, resolve_principal_id
 from app.container import AppContainer
 
 router = APIRouter(prefix="/v1/memory", tags=["memory"])
 
 
 class MemoryCandidateIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     category: str = Field(default="fact", min_length=1, max_length=120)
     summary: str = Field(min_length=1, max_length=4000)
     fact_json: dict[str, object] = Field(default_factory=dict)
@@ -56,7 +56,7 @@ class MemoryItemOut(BaseModel):
 
 
 class EntityIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     entity_type: str = Field(min_length=1, max_length=120)
     canonical_name: str = Field(min_length=1, max_length=400)
     attributes_json: dict[str, object] = Field(default_factory=dict)
@@ -77,7 +77,7 @@ class EntityOut(BaseModel):
 
 
 class RelationshipIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     from_entity_id: str = Field(min_length=1, max_length=200)
     to_entity_id: str = Field(min_length=1, max_length=200)
     relationship_type: str = Field(min_length=1, max_length=120)
@@ -102,7 +102,7 @@ class RelationshipOut(BaseModel):
 
 
 class CommitmentIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     title: str = Field(min_length=1, max_length=400)
     details: str = Field(default="", max_length=5000)
     status: str = Field(default="open", max_length=80)
@@ -126,7 +126,7 @@ class CommitmentOut(BaseModel):
 
 
 class CommunicationPolicyIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     scope: str = Field(min_length=1, max_length=200)
     preferred_channel: str = Field(default="", max_length=120)
     tone: str = Field(default="neutral", max_length=120)
@@ -154,7 +154,7 @@ class CommunicationPolicyOut(BaseModel):
 
 
 class DecisionWindowIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     title: str = Field(min_length=1, max_length=400)
     context: str = Field(default="", max_length=5000)
     opens_at: str | None = Field(default=None, max_length=80)
@@ -184,7 +184,7 @@ class DecisionWindowOut(BaseModel):
 
 
 class DeadlineWindowIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     title: str = Field(min_length=1, max_length=400)
     start_at: str | None = Field(default=None, max_length=80)
     end_at: str | None = Field(default=None, max_length=80)
@@ -210,7 +210,7 @@ class DeadlineWindowOut(BaseModel):
 
 
 class StakeholderIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     display_name: str = Field(min_length=1, max_length=300)
     channel_ref: str = Field(default="", max_length=200)
     authority_level: str = Field(default="manager", max_length=100)
@@ -248,7 +248,7 @@ class StakeholderOut(BaseModel):
 
 
 class AuthorityBindingIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     subject_ref: str = Field(min_length=1, max_length=200)
     action_scope: str = Field(min_length=1, max_length=200)
     approval_level: str = Field(default="manager", max_length=100)
@@ -272,7 +272,7 @@ class AuthorityBindingOut(BaseModel):
 
 
 class DeliveryPreferenceIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     channel: str = Field(min_length=1, max_length=120)
     recipient_ref: str = Field(min_length=1, max_length=200)
     cadence: str = Field(default="normal", max_length=100)
@@ -296,7 +296,7 @@ class DeliveryPreferenceOut(BaseModel):
 
 
 class FollowUpIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     stakeholder_ref: str = Field(min_length=1, max_length=200)
     topic: str = Field(min_length=1, max_length=500)
     status: str = Field(default="open", max_length=80)
@@ -322,7 +322,7 @@ class FollowUpOut(BaseModel):
 
 
 class FollowUpRuleIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     name: str = Field(min_length=1, max_length=200)
     trigger_kind: str = Field(min_length=1, max_length=120)
     channel_scope: list[str] = Field(default_factory=list)
@@ -354,7 +354,7 @@ class FollowUpRuleOut(BaseModel):
 
 
 class InterruptionBudgetIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     scope: str = Field(min_length=1, max_length=200)
     window_kind: str = Field(default="daily", max_length=80)
     budget_minutes: int = Field(default=120, ge=0, le=10080)
@@ -640,9 +640,10 @@ def _interruption_budget_out(row) -> InterruptionBudgetOut:
 def stage_memory_candidate(
     body: MemoryCandidateIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> MemoryCandidateOut:
     row = container.memory_runtime.stage_candidate(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         category=body.category,
         summary=body.summary,
         fact_json=body.fact_json,
@@ -661,8 +662,13 @@ def list_memory_candidates(
     status: str | None = Query(default=None),
     principal_id: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[MemoryCandidateOut]:
-    rows = container.memory_runtime.list_candidates(limit=limit, status=status, principal_id=principal_id)
+    rows = container.memory_runtime.list_candidates(
+        limit=limit,
+        status=status,
+        principal_id=resolve_principal_id(principal_id, context),
+    )
     return [_candidate_out(row) for row in rows]
 
 
@@ -671,9 +677,11 @@ def promote_memory_candidate(
     candidate_id: str,
     body: PromoteCandidateIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> PromoteCandidateOut:
     found = container.memory_runtime.promote_candidate(
         candidate_id,
+        principal_id=context.principal_id,
         reviewer=body.reviewer,
         sharing_policy=body.sharing_policy,
         confidence_override=body.confidence_override,
@@ -689,8 +697,13 @@ def reject_memory_candidate(
     candidate_id: str,
     body: RejectCandidateIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> MemoryCandidateOut:
-    row = container.memory_runtime.reject_candidate(candidate_id, reviewer=body.reviewer)
+    row = container.memory_runtime.reject_candidate(
+        candidate_id,
+        principal_id=context.principal_id,
+        reviewer=body.reviewer,
+    )
     if not row:
         raise HTTPException(status_code=404, detail="memory_candidate_not_found")
     return _candidate_out(row)
@@ -701,8 +714,12 @@ def list_memory_items(
     limit: int = Query(default=100, ge=1, le=500),
     principal_id: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[MemoryItemOut]:
-    rows = container.memory_runtime.list_items(limit=limit, principal_id=principal_id)
+    rows = container.memory_runtime.list_items(
+        limit=limit,
+        principal_id=resolve_principal_id(principal_id, context),
+    )
     return [_item_out(row) for row in rows]
 
 
@@ -710,8 +727,9 @@ def list_memory_items(
 def get_memory_item(
     item_id: str,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> MemoryItemOut:
-    row = container.memory_runtime.get_item(item_id)
+    row = container.memory_runtime.get_item(item_id, principal_id=context.principal_id)
     if not row:
         raise HTTPException(status_code=404, detail="memory_item_not_found")
     return _item_out(row)
@@ -721,9 +739,10 @@ def get_memory_item(
 def upsert_memory_entity(
     body: EntityIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> EntityOut:
     row = container.memory_runtime.upsert_entity(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         entity_type=body.entity_type,
         canonical_name=body.canonical_name,
         attributes_json=body.attributes_json,
@@ -739,10 +758,11 @@ def list_memory_entities(
     principal_id: str | None = Query(default=None),
     entity_type: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[EntityOut]:
     rows = container.memory_runtime.list_entities(
         limit=limit,
-        principal_id=principal_id,
+        principal_id=resolve_principal_id(principal_id, context),
         entity_type=entity_type,
     )
     return [_entity_out(row) for row in rows]
@@ -752,8 +772,9 @@ def list_memory_entities(
 def get_memory_entity(
     entity_id: str,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> EntityOut:
-    row = container.memory_runtime.get_entity(entity_id)
+    row = container.memory_runtime.get_entity(entity_id, principal_id=context.principal_id)
     if not row:
         raise HTTPException(status_code=404, detail="entity_not_found")
     return _entity_out(row)
@@ -763,9 +784,10 @@ def get_memory_entity(
 def upsert_memory_relationship(
     body: RelationshipIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> RelationshipOut:
     row = container.memory_runtime.upsert_relationship(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         from_entity_id=body.from_entity_id,
         to_entity_id=body.to_entity_id,
         relationship_type=body.relationship_type,
@@ -785,10 +807,11 @@ def list_memory_relationships(
     to_entity_id: str | None = Query(default=None),
     relationship_type: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[RelationshipOut]:
     rows = container.memory_runtime.list_relationships(
         limit=limit,
-        principal_id=principal_id,
+        principal_id=resolve_principal_id(principal_id, context),
         from_entity_id=from_entity_id,
         to_entity_id=to_entity_id,
         relationship_type=relationship_type,
@@ -800,8 +823,9 @@ def list_memory_relationships(
 def get_memory_relationship(
     relationship_id: str,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> RelationshipOut:
-    row = container.memory_runtime.get_relationship(relationship_id)
+    row = container.memory_runtime.get_relationship(relationship_id, principal_id=context.principal_id)
     if not row:
         raise HTTPException(status_code=404, detail="relationship_not_found")
     return _relationship_out(row)
@@ -811,9 +835,10 @@ def get_memory_relationship(
 def upsert_memory_commitment(
     body: CommitmentIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> CommitmentOut:
     row = container.memory_runtime.upsert_commitment(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         title=body.title,
         details=body.details,
         status=body.status,
@@ -827,13 +852,14 @@ def upsert_memory_commitment(
 
 @router.get("/commitments")
 def list_memory_commitments(
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     limit: int = Query(default=100, ge=1, le=500),
     status: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[CommitmentOut]:
     rows = container.memory_runtime.list_commitments(
-        principal_id=principal_id,
+        principal_id=resolve_principal_id(principal_id, context),
         limit=limit,
         status=status,
     )
@@ -843,10 +869,14 @@ def list_memory_commitments(
 @router.get("/commitments/{commitment_id}")
 def get_memory_commitment(
     commitment_id: str,
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> CommitmentOut:
-    row = container.memory_runtime.get_commitment(commitment_id, principal_id=principal_id)
+    row = container.memory_runtime.get_commitment(
+        commitment_id,
+        principal_id=resolve_principal_id(principal_id, context),
+    )
     if not row:
         raise HTTPException(status_code=404, detail="commitment_not_found")
     return _commitment_out(row)
@@ -856,9 +886,10 @@ def get_memory_commitment(
 def upsert_memory_communication_policy(
     body: CommunicationPolicyIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> CommunicationPolicyOut:
     row = container.memory_runtime.upsert_communication_policy(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         scope=body.scope,
         preferred_channel=body.preferred_channel,
         tone=body.tone,
@@ -874,13 +905,14 @@ def upsert_memory_communication_policy(
 
 @router.get("/communication-policies")
 def list_memory_communication_policies(
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     limit: int = Query(default=100, ge=1, le=500),
     status: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[CommunicationPolicyOut]:
     rows = container.memory_runtime.list_communication_policies(
-        principal_id=principal_id,
+        principal_id=resolve_principal_id(principal_id, context),
         limit=limit,
         status=status,
     )
@@ -890,10 +922,14 @@ def list_memory_communication_policies(
 @router.get("/communication-policies/{policy_id}")
 def get_memory_communication_policy(
     policy_id: str,
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> CommunicationPolicyOut:
-    row = container.memory_runtime.get_communication_policy(policy_id, principal_id=principal_id)
+    row = container.memory_runtime.get_communication_policy(
+        policy_id,
+        principal_id=resolve_principal_id(principal_id, context),
+    )
     if not row:
         raise HTTPException(status_code=404, detail="communication_policy_not_found")
     return _communication_policy_out(row)
@@ -903,9 +939,10 @@ def get_memory_communication_policy(
 def upsert_memory_decision_window(
     body: DecisionWindowIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> DecisionWindowOut:
     row = container.memory_runtime.upsert_decision_window(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         title=body.title,
         context=body.context,
         opens_at=body.opens_at,
@@ -922,13 +959,14 @@ def upsert_memory_decision_window(
 
 @router.get("/decision-windows")
 def list_memory_decision_windows(
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     limit: int = Query(default=100, ge=1, le=500),
     status: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[DecisionWindowOut]:
     rows = container.memory_runtime.list_decision_windows(
-        principal_id=principal_id,
+        principal_id=resolve_principal_id(principal_id, context),
         limit=limit,
         status=status,
     )
@@ -938,10 +976,14 @@ def list_memory_decision_windows(
 @router.get("/decision-windows/{decision_window_id}")
 def get_memory_decision_window(
     decision_window_id: str,
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> DecisionWindowOut:
-    row = container.memory_runtime.get_decision_window(decision_window_id, principal_id=principal_id)
+    row = container.memory_runtime.get_decision_window(
+        decision_window_id,
+        principal_id=resolve_principal_id(principal_id, context),
+    )
     if not row:
         raise HTTPException(status_code=404, detail="decision_window_not_found")
     return _decision_window_out(row)
@@ -951,9 +993,10 @@ def get_memory_decision_window(
 def upsert_memory_deadline_window(
     body: DeadlineWindowIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> DeadlineWindowOut:
     row = container.memory_runtime.upsert_deadline_window(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         title=body.title,
         start_at=body.start_at,
         end_at=body.end_at,
@@ -968,13 +1011,14 @@ def upsert_memory_deadline_window(
 
 @router.get("/deadline-windows")
 def list_memory_deadline_windows(
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     limit: int = Query(default=100, ge=1, le=500),
     status: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[DeadlineWindowOut]:
     rows = container.memory_runtime.list_deadline_windows(
-        principal_id=principal_id,
+        principal_id=resolve_principal_id(principal_id, context),
         limit=limit,
         status=status,
     )
@@ -984,10 +1028,14 @@ def list_memory_deadline_windows(
 @router.get("/deadline-windows/{window_id}")
 def get_memory_deadline_window(
     window_id: str,
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> DeadlineWindowOut:
-    row = container.memory_runtime.get_deadline_window(window_id, principal_id=principal_id)
+    row = container.memory_runtime.get_deadline_window(
+        window_id,
+        principal_id=resolve_principal_id(principal_id, context),
+    )
     if not row:
         raise HTTPException(status_code=404, detail="deadline_window_not_found")
     return _deadline_window_out(row)
@@ -997,9 +1045,10 @@ def get_memory_deadline_window(
 def upsert_memory_stakeholder(
     body: StakeholderIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> StakeholderOut:
     row = container.memory_runtime.upsert_stakeholder(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         display_name=body.display_name,
         channel_ref=body.channel_ref,
         authority_level=body.authority_level,
@@ -1020,13 +1069,14 @@ def upsert_memory_stakeholder(
 
 @router.get("/stakeholders")
 def list_memory_stakeholders(
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     limit: int = Query(default=100, ge=1, le=500),
     status: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[StakeholderOut]:
     rows = container.memory_runtime.list_stakeholders(
-        principal_id=principal_id,
+        principal_id=resolve_principal_id(principal_id, context),
         limit=limit,
         status=status,
     )
@@ -1036,10 +1086,14 @@ def list_memory_stakeholders(
 @router.get("/stakeholders/{stakeholder_id}")
 def get_memory_stakeholder(
     stakeholder_id: str,
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> StakeholderOut:
-    row = container.memory_runtime.get_stakeholder(stakeholder_id, principal_id=principal_id)
+    row = container.memory_runtime.get_stakeholder(
+        stakeholder_id,
+        principal_id=resolve_principal_id(principal_id, context),
+    )
     if not row:
         raise HTTPException(status_code=404, detail="stakeholder_not_found")
     return _stakeholder_out(row)
@@ -1049,9 +1103,10 @@ def get_memory_stakeholder(
 def upsert_memory_authority_binding(
     body: AuthorityBindingIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> AuthorityBindingOut:
     row = container.memory_runtime.upsert_authority_binding(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         subject_ref=body.subject_ref,
         action_scope=body.action_scope,
         approval_level=body.approval_level,
@@ -1065,13 +1120,14 @@ def upsert_memory_authority_binding(
 
 @router.get("/authority-bindings")
 def list_memory_authority_bindings(
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     limit: int = Query(default=100, ge=1, le=500),
     status: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[AuthorityBindingOut]:
     rows = container.memory_runtime.list_authority_bindings(
-        principal_id=principal_id,
+        principal_id=resolve_principal_id(principal_id, context),
         limit=limit,
         status=status,
     )
@@ -1081,10 +1137,14 @@ def list_memory_authority_bindings(
 @router.get("/authority-bindings/{binding_id}")
 def get_memory_authority_binding(
     binding_id: str,
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> AuthorityBindingOut:
-    row = container.memory_runtime.get_authority_binding(binding_id, principal_id=principal_id)
+    row = container.memory_runtime.get_authority_binding(
+        binding_id,
+        principal_id=resolve_principal_id(principal_id, context),
+    )
     if not row:
         raise HTTPException(status_code=404, detail="authority_binding_not_found")
     return _authority_binding_out(row)
@@ -1094,9 +1154,10 @@ def get_memory_authority_binding(
 def upsert_memory_delivery_preference(
     body: DeliveryPreferenceIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> DeliveryPreferenceOut:
     row = container.memory_runtime.upsert_delivery_preference(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         channel=body.channel,
         recipient_ref=body.recipient_ref,
         cadence=body.cadence,
@@ -1110,13 +1171,14 @@ def upsert_memory_delivery_preference(
 
 @router.get("/delivery-preferences")
 def list_memory_delivery_preferences(
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     limit: int = Query(default=100, ge=1, le=500),
     status: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[DeliveryPreferenceOut]:
     rows = container.memory_runtime.list_delivery_preferences(
-        principal_id=principal_id,
+        principal_id=resolve_principal_id(principal_id, context),
         limit=limit,
         status=status,
     )
@@ -1126,10 +1188,14 @@ def list_memory_delivery_preferences(
 @router.get("/delivery-preferences/{preference_id}")
 def get_memory_delivery_preference(
     preference_id: str,
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> DeliveryPreferenceOut:
-    row = container.memory_runtime.get_delivery_preference(preference_id, principal_id=principal_id)
+    row = container.memory_runtime.get_delivery_preference(
+        preference_id,
+        principal_id=resolve_principal_id(principal_id, context),
+    )
     if not row:
         raise HTTPException(status_code=404, detail="delivery_preference_not_found")
     return _delivery_preference_out(row)
@@ -1139,9 +1205,10 @@ def get_memory_delivery_preference(
 def upsert_memory_follow_up(
     body: FollowUpIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> FollowUpOut:
     row = container.memory_runtime.upsert_follow_up(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         stakeholder_ref=body.stakeholder_ref,
         topic=body.topic,
         status=body.status,
@@ -1156,13 +1223,14 @@ def upsert_memory_follow_up(
 
 @router.get("/follow-ups")
 def list_memory_follow_ups(
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     limit: int = Query(default=100, ge=1, le=500),
     status: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[FollowUpOut]:
     rows = container.memory_runtime.list_follow_ups(
-        principal_id=principal_id,
+        principal_id=resolve_principal_id(principal_id, context),
         limit=limit,
         status=status,
     )
@@ -1172,10 +1240,14 @@ def list_memory_follow_ups(
 @router.get("/follow-ups/{follow_up_id}")
 def get_memory_follow_up(
     follow_up_id: str,
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> FollowUpOut:
-    row = container.memory_runtime.get_follow_up(follow_up_id, principal_id=principal_id)
+    row = container.memory_runtime.get_follow_up(
+        follow_up_id,
+        principal_id=resolve_principal_id(principal_id, context),
+    )
     if not row:
         raise HTTPException(status_code=404, detail="follow_up_not_found")
     return _follow_up_out(row)
@@ -1185,9 +1257,10 @@ def get_memory_follow_up(
 def upsert_memory_follow_up_rule(
     body: FollowUpRuleIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> FollowUpRuleOut:
     row = container.memory_runtime.upsert_follow_up_rule(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         name=body.name,
         trigger_kind=body.trigger_kind,
         channel_scope=tuple(body.channel_scope),
@@ -1205,13 +1278,14 @@ def upsert_memory_follow_up_rule(
 
 @router.get("/follow-up-rules")
 def list_memory_follow_up_rules(
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     limit: int = Query(default=100, ge=1, le=500),
     status: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[FollowUpRuleOut]:
     rows = container.memory_runtime.list_follow_up_rules(
-        principal_id=principal_id,
+        principal_id=resolve_principal_id(principal_id, context),
         limit=limit,
         status=status,
     )
@@ -1221,10 +1295,14 @@ def list_memory_follow_up_rules(
 @router.get("/follow-up-rules/{rule_id}")
 def get_memory_follow_up_rule(
     rule_id: str,
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> FollowUpRuleOut:
-    row = container.memory_runtime.get_follow_up_rule(rule_id, principal_id=principal_id)
+    row = container.memory_runtime.get_follow_up_rule(
+        rule_id,
+        principal_id=resolve_principal_id(principal_id, context),
+    )
     if not row:
         raise HTTPException(status_code=404, detail="follow_up_rule_not_found")
     return _follow_up_rule_out(row)
@@ -1234,9 +1312,10 @@ def get_memory_follow_up_rule(
 def upsert_memory_interruption_budget(
     body: InterruptionBudgetIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> InterruptionBudgetOut:
     row = container.memory_runtime.upsert_interruption_budget(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         scope=body.scope,
         window_kind=body.window_kind,
         budget_minutes=body.budget_minutes,
@@ -1252,13 +1331,14 @@ def upsert_memory_interruption_budget(
 
 @router.get("/interruption-budgets")
 def list_memory_interruption_budgets(
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     limit: int = Query(default=100, ge=1, le=500),
     status: str | None = Query(default=None),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[InterruptionBudgetOut]:
     rows = container.memory_runtime.list_interruption_budgets(
-        principal_id=principal_id,
+        principal_id=resolve_principal_id(principal_id, context),
         limit=limit,
         status=status,
     )
@@ -1268,10 +1348,14 @@ def list_memory_interruption_budgets(
 @router.get("/interruption-budgets/{budget_id}")
 def get_memory_interruption_budget(
     budget_id: str,
-    principal_id: str = Query(min_length=1, max_length=200),
+    principal_id: str | None = Query(default=None, min_length=1, max_length=200),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> InterruptionBudgetOut:
-    row = container.memory_runtime.get_interruption_budget(budget_id, principal_id=principal_id)
+    row = container.memory_runtime.get_interruption_budget(
+        budget_id,
+        principal_id=resolve_principal_id(principal_id, context),
+    )
     if not row:
         raise HTTPException(status_code=404, detail="interruption_budget_not_found")
     return _interruption_budget_out(row)

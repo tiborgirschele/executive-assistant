@@ -23,6 +23,9 @@ class ConnectorBindingRepository(Protocol):
     def list_for_principal(self, principal_id: str, limit: int = 100) -> list[ConnectorBinding]:
         ...
 
+    def get(self, binding_id: str) -> ConnectorBinding | None:
+        ...
+
     def set_status(self, binding_id: str, status: str) -> ConnectorBinding | None:
         ...
 
@@ -89,6 +92,9 @@ class InMemoryConnectorBindingRepository:
         ids = list(reversed(self._order))
         rows = [self._rows[i] for i in ids if i in self._rows and self._rows[i].principal_id == principal]
         return rows[:n]
+
+    def get(self, binding_id: str) -> ConnectorBinding | None:
+        return self._rows.get(str(binding_id or "").strip())
 
     def set_status(self, binding_id: str, status: str) -> ConnectorBinding | None:
         found = self._rows.get(str(binding_id or "").strip())

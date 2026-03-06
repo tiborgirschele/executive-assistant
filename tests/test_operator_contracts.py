@@ -224,3 +224,35 @@ def test_principal_scoped_memory_seed_surface_is_tested_and_smoked() -> None:
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "principal_scoped_memory_seed_apis")
     assert capability["status"] == "tested"
+
+
+def test_principal_request_context_guardrails_are_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    env_matrix = (ROOT / "ENVIRONMENT_MATRIX.md").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "X-EA-Principal-ID" in readme
+    assert "EA_DEFAULT_PRINCIPAL_ID" in readme
+    assert "principal_scope_mismatch" in readme
+
+    assert "X-EA-Principal-ID" in runbook
+    assert "EA_DEFAULT_PRINCIPAL_ID" in runbook
+    assert "principal_scope_mismatch" in runbook
+
+    assert "EA_DEFAULT_PRINCIPAL_ID" in env_matrix
+
+    assert "X-EA-Principal-ID" in http_examples
+    assert "principal_scope_mismatch" in http_examples
+
+    assert "X-EA-Principal-ID" in smoke_api
+    assert "principal_scope_mismatch" in smoke_api
+
+    assert "test_tool_registry_and_connector_bindings_flow" in smoke_runtime
+    assert "test_memory_routes_use_default_principal_when_header_and_body_are_omitted" in smoke_runtime
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "principal_request_context_guardrails")
+    assert capability["status"] == "tested"

@@ -827,6 +827,37 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "principal_request_context_guardrails")
+assert capability["status"] == "tested"
+assert milestone["env_contract"]["EA_DEFAULT_PRINCIPAL_ID"]
+PY
+then
+  if grep -Fq "X-EA-Principal-ID" "README.md" && \
+     grep -Fq "EA_DEFAULT_PRINCIPAL_ID" "README.md" && \
+     grep -Fq "principal_scope_mismatch" "README.md" && \
+     grep -Fq "X-EA-Principal-ID" "RUNBOOK.md" && \
+     grep -Fq "EA_DEFAULT_PRINCIPAL_ID" "RUNBOOK.md" && \
+     grep -Fq "principal_scope_mismatch" "RUNBOOK.md" && \
+     grep -Fq "EA_DEFAULT_PRINCIPAL_ID" "ENVIRONMENT_MATRIX.md" && \
+     grep -Fq "X-EA-Principal-ID" "HTTP_EXAMPLES.http" && \
+     grep -Fq "principal_scope_mismatch" "HTTP_EXAMPLES.http" && \
+     grep -Fq "X-EA-Principal-ID" "scripts/smoke_api.sh" && \
+     grep -Fq "principal_scope_mismatch" "scripts/smoke_api.sh"; then
+    echo "ok: principal request-context guardrails docs"
+  else
+    echo "missing: principal request-context guardrails docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: principal request-context guardrails milestone status" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1

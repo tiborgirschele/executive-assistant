@@ -1,5 +1,6 @@
 @host = http://localhost:8090
 @token = replace_with_token_or_leave_blank
+@principal_id = exec-1
 @session_id = replace_me
 @artifact_id = replace_me
 @receipt_id = replace_me
@@ -16,6 +17,10 @@
 @follow_up_id = replace_me
 @interruption_budget_id = replace_me
 @oversized_text = replace_with_20001_chars
+
+### Principal-scoped connector and memory routes
+### Use X-EA-Principal-ID to set the effective principal.
+### body/query principal_id values below are compatibility filters only and mismatches return 403 principal_scope_mismatch.
 
 ### Health
 GET {{host}}/health
@@ -217,9 +222,9 @@ GET {{host}}/v1/tools/registry/email.send
 ### Connectors -> upsert binding
 POST {{host}}/v1/connectors/bindings
 Content-Type: application/json
+X-EA-Principal-ID: {{principal_id}}
 
 {
-  "principal_id": "exec-1",
   "connector_name": "gmail",
   "external_account_ref": "acct-1",
   "scope_json": {
@@ -234,7 +239,12 @@ Content-Type: application/json
 }
 
 ### Connectors -> list by principal
-GET {{host}}/v1/connectors/bindings?principal_id=exec-1&limit=20
+GET {{host}}/v1/connectors/bindings?limit=20
+X-EA-Principal-ID: {{principal_id}}
+
+### Connectors -> principal mismatch (expected 403)
+GET {{host}}/v1/connectors/bindings?principal_id=exec-2&limit=20
+X-EA-Principal-ID: {{principal_id}}
 
 ### Connectors -> set status
 POST {{host}}/v1/connectors/bindings/replace_with_binding_id/status
@@ -282,9 +292,9 @@ Content-Type: application/json
 ### Memory -> stage candidate
 POST {{host}}/v1/memory/candidates
 Content-Type: application/json
+X-EA-Principal-ID: {{principal_id}}
 
 {
-  "principal_id": "exec-1",
   "category": "stakeholder_pref",
   "summary": "CEO prefers concise updates",
   "fact_json": {
@@ -318,7 +328,12 @@ Content-Type: application/json
 }
 
 ### Memory -> list items
-GET {{host}}/v1/memory/items?limit=20&principal_id=exec-1
+GET {{host}}/v1/memory/items?limit=20
+X-EA-Principal-ID: {{principal_id}}
+
+### Memory -> principal mismatch (expected 403)
+GET {{host}}/v1/memory/items?limit=20&principal_id=exec-2
+X-EA-Principal-ID: {{principal_id}}
 
 ### Memory -> get item
 GET {{host}}/v1/memory/items/{{memory_item_id}}

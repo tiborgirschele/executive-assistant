@@ -15,6 +15,9 @@ and memory candidate/item/entity/relationship/commitment/authority-binding/deliv
 
 Auth:
   If EA_API_TOKEN is set, the script sends Authorization: Bearer <token>.
+  Principal-scoped connector/memory checks send X-EA-Principal-ID from EA_PRINCIPAL_ID
+  (default: exec-1) and verify mismatches against EA_MISMATCH_PRINCIPAL_ID
+  (default: exec-2) return principal_scope_mismatch.
 
 Exit codes:
   11 missing execution_session_id
@@ -41,6 +44,9 @@ AUTH_ARGS=()
 if [[ -n "${EA_API_TOKEN:-}" ]]; then
   AUTH_ARGS=(-H "Authorization: Bearer ${EA_API_TOKEN}")
 fi
+PRINCIPAL_ID="${EA_PRINCIPAL_ID:-exec-1}"
+MISMATCH_PRINCIPAL_ID="${EA_MISMATCH_PRINCIPAL_ID:-exec-2}"
+PRINCIPAL_ARGS=(-H "X-EA-Principal-ID: ${PRINCIPAL_ID}")
 APPROVAL_THRESHOLD_CHARS="${EA_APPROVAL_THRESHOLD_CHARS:-}"
 if [[ -z "${APPROVAL_THRESHOLD_CHARS}" && -f "${EA_ROOT}/.env" ]]; then
   APPROVAL_THRESHOLD_CHARS="$(grep -E '^EA_APPROVAL_THRESHOLD_CHARS=' "${EA_ROOT}/.env" | tail -n1 | cut -d= -f2- || true)"
@@ -229,12 +235,50 @@ curl -fsS -X POST "${BASE}/v1/tools/registry" "${AUTH_ARGS[@]}" -H 'content-type
   -d '{"tool_name":"email.send","version":"v1","input_schema_json":{"type":"object"},"output_schema_json":{"type":"object"},"policy_json":{"risk":"medium"},"allowed_channels":["email"],"approval_default":"manager","enabled":true}' >/dev/null
 curl -fsS "${BASE}/v1/tools/registry?limit=5" "${AUTH_ARGS[@]}" >/dev/null
 CONNECTOR_JSON="$(curl -fsS -X POST "${BASE}/v1/connectors/bindings" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
-  -d '{"principal_id":"exec-1","connector_name":"gmail","external_account_ref":"acct-1","scope_json":{"scopes":["mail.readonly"]},"auth_metadata_json":{"provider":"google"},"status":"enabled"}')"
+  "${PRINCIPAL_ARGS[@]}" \
+  -d '{"connector_name":"gmail","external_account_ref":"acct-1","scope_json":{"scopes":["mail.readonly"]},"auth_metadata_json":{"provider":"google"},"status":"enabled"}')"
 BINDING_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("binding_id",""))' <<<"${CONNECTOR_JSON}")"
-if [[ -n "${BINDING_ID}" ]]; then
-  curl -fsS -X POST "${BASE}/v1/connectors/bindings/${BINDING_ID}/status" "${AUTH_ARGS[@]}" -H 'content-type: application/json' -d '{"status":"disabled"}' >/dev/null
+if [[ -z "${BINDING_ID}" ]]; then
+  fail 13 "missing binding_id from connector response"
 fi
-curl -fsS "${BASE}/v1/connectors/bindings?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
+if [[ -n "${BINDING_ID}" ]]; then
+  FOREIGN_BINDING_CODE="$(curl -sS -o /tmp/ea_foreign_binding_resp.json -w '%{http_code}' -X POST "${BASE}/v1/connectors/bindings/${BINDING_ID}/status" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+    -H "X-EA-Principal-ID: ${MISMATCH_PRINCIPAL_ID}" -d '{"status":"disabled"}')"
+  if [[ "${FOREIGN_BINDING_CODE}" != "404" ]]; then
+    echo "expected 404 for foreign principal binding status update; got ${FOREIGN_BINDING_CODE}" >&2
+    cat /tmp/ea_foreign_binding_resp.json >&2 || true
+    fail 12 "policy contract mismatch"
+  fi
+  curl -fsS -X POST "${BASE}/v1/connectors/bindings/${BINDING_ID}/status" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' -d '{"status":"disabled"}' >/dev/null
+fi
+curl -fsS "${BASE}/v1/connectors/bindings?limit=5" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+CONNECTOR_MISMATCH_CODE="$(curl -sS -o /tmp/ea_connector_mismatch_resp.json -w '%{http_code}' "${BASE}/v1/connectors/bindings?principal_id=${MISMATCH_PRINCIPAL_ID}&limit=5" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+if [[ "${CONNECTOR_MISMATCH_CODE}" != "403" ]]; then
+  echo "expected 403 for connector principal mismatch; got ${CONNECTOR_MISMATCH_CODE}" >&2
+  cat /tmp/ea_connector_mismatch_resp.json >&2 || true
+  fail 12 "policy contract mismatch"
+fi
+CONNECTOR_MISMATCH_REASON="$(python3 - <<'PY'
+import json
+from pathlib import Path
+
+path = Path("/tmp/ea_connector_mismatch_resp.json")
+if not path.exists():
+    print("")
+    raise SystemExit(0)
+try:
+    body = json.loads(path.read_text())
+except Exception:
+    print("")
+    raise SystemExit(0)
+print(((body.get("error") or {}).get("code")) or "")
+PY
+)"
+if [[ "${CONNECTOR_MISMATCH_REASON}" != "principal_scope_mismatch" ]]; then
+  echo "expected connector principal mismatch code principal_scope_mismatch; got ${CONNECTOR_MISMATCH_REASON}" >&2
+  cat /tmp/ea_connector_mismatch_resp.json >&2 || true
+  fail 12 "policy contract mismatch"
+fi
 echo "tools/connectors ok"
 
 echo "== smoke: task contracts =="
@@ -251,114 +295,142 @@ echo "plans ok"
 
 echo "== smoke: memory =="
 MEMORY_CANDIDATE_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/candidates" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
-  -d '{"principal_id":"exec-1","category":"stakeholder_pref","summary":"CEO prefers concise updates","fact_json":{"tone":"concise"},"source_session_id":"session-1","source_event_id":"event-1","source_step_id":"step-1","confidence":0.72,"sensitivity":"internal"}')"
+  "${PRINCIPAL_ARGS[@]}" \
+  -d '{"category":"stakeholder_pref","summary":"CEO prefers concise updates","fact_json":{"tone":"concise"},"source_session_id":"session-1","source_event_id":"event-1","source_step_id":"step-1","confidence":0.72,"sensitivity":"internal"}')"
 MEMORY_CANDIDATE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("candidate_id",""))' <<<"${MEMORY_CANDIDATE_JSON}")"
 if [[ -z "${MEMORY_CANDIDATE_ID}" ]]; then
   fail 13 "missing candidate_id from memory candidate response"
 fi
-MEMORY_PROMOTE_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/candidates/${MEMORY_CANDIDATE_ID}/promote" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+MEMORY_PROMOTE_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/candidates/${MEMORY_CANDIDATE_ID}/promote" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"reviewer":"smoke-operator","sharing_policy":"private"}')"
 MEMORY_ITEM_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(((body.get("item") or {}).get("item_id")) or "")' <<<"${MEMORY_PROMOTE_JSON}")"
 if [[ -z "${MEMORY_ITEM_ID}" ]]; then
   fail 13 "missing item_id from memory promote response"
 fi
-curl -fsS "${BASE}/v1/memory/candidates?limit=5&status=promoted" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/items?limit=5&principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/items/${MEMORY_ITEM_ID}" "${AUTH_ARGS[@]}" >/dev/null
-ENTITY_EXEC_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/entities" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+curl -fsS "${BASE}/v1/memory/candidates?limit=5&status=promoted" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/items?limit=5" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+MEMORY_MISMATCH_CODE="$(curl -sS -o /tmp/ea_memory_mismatch_resp.json -w '%{http_code}' "${BASE}/v1/memory/items?limit=5&principal_id=${MISMATCH_PRINCIPAL_ID}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+if [[ "${MEMORY_MISMATCH_CODE}" != "403" ]]; then
+  echo "expected 403 for memory principal mismatch; got ${MEMORY_MISMATCH_CODE}" >&2
+  cat /tmp/ea_memory_mismatch_resp.json >&2 || true
+  fail 12 "policy contract mismatch"
+fi
+MEMORY_MISMATCH_REASON="$(python3 - <<'PY'
+import json
+from pathlib import Path
+
+path = Path("/tmp/ea_memory_mismatch_resp.json")
+if not path.exists():
+    print("")
+    raise SystemExit(0)
+try:
+    body = json.loads(path.read_text())
+except Exception:
+    print("")
+    raise SystemExit(0)
+print(((body.get("error") or {}).get("code")) or "")
+PY
+)"
+if [[ "${MEMORY_MISMATCH_REASON}" != "principal_scope_mismatch" ]]; then
+  echo "expected memory principal mismatch code principal_scope_mismatch; got ${MEMORY_MISMATCH_REASON}" >&2
+  cat /tmp/ea_memory_mismatch_resp.json >&2 || true
+  fail 12 "policy contract mismatch"
+fi
+curl -fsS "${BASE}/v1/memory/items/${MEMORY_ITEM_ID}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+ENTITY_EXEC_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/entities" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"principal_id":"exec-1","entity_type":"person","canonical_name":"Alex Executive","attributes_json":{"role":"executive"},"confidence":0.9,"status":"active"}')"
 ENTITY_EXEC_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("entity_id",""))' <<<"${ENTITY_EXEC_JSON}")"
 if [[ -z "${ENTITY_EXEC_ID}" ]]; then
   fail 13 "missing entity_id from memory entity response"
 fi
-ENTITY_STAKE_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/entities" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+ENTITY_STAKE_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/entities" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"principal_id":"exec-1","entity_type":"person","canonical_name":"Sam Stakeholder","attributes_json":{"role":"board_member"},"confidence":0.88,"status":"active"}')"
 ENTITY_STAKE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("entity_id",""))' <<<"${ENTITY_STAKE_JSON}")"
 if [[ -z "${ENTITY_STAKE_ID}" ]]; then
   fail 13 "missing entity_id from second memory entity response"
 fi
-REL_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/relationships" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+REL_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/relationships" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d "{\"principal_id\":\"exec-1\",\"from_entity_id\":\"${ENTITY_EXEC_ID}\",\"to_entity_id\":\"${ENTITY_STAKE_ID}\",\"relationship_type\":\"reports_to\",\"attributes_json\":{\"strength\":\"high\"},\"confidence\":0.75}")"
 REL_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("relationship_id",""))' <<<"${REL_JSON}")"
 if [[ -z "${REL_ID}" ]]; then
   fail 13 "missing relationship_id from memory relationship response"
 fi
-COMMITMENT_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/commitments" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+COMMITMENT_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/commitments" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"principal_id":"exec-1","title":"Send board follow-up","details":"Draft and send by Friday","status":"open","priority":"high","due_at":"2026-03-06T10:00:00+00:00","source_json":{"source":"smoke"}}')"
 COMMITMENT_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("commitment_id",""))' <<<"${COMMITMENT_JSON}")"
 if [[ -z "${COMMITMENT_ID}" ]]; then
   fail 13 "missing commitment_id from memory commitment response"
 fi
-BINDING_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/authority-bindings" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+BINDING_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/authority-bindings" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"principal_id":"exec-1","subject_ref":"assistant","action_scope":"calendar.write","approval_level":"manager","channel_scope":["email","slack"],"policy_json":{"quiet_hours_enforced":true},"status":"active"}')"
 BINDING_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("binding_id",""))' <<<"${BINDING_JSON}")"
 if [[ -z "${BINDING_ID}" ]]; then
   fail 13 "missing binding_id from authority binding response"
 fi
-PREF_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/delivery-preferences" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+PREF_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/delivery-preferences" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"principal_id":"exec-1","channel":"email","recipient_ref":"ceo@example.com","cadence":"urgent_only","quiet_hours_json":{"start":"22:00","end":"07:00"},"format_json":{"style":"concise"},"status":"active"}')"
 PREF_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("preference_id",""))' <<<"${PREF_JSON}")"
 if [[ -z "${PREF_ID}" ]]; then
   fail 13 "missing preference_id from delivery preference response"
 fi
-curl -fsS "${BASE}/v1/memory/entities?limit=5&principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/entities/${ENTITY_EXEC_ID}" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/relationships?limit=5&principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/relationships/${REL_ID}" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/commitments?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/commitments/${COMMITMENT_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/authority-bindings?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/authority-bindings/${BINDING_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/delivery-preferences?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/delivery-preferences/${PREF_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
-DEADLINE_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/deadline-windows" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+curl -fsS "${BASE}/v1/memory/entities?limit=5&principal_id=exec-1" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/entities/${ENTITY_EXEC_ID}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/relationships?limit=5&principal_id=exec-1" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/relationships/${REL_ID}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/commitments?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/commitments/${COMMITMENT_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/authority-bindings?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/authority-bindings/${BINDING_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/delivery-preferences?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/delivery-preferences/${PREF_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+DEADLINE_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/deadline-windows" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"principal_id":"exec-1","title":"Board prep delivery window","start_at":"2026-03-07T08:30:00+00:00","end_at":"2026-03-07T10:00:00+00:00","status":"open","priority":"high","notes":"Draft must be ready before board sync","source_json":{"source":"smoke"}}')"
 WINDOW_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("window_id",""))' <<<"${DEADLINE_JSON}")"
 if [[ -z "${WINDOW_ID}" ]]; then
   fail 13 "missing window_id from deadline-window response"
 fi
-curl -fsS "${BASE}/v1/memory/deadline-windows?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/deadline-windows/${WINDOW_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
-STAKEHOLDER_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/stakeholders" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+curl -fsS "${BASE}/v1/memory/deadline-windows?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/deadline-windows/${WINDOW_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+STAKEHOLDER_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/stakeholders" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"principal_id":"exec-1","display_name":"Sam Stakeholder","channel_ref":"email:sam@example.com","authority_level":"approver","importance":"high","response_cadence":"fast","tone_pref":"diplomatic","sensitivity":"confidential","escalation_policy":"notify_exec","open_loops_json":{"board_follow_up":"open"},"friction_points_json":{"scheduling":"tight"},"last_interaction_at":"2026-03-06T15:30:00+00:00","status":"active","notes":"Needs concise summaries"}')"
 STAKEHOLDER_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("stakeholder_id",""))' <<<"${STAKEHOLDER_JSON}")"
 if [[ -z "${STAKEHOLDER_ID}" ]]; then
   fail 13 "missing stakeholder_id from stakeholder response"
 fi
-curl -fsS "${BASE}/v1/memory/stakeholders?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/stakeholders/${STAKEHOLDER_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
-DECISION_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/decision-windows" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+curl -fsS "${BASE}/v1/memory/stakeholders?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/stakeholders/${STAKEHOLDER_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+DECISION_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/decision-windows" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"principal_id":"exec-1","title":"Board response decision","context":"Choose timing and channel for reply","opens_at":"2026-03-06T08:00:00+00:00","closes_at":"2026-03-06T12:00:00+00:00","urgency":"high","authority_required":"exec","status":"open","notes":"Needs decision before board prep","source_json":{"source":"smoke"}}')"
 DECISION_WINDOW_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("decision_window_id",""))' <<<"${DECISION_JSON}")"
 if [[ -z "${DECISION_WINDOW_ID}" ]]; then
   fail 13 "missing decision_window_id from decision-window response"
 fi
-curl -fsS "${BASE}/v1/memory/decision-windows?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/decision-windows/${DECISION_WINDOW_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
-COMM_POLICY_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/communication-policies" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+curl -fsS "${BASE}/v1/memory/decision-windows?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/decision-windows/${DECISION_WINDOW_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+COMM_POLICY_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/communication-policies" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"principal_id":"exec-1","scope":"board_threads","preferred_channel":"email","tone":"concise_diplomatic","max_length":1200,"quiet_hours_json":{"start":"22:00","end":"07:00"},"escalation_json":{"on_high_urgency":"notify_exec"},"status":"active","notes":"Board-facing communication defaults"}')"
 COMM_POLICY_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("policy_id",""))' <<<"${COMM_POLICY_JSON}")"
 if [[ -z "${COMM_POLICY_ID}" ]]; then
   fail 13 "missing policy_id from communication-policy response"
 fi
-curl -fsS "${BASE}/v1/memory/communication-policies?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/communication-policies/${COMM_POLICY_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
-FOLLOW_RULE_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/follow-up-rules" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+curl -fsS "${BASE}/v1/memory/communication-policies?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/communication-policies/${COMM_POLICY_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+FOLLOW_RULE_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/follow-up-rules" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"principal_id":"exec-1","name":"Board reminder escalation","trigger_kind":"deadline_risk","channel_scope":["email","slack"],"delay_minutes":120,"max_attempts":3,"escalation_policy":"notify_exec","conditions_json":{"priority":"high"},"action_json":{"action":"draft_follow_up"},"status":"active","notes":"Escalate if follow-up is late"}')"
 FOLLOW_RULE_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("rule_id",""))' <<<"${FOLLOW_RULE_JSON}")"
 if [[ -z "${FOLLOW_RULE_ID}" ]]; then
   fail 13 "missing rule_id from follow-up-rule response"
 fi
-curl -fsS "${BASE}/v1/memory/follow-up-rules?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/follow-up-rules/${FOLLOW_RULE_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
-INTERRUPTION_BUDGET_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/interruption-budgets" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+curl -fsS "${BASE}/v1/memory/follow-up-rules?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/follow-up-rules/${FOLLOW_RULE_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+INTERRUPTION_BUDGET_JSON="$(curl -fsS -X POST "${BASE}/v1/memory/interruption-budgets" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"principal_id":"exec-1","scope":"workday","window_kind":"daily","budget_minutes":120,"used_minutes":30,"reset_at":"2026-03-07T00:00:00+00:00","quiet_hours_json":{"start":"22:00","end":"07:00"},"status":"active","notes":"Keep non-critical interruptions bounded"}')"
 INTERRUPTION_BUDGET_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("budget_id",""))' <<<"${INTERRUPTION_BUDGET_JSON}")"
 if [[ -z "${INTERRUPTION_BUDGET_ID}" ]]; then
   fail 13 "missing budget_id from interruption-budget response"
 fi
-curl -fsS "${BASE}/v1/memory/interruption-budgets?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" >/dev/null
-curl -fsS "${BASE}/v1/memory/interruption-budgets/${INTERRUPTION_BUDGET_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/interruption-budgets?principal_id=exec-1&limit=5" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
+curl -fsS "${BASE}/v1/memory/interruption-budgets/${INTERRUPTION_BUDGET_ID}?principal_id=exec-1" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
 echo "memory ok"
 
 echo "smoke complete"

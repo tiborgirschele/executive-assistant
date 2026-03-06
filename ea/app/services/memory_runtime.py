@@ -124,12 +124,15 @@ class MemoryRuntimeService:
         self,
         candidate_id: str,
         *,
+        principal_id: str | None = None,
         reviewer: str,
         sharing_policy: str = "private",
         confidence_override: float | None = None,
     ) -> tuple[MemoryCandidate, MemoryItem] | None:
         candidate = self._candidates.get(candidate_id)
         if not candidate:
+            return None
+        if principal_id and candidate.principal_id != str(principal_id or "").strip():
             return None
 
         if candidate.status == "promoted" and candidate.promoted_item_id:
@@ -170,7 +173,18 @@ class MemoryRuntimeService:
         )
         return (updated or candidate, item)
 
-    def reject_candidate(self, candidate_id: str, *, reviewer: str) -> MemoryCandidate | None:
+    def reject_candidate(
+        self,
+        candidate_id: str,
+        *,
+        principal_id: str | None = None,
+        reviewer: str,
+    ) -> MemoryCandidate | None:
+        candidate = self._candidates.get(candidate_id)
+        if not candidate:
+            return None
+        if principal_id and candidate.principal_id != str(principal_id or "").strip():
+            return None
         return self._candidates.review(
             candidate_id,
             status="rejected",
@@ -181,8 +195,13 @@ class MemoryRuntimeService:
     def list_items(self, *, limit: int = 100, principal_id: str | None = None) -> list[MemoryItem]:
         return self._items.list_items(limit=limit, principal_id=principal_id)
 
-    def get_item(self, item_id: str) -> MemoryItem | None:
-        return self._items.get(item_id)
+    def get_item(self, item_id: str, *, principal_id: str | None = None) -> MemoryItem | None:
+        found = self._items.get(item_id)
+        if not found:
+            return None
+        if principal_id and found.principal_id != str(principal_id or "").strip():
+            return None
+        return found
 
     def upsert_entity(
         self,
@@ -212,8 +231,13 @@ class MemoryRuntimeService:
     ) -> list[Entity]:
         return self._entities.list_entities(limit=limit, principal_id=principal_id, entity_type=entity_type)
 
-    def get_entity(self, entity_id: str) -> Entity | None:
-        return self._entities.get(entity_id)
+    def get_entity(self, entity_id: str, *, principal_id: str | None = None) -> Entity | None:
+        found = self._entities.get(entity_id)
+        if not found:
+            return None
+        if principal_id and found.principal_id != str(principal_id or "").strip():
+            return None
+        return found
 
     def upsert_relationship(
         self,
@@ -255,8 +279,13 @@ class MemoryRuntimeService:
             relationship_type=relationship_type,
         )
 
-    def get_relationship(self, relationship_id: str) -> RelationshipEdge | None:
-        return self._relationships.get(relationship_id)
+    def get_relationship(self, relationship_id: str, *, principal_id: str | None = None) -> RelationshipEdge | None:
+        found = self._relationships.get(relationship_id)
+        if not found:
+            return None
+        if principal_id and found.principal_id != str(principal_id or "").strip():
+            return None
+        return found
 
     def upsert_commitment(
         self,

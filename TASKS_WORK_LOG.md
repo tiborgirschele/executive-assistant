@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-176 | P1 | Derive principal context from auth/middleware instead of caller-supplied fields on normal user routes | codex | queued | Runtime durability is now enforced in prod mode, but multi-tenant correctness still relies too heavily on request-supplied principal identifiers |
+| Q-177 | P1 | Replace hardcoded `artifact_repository`-only execution with a typed step-handler/tool-execution gateway | codex | queued | Approval resume and queue draining are now real, but planner/runtime still collapse most work into a single scaffold step instead of executing typed handlers |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-176 | P1 | Derive principal context from auth/middleware instead of caller-supplied fields on normal user routes | codex | done | Principal-scoped connector and memory routes now derive request scope from `X-EA-Principal-ID`/`EA_DEFAULT_PRINCIPAL_ID`, reject mismatched caller-supplied principal IDs with `403 principal_scope_mismatch`, and hide foreign connector status updates |
 | D-001 | P0 | Create rewrite baseline skeleton and harden container privileges | codex | done | Removed docker runtime package from app image |
 | D-002 | P0 | Add execution ledger + policy gating + channel runtime core | codex | done | Memory + postgres-capable backends with fallback |
 | D-003 | P0 | Implement persistent `policy_decisions` repository wiring and API read endpoint | codex | done | Added `v0_4` migration and `/v1/policy/decisions/recent` |

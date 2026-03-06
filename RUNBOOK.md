@@ -91,6 +91,8 @@ Error envelope for failures:
 Auth:
 - Set `EA_API_TOKEN=<token>` to require auth for all non-health routes.
 - Use `Authorization: Bearer <token>` or `X-API-Token: <token>`.
+- Use `X-EA-Principal-ID: <principal>` for principal-scoped connector and memory routes; if omitted, `EA_DEFAULT_PRINCIPAL_ID` (default `local-user`) is used.
+- On those routes, body/query `principal_id` remains a compatibility field only and mismatches fail with `403 principal_scope_mismatch`.
 
 Runtime mode:
 - Set `EA_RUNTIME_MODE=prod` for durable environments; the app will fail fast instead of falling back from `EA_STORAGE_BACKEND=auto` or `memory` to in-process storage.
@@ -379,19 +381,23 @@ The smoke script now includes external-send policy evaluation plus a blocked-pol
 
 ## 8) Memory Candidate Promotion Smoke
 
+For every principal-scoped connector or memory example below, send `X-EA-Principal-ID: exec-1` (or your chosen principal). If you also pass `principal_id`, it must match that request header or the runtime will return `403 principal_scope_mismatch`.
+
 ```bash
 curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/memory/candidates \
+  -H "X-EA-Principal-ID: exec-1" \
   -H 'content-type: application/json' \
-  -d '{"principal_id":"exec-1","category":"stakeholder_pref","summary":"CEO prefers concise updates","fact_json":{"tone":"concise"}}'
+  -d '{"category":"stakeholder_pref","summary":"CEO prefers concise updates","fact_json":{"tone":"concise"}}'
 ```
 
 Promote using the returned `candidate_id`:
 
 ```bash
 curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/memory/candidates/<candidate_id>/promote \
+  -H "X-EA-Principal-ID: exec-1" \
   -H 'content-type: application/json' \
   -d '{"reviewer":"operator","sharing_policy":"private"}'
-curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/items?limit=10&principal_id=exec-1"
+curl -fsS -H "X-EA-Principal-ID: exec-1" "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/items?limit=10"
 ```
 
 Seed semantic entities/relationships:
@@ -421,11 +427,14 @@ Principal-scoped authority bindings:
 
 ```bash
 curl -fsS -X POST http://localhost:${EA_HOST_PORT:-8090}/v1/memory/authority-bindings \
+  -H "X-EA-Principal-ID: exec-1" \
   -H 'content-type: application/json' \
   -d '{"principal_id":"exec-1","subject_ref":"assistant","action_scope":"calendar.write","approval_level":"manager","channel_scope":["email","slack"],"policy_json":{"quiet_hours_enforced":true},"status":"active"}'
-curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/authority-bindings?principal_id=exec-1&limit=10"
-curl -fsS "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/authority-bindings/<binding_id>?principal_id=exec-1"
+curl -fsS -H "X-EA-Principal-ID: exec-1" "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/authority-bindings?principal_id=exec-1&limit=10"
+curl -fsS -H "X-EA-Principal-ID: exec-1" "http://localhost:${EA_HOST_PORT:-8090}/v1/memory/authority-bindings/<binding_id>?principal_id=exec-1"
 ```
+
+If the request principal and a supplied `principal_id` disagree, the runtime now returns `403 principal_scope_mismatch` instead of silently reading another principal scope.
 
 Principal-scoped delivery preferences:
 

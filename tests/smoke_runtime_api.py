@@ -14,6 +14,7 @@ def _client(
     auth_token: str = "",
     database_url: str = "",
     approval_threshold_chars: int | None = None,
+    principal_id: str = "exec-1",
 ) -> TestClient:
     os.environ["EA_STORAGE_BACKEND"] = storage_backend
     os.environ.pop("EA_LEDGER_BACKEND", None)
@@ -28,13 +29,19 @@ def _client(
         os.environ.pop("DATABASE_URL", None)
     from app.api.app import create_app
 
-    return TestClient(create_app())
+    client = TestClient(create_app())
+    if principal_id:
+        client.headers.update({"X-EA-Principal-ID": principal_id})
+    return client
 
 
-def _headers(token: str = "") -> dict[str, str]:
-    if not token:
-        return {}
-    return {"Authorization": f"Bearer {token}"}
+def _headers(token: str = "", principal_id: str = "") -> dict[str, str]:
+    headers: dict[str, str] = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    if principal_id:
+        headers["X-EA-Principal-ID"] = principal_id
+    return headers
 
 
 def test_health_ready_and_version() -> None:
@@ -351,7 +358,6 @@ def test_tool_registry_and_connector_bindings_flow() -> None:
     binding = client.post(
         "/v1/connectors/bindings",
         json={
-            "principal_id": "exec-1",
             "connector_name": "gmail",
             "external_account_ref": "acct-1",
             "scope_json": {"scopes": ["mail.readonly"]},
@@ -361,10 +367,23 @@ def test_tool_registry_and_connector_bindings_flow() -> None:
     )
     assert binding.status_code == 200
     binding_id = binding.json()["binding_id"]
+    assert binding.json()["principal_id"] == "exec-1"
 
-    listed_bindings = client.get("/v1/connectors/bindings", params={"principal_id": "exec-1", "limit": 10})
+    listed_bindings = client.get("/v1/connectors/bindings", params={"limit": 10})
     assert listed_bindings.status_code == 200
     assert any(row["binding_id"] == binding_id for row in listed_bindings.json())
+
+    mismatch = client.get("/v1/connectors/bindings", params={"principal_id": "exec-2", "limit": 10})
+    assert mismatch.status_code == 403
+    assert mismatch.json()["error"]["code"] == "principal_scope_mismatch"
+
+    foreign_status = client.post(
+        f"/v1/connectors/bindings/{binding_id}/status",
+        json={"status": "disabled"},
+        headers=_headers(principal_id="exec-2"),
+    )
+    assert foreign_status.status_code == 404
+    assert foreign_status.json()["error"]["code"] == "binding_not_found"
 
     disabled = client.post(
         f"/v1/connectors/bindings/{binding_id}/status",
@@ -420,7 +439,6 @@ def test_memory_candidate_promotion_flow() -> None:
     staged = client.post(
         "/v1/memory/candidates",
         json={
-            "principal_id": "exec-1",
             "category": "stakeholder_pref",
             "summary": "CEO prefers concise updates",
             "fact_json": {"tone": "concise"},
@@ -433,6 +451,7 @@ def test_memory_candidate_promotion_flow() -> None:
     )
     assert staged.status_code == 200
     candidate_id = staged.json()["candidate_id"]
+    assert staged.json()["principal_id"] == "exec-1"
     assert staged.json()["status"] == "pending"
 
     listed_candidates = client.get("/v1/memory/candidates", params={"limit": 10, "status": "pending"})
@@ -449,13 +468,17 @@ def test_memory_candidate_promotion_flow() -> None:
     item_id = promoted_body["item"]["item_id"]
     assert promoted_body["item"]["provenance_json"]["candidate_id"] == candidate_id
 
-    listed_items = client.get("/v1/memory/items", params={"limit": 10, "principal_id": "exec-1"})
+    listed_items = client.get("/v1/memory/items", params={"limit": 10})
     assert listed_items.status_code == 200
     assert any(row["item_id"] == item_id for row in listed_items.json())
 
     fetched_item = client.get(f"/v1/memory/items/{item_id}")
     assert fetched_item.status_code == 200
     assert fetched_item.json()["item_id"] == item_id
+
+    mismatch = client.get("/v1/memory/items", params={"limit": 10, "principal_id": "exec-2"})
+    assert mismatch.status_code == 403
+    assert mismatch.json()["error"]["code"] == "principal_scope_mismatch"
 
 
 def test_memory_entities_relationships_flow() -> None:
@@ -547,8 +570,8 @@ def test_memory_commitments_principal_scope_flow() -> None:
     assert fetched.json()["title"] == "Send board follow-up"
 
     wrong_scope = client.get(f"/v1/memory/commitments/{commitment_id}", params={"principal_id": "exec-2"})
-    assert wrong_scope.status_code == 404
-    assert wrong_scope.json()["error"]["code"] == "commitment_not_found"
+    assert wrong_scope.status_code == 403
+    assert wrong_scope.json()["error"]["code"] == "principal_scope_mismatch"
 
 
 def test_memory_authority_bindings_principal_scope_flow() -> None:
@@ -578,8 +601,8 @@ def test_memory_authority_bindings_principal_scope_flow() -> None:
     assert fetched.json()["action_scope"] == "calendar.write"
 
     wrong_scope = client.get(f"/v1/memory/authority-bindings/{binding_id}", params={"principal_id": "exec-2"})
-    assert wrong_scope.status_code == 404
-    assert wrong_scope.json()["error"]["code"] == "authority_binding_not_found"
+    assert wrong_scope.status_code == 403
+    assert wrong_scope.json()["error"]["code"] == "principal_scope_mismatch"
 
 
 def test_memory_delivery_preferences_principal_scope_flow() -> None:
@@ -609,8 +632,8 @@ def test_memory_delivery_preferences_principal_scope_flow() -> None:
     assert fetched.json()["channel"] == "email"
 
     wrong_scope = client.get(f"/v1/memory/delivery-preferences/{preference_id}", params={"principal_id": "exec-2"})
-    assert wrong_scope.status_code == 404
-    assert wrong_scope.json()["error"]["code"] == "delivery_preference_not_found"
+    assert wrong_scope.status_code == 403
+    assert wrong_scope.json()["error"]["code"] == "principal_scope_mismatch"
 
 
 def test_memory_follow_ups_principal_scope_flow() -> None:
@@ -641,8 +664,8 @@ def test_memory_follow_ups_principal_scope_flow() -> None:
     assert fetched.json()["topic"] == "Board follow-up"
 
     wrong_scope = client.get(f"/v1/memory/follow-ups/{follow_up_id}", params={"principal_id": "exec-2"})
-    assert wrong_scope.status_code == 404
-    assert wrong_scope.json()["error"]["code"] == "follow_up_not_found"
+    assert wrong_scope.status_code == 403
+    assert wrong_scope.json()["error"]["code"] == "principal_scope_mismatch"
 
 
 def test_memory_follow_up_rules_principal_scope_flow() -> None:
@@ -676,8 +699,8 @@ def test_memory_follow_up_rules_principal_scope_flow() -> None:
     assert fetched.json()["name"] == "Board reminder escalation"
 
     wrong_scope = client.get(f"/v1/memory/follow-up-rules/{rule_id}", params={"principal_id": "exec-2"})
-    assert wrong_scope.status_code == 404
-    assert wrong_scope.json()["error"]["code"] == "follow_up_rule_not_found"
+    assert wrong_scope.status_code == 403
+    assert wrong_scope.json()["error"]["code"] == "principal_scope_mismatch"
 
 
 def test_memory_interruption_budgets_principal_scope_flow() -> None:
@@ -709,8 +732,8 @@ def test_memory_interruption_budgets_principal_scope_flow() -> None:
     assert fetched.json()["scope"] == "workday"
 
     wrong_scope = client.get(f"/v1/memory/interruption-budgets/{budget_id}", params={"principal_id": "exec-2"})
-    assert wrong_scope.status_code == 404
-    assert wrong_scope.json()["error"]["code"] == "interruption_budget_not_found"
+    assert wrong_scope.status_code == 403
+    assert wrong_scope.json()["error"]["code"] == "principal_scope_mismatch"
 
 
 def test_memory_deadline_windows_principal_scope_flow() -> None:
@@ -741,8 +764,8 @@ def test_memory_deadline_windows_principal_scope_flow() -> None:
     assert fetched.json()["title"] == "Board prep delivery window"
 
     wrong_scope = client.get(f"/v1/memory/deadline-windows/{window_id}", params={"principal_id": "exec-2"})
-    assert wrong_scope.status_code == 404
-    assert wrong_scope.json()["error"]["code"] == "deadline_window_not_found"
+    assert wrong_scope.status_code == 403
+    assert wrong_scope.json()["error"]["code"] == "principal_scope_mismatch"
 
 
 def test_memory_stakeholders_principal_scope_flow() -> None:
@@ -779,8 +802,8 @@ def test_memory_stakeholders_principal_scope_flow() -> None:
     assert fetched.json()["display_name"] == "Sam Stakeholder"
 
     wrong_scope = client.get(f"/v1/memory/stakeholders/{stakeholder_id}", params={"principal_id": "exec-2"})
-    assert wrong_scope.status_code == 404
-    assert wrong_scope.json()["error"]["code"] == "stakeholder_not_found"
+    assert wrong_scope.status_code == 403
+    assert wrong_scope.json()["error"]["code"] == "principal_scope_mismatch"
 
 
 def test_memory_decision_windows_principal_scope_flow() -> None:
@@ -819,8 +842,8 @@ def test_memory_decision_windows_principal_scope_flow() -> None:
         f"/v1/memory/decision-windows/{decision_window_id}",
         params={"principal_id": "exec-2"},
     )
-    assert wrong_scope.status_code == 404
-    assert wrong_scope.json()["error"]["code"] == "decision_window_not_found"
+    assert wrong_scope.status_code == 403
+    assert wrong_scope.json()["error"]["code"] == "principal_scope_mismatch"
 
 
 def test_memory_communication_policies_principal_scope_flow() -> None:
@@ -852,8 +875,27 @@ def test_memory_communication_policies_principal_scope_flow() -> None:
     assert fetched.json()["scope"] == "board_threads"
 
     wrong_scope = client.get(f"/v1/memory/communication-policies/{policy_id}", params={"principal_id": "exec-2"})
-    assert wrong_scope.status_code == 404
-    assert wrong_scope.json()["error"]["code"] == "communication_policy_not_found"
+    assert wrong_scope.status_code == 403
+    assert wrong_scope.json()["error"]["code"] == "principal_scope_mismatch"
+
+
+def test_memory_routes_use_default_principal_when_header_and_body_are_omitted() -> None:
+    client = _client(storage_backend="memory", principal_id="")
+
+    staged = client.post(
+        "/v1/memory/candidates",
+        json={
+            "category": "stakeholder_pref",
+            "summary": "Default principal candidate",
+            "fact_json": {"channel": "email"},
+        },
+    )
+    assert staged.status_code == 200
+    assert staged.json()["principal_id"] == "local-user"
+
+    listed = client.get("/v1/memory/candidates", params={"limit": 10})
+    assert listed.status_code == 200
+    assert any(row["candidate_id"] == staged.json()["candidate_id"] for row in listed.json())
 
 
 def test_auth_allow_and_deny() -> None:

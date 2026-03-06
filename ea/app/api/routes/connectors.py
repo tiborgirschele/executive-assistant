@@ -3,14 +3,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.api.dependencies import get_container
+from app.api.dependencies import RequestContext, get_container, get_request_context, resolve_principal_id
 from app.container import AppContainer
 
 router = APIRouter(prefix="/v1/connectors", tags=["connectors"])
 
 
 class ConnectorBindingIn(BaseModel):
-    principal_id: str = Field(min_length=1, max_length=200)
+    principal_id: str | None = Field(default=None, min_length=1, max_length=200)
     connector_name: str = Field(min_length=1, max_length=100)
     external_account_ref: str = Field(min_length=1, max_length=200)
     scope_json: dict[str, object] = Field(default_factory=dict)
@@ -38,9 +38,10 @@ class ConnectorBindingOut(BaseModel):
 def upsert_binding(
     body: ConnectorBindingIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> ConnectorBindingOut:
     row = container.tool_runtime.upsert_connector_binding(
-        principal_id=body.principal_id,
+        principal_id=resolve_principal_id(body.principal_id, context),
         connector_name=body.connector_name,
         external_account_ref=body.external_account_ref,
         scope_json=body.scope_json,
@@ -62,11 +63,15 @@ def upsert_binding(
 
 @router.get("/bindings")
 def list_bindings(
-    principal_id: str = Query(min_length=1),
+    principal_id: str | None = Query(default=None, min_length=1),
     limit: int = Query(default=100, ge=1, le=500),
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> list[ConnectorBindingOut]:
-    rows = container.tool_runtime.list_connector_bindings(principal_id=principal_id, limit=limit)
+    rows = container.tool_runtime.list_connector_bindings(
+        principal_id=resolve_principal_id(principal_id, context),
+        limit=limit,
+    )
     return [
         ConnectorBindingOut(
             binding_id=r.binding_id,
@@ -88,7 +93,11 @@ def set_binding_status(
     binding_id: str,
     body: ConnectorStatusIn,
     container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
 ) -> ConnectorBindingOut:
+    existing = container.tool_runtime.get_connector_binding(binding_id)
+    if not existing or existing.principal_id != context.principal_id:
+        raise HTTPException(status_code=404, detail="binding_not_found")
     row = container.tool_runtime.set_connector_binding_status(binding_id, body.status)
     if not row:
         raise HTTPException(status_code=404, detail="binding_not_found")

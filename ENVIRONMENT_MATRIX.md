@@ -12,6 +12,7 @@
   - `auto` -> try Postgres, fallback to memory outside `prod`
 - `EA_LEDGER_BACKEND`: deprecated compatibility alias for `EA_STORAGE_BACKEND`
 - `DATABASE_URL`: required for reliable Postgres-backed operation
+- `EA_DEFAULT_PRINCIPAL_ID`: fallback request principal for principal-scoped connector/memory routes when `X-EA-Principal-ID` is omitted
 - `EA_BOOTSTRAP_DB=1`: optional deploy-time migration bootstrap
 
 ## Recommended Profiles

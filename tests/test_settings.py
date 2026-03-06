@@ -21,6 +21,7 @@ def _clear_env() -> None:
         "DATABASE_URL",
         "EA_ARTIFACTS_DIR",
         "EA_API_TOKEN",
+        "EA_DEFAULT_PRINCIPAL_ID",
         "EA_MAX_REWRITE_CHARS",
         "EA_APPROVAL_THRESHOLD_CHARS",
         "EA_APPROVAL_TTL_MINUTES",
@@ -38,6 +39,7 @@ def test_settings_defaults() -> None:
     assert s.storage.backend == "auto"
     assert s.storage.database_url == ""
     assert s.auth.enabled is False
+    assert s.auth.default_principal_id == "local-user"
     assert s.policy.max_rewrite_chars == 20000
     assert s.policy.approval_required_chars == 5000
     assert s.policy.approval_ttl_minutes == 120
@@ -90,3 +92,10 @@ def test_runtime_mode_unknown_defaults_to_dev() -> None:
     os.environ["EA_RUNTIME_MODE"] = "unknown-mode"
     s = get_settings()
     assert s.runtime.mode == "dev"
+
+
+def test_default_principal_override() -> None:
+    _clear_env()
+    os.environ["EA_DEFAULT_PRINCIPAL_ID"] = "exec-1"
+    s = get_settings()
+    assert s.auth.default_principal_id == "exec-1"

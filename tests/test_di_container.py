@@ -15,6 +15,7 @@ from app.services.policy import PolicyDeniedError
 @dataclass(frozen=True)
 class _Auth:
     api_token: str = ""
+    default_principal_id: str = "local-user"
 
 
 @dataclass(frozen=True)
@@ -111,7 +112,7 @@ class _FakeMemoryRuntime:
     def list_items(self, **_: object):
         return []
 
-    def get_item(self, item_id: str):
+    def get_item(self, item_id: str, **_: object):
         return None
 
     def upsert_entity(self, **_: object):
@@ -120,7 +121,7 @@ class _FakeMemoryRuntime:
     def list_entities(self, **_: object):
         return []
 
-    def get_entity(self, entity_id: str):
+    def get_entity(self, entity_id: str, **_: object):
         return None
 
     def upsert_relationship(self, **_: object):
@@ -129,7 +130,7 @@ class _FakeMemoryRuntime:
     def list_relationships(self, **_: object):
         return []
 
-    def get_relationship(self, relationship_id: str):
+    def get_relationship(self, relationship_id: str, **_: object):
         return None
 
     def upsert_commitment(self, **_: object):

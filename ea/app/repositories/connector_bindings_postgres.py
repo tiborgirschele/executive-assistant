@@ -165,6 +165,25 @@ class PostgresConnectorBindingRepository:
                 rows = cur.fetchall()
         return [self._from_row(row) for row in rows]
 
+    def get(self, binding_id: str) -> ConnectorBinding | None:
+        bid = str(binding_id or "").strip()
+        if not bid:
+            return None
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT binding_id, principal_id, connector_name, external_account_ref, scope_json, auth_metadata_json, status, created_at, updated_at
+                    FROM connector_bindings
+                    WHERE binding_id = %s
+                    """,
+                    (bid,),
+                )
+                row = cur.fetchone()
+        if not row:
+            return None
+        return self._from_row(row)
+
     def set_status(self, binding_id: str, status: str) -> ConnectorBinding | None:
         bid = str(binding_id or "").strip()
         if not bid:

@@ -46,6 +46,9 @@ def test_inmemory_connector_binding_upsert_and_status_change() -> None:
     )
     assert second.binding_id == first.binding_id
     assert second.scope_json["scopes"] == ["mail.readwrite"]
+    fetched = repo.get(first.binding_id)
+    assert fetched is not None
+    assert fetched.principal_id == "exec-1"
     updated = repo.set_status(first.binding_id, "disabled")
     assert updated is not None
     assert updated.status == "disabled"
