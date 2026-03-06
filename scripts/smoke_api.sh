@@ -193,6 +193,33 @@ if [[ "${HUMAN_ASSIGN_SUMMARY_FIELDS}" != "human_task_assigned|True|assigned|ope
   echo "${HUMAN_ASSIGN_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+HUMAN_OWNERLESS_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d "{\"session_id\":\"${SESSION_ID}\",\"step_id\":\"${SESSION_STEP_ID}\",\"task_type\":\"communications_review\",\"role_required\":\"communications_reviewer\",\"brief\":\"Ownerless pending task.\",\"priority\":\"low\",\"resume_session_on_return\":false}")"
+HUMAN_OWNERLESS_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read() or "{}").get("human_task_id",""))' <<<"${HUMAN_OWNERLESS_JSON}")"
+if [[ -z "${HUMAN_OWNERLESS_ID}" ]]; then
+  fail 13 "missing human_task_id from ownerless human task response"
+fi
+PRIORITY_SUMMARY_NONE_JSON="$(curl -fsS "${BASE}/v1/human/tasks/priority-summary?status=pending&assignment_state=unassigned&assignment_source=none" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+PRIORITY_SUMMARY_NONE_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); counts=body.get('counts_json') or {}; print('{}|{}|{}|{}|{}|{}|{}'.format(body.get('assignment_source',''), body.get('total',''), body.get('highest_priority',''), counts.get('urgent',''), counts.get('high',''), counts.get('normal',''), counts.get('low','')))" <<<"${PRIORITY_SUMMARY_NONE_JSON}")"
+if [[ "${PRIORITY_SUMMARY_NONE_FIELDS}" != "none|1|low|0|0|0|1" ]]; then
+  echo "expected assignment_source=none summary to isolate ownerless pending work; got ${PRIORITY_SUMMARY_NONE_FIELDS}" >&2
+  echo "${PRIORITY_SUMMARY_NONE_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HUMAN_OWNERLESS_LIST_JSON="$(curl -fsS "${BASE}/v1/human/tasks?status=pending&assignment_state=unassigned&assignment_source=none&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+HUMAN_OWNERLESS_LIST_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted='${HUMAN_OWNERLESS_ID}'; blocked='${HUMAN_TASK_ID}'; print('{}|{}'.format(any((row or {}).get('human_task_id') == wanted for row in rows), all((row or {}).get('human_task_id') != blocked for row in rows)))" <<<"${HUMAN_OWNERLESS_LIST_JSON}")"
+if [[ "${HUMAN_OWNERLESS_LIST_FIELDS}" != "True|True" ]]; then
+  echo "expected assignment_source=none list filter to isolate ownerless pending work; got ${HUMAN_OWNERLESS_LIST_FIELDS}" >&2
+  echo "${HUMAN_OWNERLESS_LIST_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HUMAN_UNASSIGNED_NONE_JSON="$(curl -fsS "${BASE}/v1/human/tasks/unassigned?assignment_source=none&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+HUMAN_UNASSIGNED_NONE_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted='${HUMAN_OWNERLESS_ID}'; blocked='${HUMAN_TASK_ID}'; print('{}|{}'.format(any((row or {}).get('human_task_id') == wanted for row in rows), all((row or {}).get('human_task_id') != blocked for row in rows)))" <<<"${HUMAN_UNASSIGNED_NONE_JSON}")"
+if [[ "${HUMAN_UNASSIGNED_NONE_FIELDS}" != "True|True" ]]; then
+  echo "expected assignment_source=none unassigned queue to isolate ownerless pending work; got ${HUMAN_UNASSIGNED_NONE_FIELDS}" >&2
+  echo "${HUMAN_UNASSIGNED_NONE_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 HUMAN_ASSIGNED_BACKLOG_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?role_required=communications_reviewer&overdue_only=true&assignment_state=assigned&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
 HUMAN_ASSIGNED_BACKLOG_MATCH="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); task_id='${HUMAN_TASK_ID}'; print(any((row or {}).get('human_task_id') == task_id for row in rows))" <<<"${HUMAN_ASSIGNED_BACKLOG_JSON}")"
 if [[ "${HUMAN_ASSIGNED_BACKLOG_MATCH}" != "True" ]]; then

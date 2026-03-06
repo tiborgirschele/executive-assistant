@@ -865,6 +865,31 @@ def test_human_task_assignment_source_queue_filters_are_documented_and_smoked() 
     assert "human_task_backlog_assignment_source_filter" in capability["scope"]
 
 
+def test_human_task_ownerless_assignment_source_alias_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    postgres_matrix = (ROOT / "tests/test_postgres_contract_matrix_integration.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "assignment_source=none" in readme
+    assert "assignment_source=none" in runbook
+    assert "HUMAN_UNASSIGNED_NONE_JSON" in smoke_api
+    assert "PRIORITY_SUMMARY_NONE_JSON" in smoke_api
+    assert 'params={"status": "pending", "assignment_state": "unassigned", "assignment_source": "none"}' in smoke_runtime
+    assert 'params={"assignment_source": "none"}' in smoke_runtime
+    assert 'assignment_source="none"' in postgres_matrix
+    assert "/v1/human/tasks/unassigned?assignment_source=none&limit=20" in http_examples
+
+    capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "human_task_ownerless_assignment_source_alias"
+    )
+    assert capability["status"] == "tested"
+    assert "human_task_unassigned_ownerless_source_alias" in capability["scope"]
+
+
 def test_human_task_assignment_history_source_filter_is_documented_and_smoked() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")

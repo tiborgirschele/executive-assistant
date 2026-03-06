@@ -1894,6 +1894,35 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(
+    entry for entry in milestone["capabilities"] if entry["name"] == "human_task_ownerless_assignment_source_alias"
+)
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "assignment_source=none" "README.md" && \
+     grep -Fq "assignment_source=none" "RUNBOOK.md" && \
+     grep -Fq "HUMAN_UNASSIGNED_NONE_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq "PRIORITY_SUMMARY_NONE_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq 'params={"status": "pending", "assignment_state": "unassigned", "assignment_source": "none"}' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'params={"assignment_source": "none"}' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'assignment_source="none"' "tests/test_postgres_contract_matrix_integration.py" && \
+     grep -Fq "/v1/human/tasks/unassigned?assignment_source=none&limit=20" "HTTP_EXAMPLES.http"; then
+    echo "ok: human task ownerless assignment-source alias docs"
+  else
+    echo "missing: human task ownerless assignment-source alias docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task ownerless assignment-source alias milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assignment_history_source_filter")
 assert capability["status"] == "tested"
 PY

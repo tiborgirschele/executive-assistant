@@ -8,6 +8,15 @@ from typing import Dict, List, Protocol
 from app.domain.models import HumanTask, now_utc_iso
 
 
+def _parse_assignment_source_filter(value: str | None) -> tuple[bool, str]:
+    raw = str(value or "").strip()
+    if not raw:
+        return False, ""
+    if raw.lower() in {"none", "unassigned", "ownerless"}:
+        return True, ""
+    return True, raw
+
+
 class HumanTaskRepository(Protocol):
     def create(
         self,
@@ -176,7 +185,7 @@ class InMemoryHumanTaskRepository:
         }
         operator_filter = str(assigned_operator_id or "").strip()
         assignment_filter = str(assignment_state or "").strip().lower()
-        source_filter = str(assignment_source or "").strip()
+        has_source_filter, source_filter = _parse_assignment_source_filter(assignment_source)
         raw_limit = int(limit or 0)
         n = max(1, min(500, raw_limit)) if raw_limit > 0 else 0
         rows = [self._rows[row_id] for row_id in reversed(self._order) if row_id in self._rows]
@@ -191,7 +200,7 @@ class InMemoryHumanTaskRepository:
             rows = [row for row in rows if row.assigned_operator_id == operator_filter]
         if assignment_filter:
             rows = [row for row in rows if row.assignment_state == assignment_filter]
-        if source_filter:
+        if has_source_filter:
             rows = [row for row in rows if row.assignment_source == source_filter]
         if overdue_only:
             now = datetime.now(timezone.utc)
@@ -236,7 +245,7 @@ class InMemoryHumanTaskRepository:
         role_filter = str(role_required or "").strip()
         operator_filter = str(assigned_operator_id or "").strip()
         assignment_filter = str(assignment_state or "").strip().lower()
-        source_filter = str(assignment_source or "").strip()
+        has_source_filter, source_filter = _parse_assignment_source_filter(assignment_source)
         rows = [self._rows[row_id] for row_id in self._order if row_id in self._rows]
         rows = [row for row in rows if row.principal_id == principal]
         if status_filter:
@@ -247,7 +256,7 @@ class InMemoryHumanTaskRepository:
             rows = [row for row in rows if row.assigned_operator_id == operator_filter]
         if assignment_filter:
             rows = [row for row in rows if row.assignment_state == assignment_filter]
-        if source_filter:
+        if has_source_filter:
             rows = [row for row in rows if row.assignment_source == source_filter]
         if overdue_only:
             now = datetime.now(timezone.utc)

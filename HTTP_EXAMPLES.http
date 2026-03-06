@@ -191,6 +191,10 @@ X-EA-Principal-ID: {{principal_id}}
 GET {{host}}/v1/human/tasks/priority-summary?status=pending&assignment_source=manual
 X-EA-Principal-ID: {{principal_id}}
 
+### Human tasks -> ownerless pending priority summary
+GET {{host}}/v1/human/tasks/priority-summary?status=pending&assignment_state=unassigned&assignment_source=none
+X-EA-Principal-ID: {{principal_id}}
+
 ### Human tasks -> direct pending backlog sorted by earliest SLA
 GET {{host}}/v1/human/tasks/backlog?sort=sla_due_at_asc&limit=20
 X-EA-Principal-ID: {{principal_id}}
@@ -209,6 +213,10 @@ X-EA-Principal-ID: {{principal_id}}
 
 ### Human tasks -> direct unassigned pending backlog
 GET {{host}}/v1/human/tasks/unassigned?role_required=communications_reviewer&overdue_only=true&limit=20
+X-EA-Principal-ID: {{principal_id}}
+
+### Human tasks -> ownerless unassigned pending backlog
+GET {{host}}/v1/human/tasks/unassigned?assignment_source=none&limit=20
 X-EA-Principal-ID: {{principal_id}}
 
 ### Human tasks -> direct operator queue

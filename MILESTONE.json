@@ -657,6 +657,16 @@
       "notes": "Human task list, backlog, and mine queue views now accept `assignment_source`, so operators can open the same manual, recommended, or planner auto-preselected pending slice surfaced by the summary endpoint."
     },
     {
+      "name": "human_task_ownerless_assignment_source_alias",
+      "status": "tested",
+      "scope": [
+        "human_task_list_ownerless_source_alias",
+        "human_task_unassigned_ownerless_source_alias",
+        "ownerless_priority_summary_assignment_source_alias"
+      ],
+      "notes": "Human task source-filtered queue views now accept `assignment_source=none` for ownerless pending packets, so unassigned backlogs and ownerless summary slices no longer require empty-string request handling."
+    },
+    {
       "name": "human_task_assignment_history_source_filter",
       "status": "tested",
       "scope": [

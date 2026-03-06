@@ -1544,6 +1544,55 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
     )
     assert assign_manual.status_code == 200
 
+    ownerless_task = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": "manual_source_filter_reviewer",
+            "brief": "Ownerless pending task.",
+            "priority": "low",
+            "resume_session_on_return": False,
+        },
+    )
+    assert ownerless_task.status_code == 200
+    ownerless_task_id = ownerless_task.json()["human_task_id"]
+
+    ownerless_summary = client.get(
+        "/v1/human/tasks/priority-summary",
+        params={"status": "pending", "assignment_state": "unassigned", "assignment_source": "none"},
+    )
+    assert ownerless_summary.status_code == 200
+    ownerless_body = ownerless_summary.json()
+    assert ownerless_body["assignment_source"] == "none"
+    assert ownerless_body["total"] == 1
+    assert ownerless_body["highest_priority"] == "low"
+    assert ownerless_body["counts_json"]["urgent"] == 0
+    assert ownerless_body["counts_json"]["high"] == 0
+    assert ownerless_body["counts_json"]["normal"] == 0
+    assert ownerless_body["counts_json"]["low"] == 1
+
+    ownerless_list = client.get(
+        "/v1/human/tasks",
+        params={"status": "pending", "assignment_state": "unassigned", "assignment_source": "none"},
+    )
+    assert ownerless_list.status_code == 200
+    ownerless_ids = {row["human_task_id"] for row in ownerless_list.json()}
+    assert ownerless_task_id in ownerless_ids
+    assert manual_task_id not in ownerless_ids
+    assert auto_task_id not in ownerless_ids
+
+    ownerless_unassigned = client.get(
+        "/v1/human/tasks/unassigned",
+        params={"assignment_source": "none"},
+    )
+    assert ownerless_unassigned.status_code == 200
+    ownerless_unassigned_ids = {row["human_task_id"] for row in ownerless_unassigned.json()}
+    assert ownerless_task_id in ownerless_unassigned_ids
+    assert manual_task_id not in ownerless_unassigned_ids
+    assert auto_task_id not in ownerless_unassigned_ids
+
     auto_summary = client.get(
         "/v1/human/tasks/priority-summary",
         params={"status": "pending", "assignment_source": "auto_preselected"},

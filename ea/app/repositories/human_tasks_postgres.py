@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from app.domain.models import HumanTask, now_utc_iso
+from app.repositories.human_tasks import _parse_assignment_source_filter
 
 
 def _to_iso(value: Any) -> str:
@@ -320,7 +321,7 @@ class PostgresHumanTaskRepository:
         )
         operator_filter = str(assigned_operator_id or "").strip()
         assignment_filter = str(assignment_state or "").strip().lower()
-        source_filter = str(assignment_source or "").strip()
+        has_source_filter, source_filter = _parse_assignment_source_filter(assignment_source)
         raw_limit = int(limit or 0)
         n = max(1, min(500, raw_limit)) if raw_limit > 0 else 0
         clauses = ["principal_id = %s"]
@@ -340,7 +341,7 @@ class PostgresHumanTaskRepository:
         if assignment_filter:
             clauses.append("assignment_state = %s")
             params.append(assignment_filter)
-        if source_filter:
+        if has_source_filter:
             clauses.append("assignment_source = %s")
             params.append(source_filter)
         if overdue_only:
@@ -405,7 +406,7 @@ class PostgresHumanTaskRepository:
         role_filter = str(role_required or "").strip()
         operator_filter = str(assigned_operator_id or "").strip()
         assignment_filter = str(assignment_state or "").strip().lower()
-        source_filter = str(assignment_source or "").strip()
+        has_source_filter, source_filter = _parse_assignment_source_filter(assignment_source)
         clauses = ["principal_id = %s"]
         params: list[object] = [principal]
         if status_filter:
@@ -420,7 +421,7 @@ class PostgresHumanTaskRepository:
         if assignment_filter:
             clauses.append("assignment_state = %s")
             params.append(assignment_filter)
-        if source_filter:
+        if has_source_filter:
             clauses.append("assignment_source = %s")
             params.append(source_filter)
         if overdue_only:

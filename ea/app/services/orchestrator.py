@@ -28,7 +28,11 @@ from app.repositories.approvals import ApprovalRepository, InMemoryApprovalRepos
 from app.repositories.approvals_postgres import PostgresApprovalRepository
 from app.repositories.artifacts import ArtifactRepository, InMemoryArtifactRepository
 from app.repositories.artifacts_postgres import PostgresArtifactRepository
-from app.repositories.human_tasks import HumanTaskRepository, InMemoryHumanTaskRepository
+from app.repositories.human_tasks import (
+    HumanTaskRepository,
+    InMemoryHumanTaskRepository,
+    _parse_assignment_source_filter,
+)
 from app.repositories.human_tasks_postgres import PostgresHumanTaskRepository
 from app.repositories.ledger import ExecutionLedgerRepository, InMemoryExecutionLedgerRepository
 from app.repositories.ledger_postgres import PostgresExecutionLedgerRepository
@@ -352,7 +356,7 @@ class RewriteOrchestrator:
         }
         operator_filter = str(assigned_operator_id or "").strip()
         assignment_filter = str(assignment_state or "").strip().lower()
-        source_filter = str(assignment_source or "").strip()
+        has_source_filter, source_filter = _parse_assignment_source_filter(assignment_source)
         filtered = [row for row in rows if row.principal_id == principal]
         if status_filter:
             filtered = [row for row in filtered if row.status == status_filter]
@@ -364,7 +368,7 @@ class RewriteOrchestrator:
             filtered = [row for row in filtered if row.assigned_operator_id == operator_filter]
         if assignment_filter:
             filtered = [row for row in filtered if row.assignment_state == assignment_filter]
-        if source_filter:
+        if has_source_filter:
             filtered = [row for row in filtered if row.assignment_source == source_filter]
         if overdue_only:
             now = datetime.now(timezone.utc)
@@ -1189,7 +1193,7 @@ class RewriteOrchestrator:
         overdue_only: bool = False,
     ) -> dict[str, object]:
         resolved_operator_id = str(operator_id or "").strip()
-        resolved_assignment_source = str(assignment_source or "").strip()
+        requested_assignment_source = str(assignment_source or "").strip()
         if resolved_operator_id:
             profile = self.fetch_operator_profile(resolved_operator_id, principal_id=principal_id)
             if profile is None:
@@ -1201,7 +1205,7 @@ class RewriteOrchestrator:
                     role_required=role_required,
                     assigned_operator_id=assigned_operator_id,
                     assignment_state=assignment_state,
-                    assignment_source=resolved_assignment_source,
+                    assignment_source=assignment_source,
                     overdue_only=overdue_only,
                     limit=0,
                 )
@@ -1218,7 +1222,7 @@ class RewriteOrchestrator:
                 role_required=role_required,
                 assigned_operator_id=assigned_operator_id,
                 assignment_state=assignment_state,
-                assignment_source=resolved_assignment_source,
+                assignment_source=assignment_source,
                 overdue_only=overdue_only,
             )
         normalized = {
@@ -1240,7 +1244,7 @@ class RewriteOrchestrator:
             "operator_id": resolved_operator_id,
             "assigned_operator_id": str(assigned_operator_id or ""),
             "assignment_state": str(assignment_state or ""),
-            "assignment_source": resolved_assignment_source,
+            "assignment_source": requested_assignment_source,
             "overdue_only": bool(overdue_only),
             "counts_json": ordered,
             "total": sum(ordered.values()),

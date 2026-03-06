@@ -268,6 +268,23 @@ def test_postgres_human_tasks_create_claim_return_and_list() -> None:
     )
     assert any(row.human_task_id == created.human_task_id for row in listed_role)
 
+    ownerless_rows = repo.list_for_principal(
+        session.intent.principal_id,
+        status="pending",
+        assignment_state="unassigned",
+        assignment_source="none",
+        limit=10,
+    )
+    assert any(row.human_task_id == created.human_task_id for row in ownerless_rows)
+
+    ownerless_counts = repo.count_by_priority_for_principal(
+        session.intent.principal_id,
+        status="pending",
+        assignment_state="unassigned",
+        assignment_source="none",
+    )
+    assert ownerless_counts["high"] == 1
+
     assigned = repo.assign(
         created.human_task_id,
         operator_id="operator-1",
