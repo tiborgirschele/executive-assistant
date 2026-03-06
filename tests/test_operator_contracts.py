@@ -216,8 +216,10 @@ def test_human_task_docs_and_milestone_cover_session_linked_packets() -> None:
     assert "role_required=communications_reviewer&overdue_only=true" in http_examples
     assert "assigned_operator_id=operator&status=claimed" in http_examples
     assert "/v1/human/tasks/backlog?role_required=communications_reviewer&overdue_only=true&limit=20" in http_examples
+    assert "/v1/human/tasks/unassigned?role_required=communications_reviewer&overdue_only=true&limit=20" in http_examples
     assert "/v1/human/tasks/mine?operator_id=operator&limit=20" in http_examples
     assert "/v1/human/tasks/{{human_task_id}}/assign" in http_examples
+    assert "assignment_state=assigned&limit=20" in http_examples
     assert "\"resume_session_on_return\": true" in http_examples
 
     assert "v0_24 human tasks kernel" in db_bootstrap
@@ -231,6 +233,8 @@ def test_human_task_docs_and_milestone_cover_session_linked_packets() -> None:
     assert "human task backlog endpoint" in smoke_api
     assert "human task mine endpoint" in smoke_api
     assert "pre-assigned task" in smoke_api
+    assert "human task unassigned endpoint" in smoke_api
+    assert "assigned-only backlog endpoint" in smoke_api
     assert "/v1/human/tasks" in smoke_api
     assert "test_human_task_flow_and_session_projection" in smoke_runtime
 
@@ -252,6 +256,10 @@ def test_human_task_docs_and_milestone_cover_session_linked_packets() -> None:
         entry for entry in milestone["capabilities"] if entry["name"] == "human_task_operator_assignment"
     )
     assert assignment_capability["status"] == "tested"
+    visibility_capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assignment_state_visibility"
+    )
+    assert visibility_capability["status"] == "tested"
 
 
 def test_milestone_marks_postgres_contract_matrix_tested() -> None:

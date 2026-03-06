@@ -18,6 +18,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Human task queue listings now support `role_required`, `assigned_operator_id`, and `overdue_only` filters for operator-targeted backlogs.
 - Added direct `/v1/human/tasks/backlog` and `/v1/human/tasks/mine` endpoints so operators can pull pending and assigned queues without reconstructing filter sets manually.
 - Added `POST /v1/human/tasks/{human_task_id}/assign` so operator ownership can be set while a task remains pending, before `claim` transitions it into active work.
+- Added `GET /v1/human/tasks/unassigned` plus `assignment_state=assigned|unassigned` backlog filters so ownerless pending work is distinct from pre-assigned pending work.
 
 ## 2026-03-05
 

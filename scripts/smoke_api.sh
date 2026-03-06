@@ -145,11 +145,32 @@ if [[ "${HUMAN_BACKLOG_MATCH}" != "True" ]]; then
   echo "${HUMAN_BACKLOG_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+HUMAN_UNASSIGNED_JSON="$(curl -fsS "${BASE}/v1/human/tasks/unassigned?role_required=communications_reviewer&overdue_only=true&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+HUMAN_UNASSIGNED_MATCH="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); task_id='${HUMAN_TASK_ID}'; print(any((row or {}).get('human_task_id') == task_id for row in rows))" <<<"${HUMAN_UNASSIGNED_JSON}")"
+if [[ "${HUMAN_UNASSIGNED_MATCH}" != "True" ]]; then
+  echo "expected human task unassigned endpoint to include ${HUMAN_TASK_ID}" >&2
+  echo "${HUMAN_UNASSIGNED_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 HUMAN_ASSIGN_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks/${HUMAN_TASK_ID}/assign" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' -d '{"operator_id":"smoke-operator"}')"
 HUMAN_ASSIGN_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}".format(body.get("status",""), body.get("assigned_operator_id","")))' <<<"${HUMAN_ASSIGN_JSON}")"
 if [[ "${HUMAN_ASSIGN_FIELDS}" != "pending|smoke-operator" ]]; then
   echo "expected assigned human task to stay pending with operator ownership; got ${HUMAN_ASSIGN_FIELDS}" >&2
   echo "${HUMAN_ASSIGN_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HUMAN_ASSIGNED_BACKLOG_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?role_required=communications_reviewer&overdue_only=true&assignment_state=assigned&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+HUMAN_ASSIGNED_BACKLOG_MATCH="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); task_id='${HUMAN_TASK_ID}'; print(any((row or {}).get('human_task_id') == task_id for row in rows))" <<<"${HUMAN_ASSIGNED_BACKLOG_JSON}")"
+if [[ "${HUMAN_ASSIGNED_BACKLOG_MATCH}" != "True" ]]; then
+  echo "expected assigned-only backlog endpoint to include ${HUMAN_TASK_ID}" >&2
+  echo "${HUMAN_ASSIGNED_BACKLOG_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HUMAN_UNASSIGNED_AFTER_JSON="$(curl -fsS "${BASE}/v1/human/tasks/unassigned?role_required=communications_reviewer&overdue_only=true&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+HUMAN_UNASSIGNED_AFTER_MATCH="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); task_id='${HUMAN_TASK_ID}'; print(all((row or {}).get('human_task_id') != task_id for row in rows))" <<<"${HUMAN_UNASSIGNED_AFTER_JSON}")"
+if [[ "${HUMAN_UNASSIGNED_AFTER_MATCH}" != "True" ]]; then
+  echo "expected human task unassigned endpoint to drop ${HUMAN_TASK_ID} after assignment" >&2
+  echo "${HUMAN_UNASSIGNED_AFTER_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
 HUMAN_MINE_ASSIGNED_JSON="$(curl -fsS "${BASE}/v1/human/tasks/mine?operator_id=smoke-operator&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"

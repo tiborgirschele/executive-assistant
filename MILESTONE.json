@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.47.0",
+  "version": "0.48.0",
   "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
@@ -342,6 +342,16 @@
         "human_task_assigned_event"
       ],
       "notes": "Operator ownership can now be assigned explicitly while a human task remains pending, and the session ledger records `human_task_assigned` before later claim/return transitions."
+    },
+    {
+      "name": "human_task_assignment_state_visibility",
+      "status": "tested",
+      "scope": [
+        "human_task_unassigned_route",
+        "human_task_assignment_state_filter",
+        "assigned_vs_unassigned_pending_backlog"
+      ],
+      "notes": "The operator backlog now distinguishes pre-assigned pending work from ownerless pending work via `assignment_state=assigned|unassigned` and the dedicated `/v1/human/tasks/unassigned` endpoint."
     }
   ],
   "migrations": [

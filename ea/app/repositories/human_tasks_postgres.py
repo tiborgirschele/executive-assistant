@@ -222,6 +222,7 @@ class PostgresHumanTaskRepository:
         status: str | None = None,
         role_required: str | None = None,
         assigned_operator_id: str | None = None,
+        assignment_state: str | None = None,
         overdue_only: bool = False,
         limit: int = 50,
     ) -> list[HumanTask]:
@@ -229,6 +230,7 @@ class PostgresHumanTaskRepository:
         status_filter = str(status or "").strip()
         role_filter = str(role_required or "").strip()
         operator_filter = str(assigned_operator_id or "").strip()
+        assignment_filter = str(assignment_state or "").strip().lower()
         n = max(1, min(500, int(limit or 50)))
         clauses = ["principal_id = %s"]
         params: list[object] = [principal]
@@ -241,6 +243,10 @@ class PostgresHumanTaskRepository:
         if operator_filter:
             clauses.append("assigned_operator_id = %s")
             params.append(operator_filter)
+        if assignment_filter == "assigned":
+            clauses.append("assigned_operator_id <> ''")
+        elif assignment_filter == "unassigned":
+            clauses.append("assigned_operator_id = ''")
         if overdue_only:
             clauses.append("sla_due_at IS NOT NULL")
             clauses.append("sla_due_at <= NOW()")

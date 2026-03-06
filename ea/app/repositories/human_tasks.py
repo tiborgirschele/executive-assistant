@@ -36,6 +36,7 @@ class HumanTaskRepository(Protocol):
         status: str | None = None,
         role_required: str | None = None,
         assigned_operator_id: str | None = None,
+        assignment_state: str | None = None,
         overdue_only: bool = False,
         limit: int = 50,
     ) -> list[HumanTask]:
@@ -118,6 +119,7 @@ class InMemoryHumanTaskRepository:
         status: str | None = None,
         role_required: str | None = None,
         assigned_operator_id: str | None = None,
+        assignment_state: str | None = None,
         overdue_only: bool = False,
         limit: int = 50,
     ) -> list[HumanTask]:
@@ -125,6 +127,7 @@ class InMemoryHumanTaskRepository:
         status_filter = str(status or "").strip()
         role_filter = str(role_required or "").strip()
         operator_filter = str(assigned_operator_id or "").strip()
+        assignment_filter = str(assignment_state or "").strip().lower()
         n = max(1, min(500, int(limit or 50)))
         rows = [self._rows[row_id] for row_id in reversed(self._order) if row_id in self._rows]
         rows = [row for row in rows if row.principal_id == principal]
@@ -134,6 +137,10 @@ class InMemoryHumanTaskRepository:
             rows = [row for row in rows if row.role_required == role_filter]
         if operator_filter:
             rows = [row for row in rows if row.assigned_operator_id == operator_filter]
+        if assignment_filter == "assigned":
+            rows = [row for row in rows if str(row.assigned_operator_id or "").strip()]
+        elif assignment_filter == "unassigned":
+            rows = [row for row in rows if not str(row.assigned_operator_id or "").strip()]
         if overdue_only:
             now = datetime.now(timezone.utc)
             overdue_rows: list[HumanTask] = []

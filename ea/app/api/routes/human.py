@@ -115,6 +115,7 @@ def list_human_tasks(
     status: str | None = None,
     role_required: str | None = None,
     assigned_operator_id: str | None = None,
+    assignment_state: str | None = None,
     overdue_only: bool = False,
     limit: int = Query(default=50, ge=1, le=500),
     container: AppContainer = Depends(get_container),
@@ -127,6 +128,7 @@ def list_human_tasks(
         status=status,
         role_required=role_required,
         assigned_operator_id=assigned_operator_id,
+        assignment_state=assignment_state,
         overdue_only=overdue_only,
         limit=limit,
     )
@@ -135,6 +137,26 @@ def list_human_tasks(
 
 @router.get("/backlog")
 def list_human_task_backlog(
+    role_required: str | None = None,
+    assignment_state: str | None = None,
+    overdue_only: bool = False,
+    limit: int = Query(default=50, ge=1, le=500),
+    container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
+) -> list[HumanTaskOut]:
+    rows = container.orchestrator.list_human_tasks(
+        principal_id=context.principal_id,
+        status="pending",
+        role_required=role_required,
+        assignment_state=assignment_state,
+        overdue_only=overdue_only,
+        limit=limit,
+    )
+    return [_to_out(row) for row in rows]
+
+
+@router.get("/unassigned")
+def list_unassigned_human_tasks(
     role_required: str | None = None,
     overdue_only: bool = False,
     limit: int = Query(default=50, ge=1, le=500),
@@ -145,6 +167,7 @@ def list_human_task_backlog(
         principal_id=context.principal_id,
         status="pending",
         role_required=role_required,
+        assignment_state="unassigned",
         overdue_only=overdue_only,
         limit=limit,
     )

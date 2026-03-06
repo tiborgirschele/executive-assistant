@@ -287,10 +287,36 @@ def test_human_task_flow_and_session_projection() -> None:
     assert backlog.status_code == 200
     assert any(row["human_task_id"] == task_id for row in backlog.json())
 
+    unassigned = client.get(
+        "/v1/human/tasks/unassigned",
+        params={"limit": 10, "role_required": "communications_reviewer", "overdue_only": True},
+    )
+    assert unassigned.status_code == 200
+    assert any(row["human_task_id"] == task_id for row in unassigned.json())
+
     assigned = client.post(f"/v1/human/tasks/{task_id}/assign", json={"operator_id": "operator-1"})
     assert assigned.status_code == 200
     assert assigned.json()["status"] == "pending"
     assert assigned.json()["assigned_operator_id"] == "operator-1"
+
+    assigned_backlog = client.get(
+        "/v1/human/tasks/backlog",
+        params={
+            "limit": 10,
+            "role_required": "communications_reviewer",
+            "overdue_only": True,
+            "assignment_state": "assigned",
+        },
+    )
+    assert assigned_backlog.status_code == 200
+    assert any(row["human_task_id"] == task_id for row in assigned_backlog.json())
+
+    unassigned_after = client.get(
+        "/v1/human/tasks/unassigned",
+        params={"limit": 10, "role_required": "communications_reviewer", "overdue_only": True},
+    )
+    assert unassigned_after.status_code == 200
+    assert all(row["human_task_id"] != task_id for row in unassigned_after.json())
 
     mine_assigned = client.get("/v1/human/tasks/mine", params={"limit": 10, "operator_id": "operator-1"})
     assert mine_assigned.status_code == 200

@@ -574,6 +574,7 @@ class RewriteOrchestrator:
         status: str | None = None,
         role_required: str | None = None,
         assigned_operator_id: str | None = None,
+        assignment_state: str | None = None,
         overdue_only: bool = False,
         limit: int = 50,
     ) -> list[HumanTask]:
@@ -589,6 +590,7 @@ class RewriteOrchestrator:
             status=status,
             role_required=role_required,
             assigned_operator_id=assigned_operator_id,
+            assignment_state=assignment_state,
             overdue_only=overdue_only,
             limit=limit,
         )
