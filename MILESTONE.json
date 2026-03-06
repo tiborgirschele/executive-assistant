@@ -748,6 +748,15 @@
       "notes": "Session-scoped list queries now have explicit smoke/docs coverage for `session_id=<id>&assignment_source=none&sort=created_asc`, keeping per-session ownerless FIFO ordering aligned with the global queue views."
     },
     {
+      "name": "human_task_session_ownerless_last_transition_sort",
+      "status": "tested",
+      "scope": [
+        "session_ownerless_last_transition_desc_ordering",
+        "session_ownerless_global_queue_transition_alignment"
+      ],
+      "notes": "Session-scoped list queries now have explicit smoke/docs coverage for `session_id=<id>&assignment_source=none&sort=last_transition_desc`, keeping per-session untouched-ownerless newest-first ordering aligned with the global queue views."
+    },
+    {
       "name": "human_task_assignment_history_source_filter",
       "status": "tested",
       "scope": [

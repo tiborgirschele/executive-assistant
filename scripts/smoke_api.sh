@@ -289,6 +289,13 @@ if [[ "${SESSION_HUMAN_NONE_CREATED_FIELDS}" != "${HUMAN_OWNERLESS_ID}|${HUMAN_O
   echo "${SESSION_HUMAN_NONE_CREATED_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+SESSION_HUMAN_NONE_TRANSITION_JSON="$(curl -fsS "${BASE}/v1/human/tasks?session_id=${SESSION_ID}&assignment_source=none&sort=last_transition_desc&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+SESSION_HUMAN_NONE_TRANSITION_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted=['${HUMAN_OWNERLESS_ID}','${HUMAN_OWNERLESS_NEWER_ID}']; filtered=[row for row in rows if (row or {}).get('human_task_id') in wanted]; print('|'.join((row or {}).get('human_task_id','') for row in filtered[:2]))" <<<"${SESSION_HUMAN_NONE_TRANSITION_JSON}")"
+if [[ "${SESSION_HUMAN_NONE_TRANSITION_FIELDS}" != "${HUMAN_OWNERLESS_NEWER_ID}|${HUMAN_OWNERLESS_ID}" ]]; then
+  echo "expected session-scoped assignment_source=none sort=last_transition_desc to surface newest untouched ownerless work first; got ${SESSION_HUMAN_NONE_TRANSITION_FIELDS}" >&2
+  echo "${SESSION_HUMAN_NONE_TRANSITION_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 HUMAN_ASSIGNED_BACKLOG_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?role_required=communications_reviewer&overdue_only=true&assignment_state=assigned&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
 HUMAN_ASSIGNED_BACKLOG_MATCH="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); task_id='${HUMAN_TASK_ID}'; print(any((row or {}).get('human_task_id') == task_id for row in rows))" <<<"${HUMAN_ASSIGNED_BACKLOG_JSON}")"
 if [[ "${HUMAN_ASSIGNED_BACKLOG_MATCH}" != "True" ]]; then
