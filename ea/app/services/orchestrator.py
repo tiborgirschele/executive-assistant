@@ -257,6 +257,15 @@ class RewriteOrchestrator:
 
     def _complete_tool_step(self, session_id: str, rewrite_step: ExecutionStep) -> Artifact | None:
         input_json = dict(rewrite_step.input_json or {})
+        parent_step = self._ledger.get_step(rewrite_step.parent_step_id) if rewrite_step.parent_step_id else None
+        if parent_step is not None:
+            parent_output = dict(parent_step.output_json or {})
+            human_payload = parent_output.get("human_returned_payload_json")
+            if isinstance(human_payload, dict):
+                final_text = str(human_payload.get("final_text") or human_payload.get("content") or "").strip()
+                if final_text:
+                    input_json["source_text"] = final_text
+                    input_json["human_task_id"] = str(parent_output.get("human_task_id") or "")
         tool_name = str(input_json.get("tool_name") or "artifact_repository") or "artifact_repository"
         action_kind = str(input_json.get("action_kind") or "artifact.save") or "artifact.save"
         self._ledger.append_event(

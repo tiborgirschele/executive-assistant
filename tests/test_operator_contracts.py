@@ -410,6 +410,24 @@ def test_runtime_human_task_step_execution_is_documented_and_smoked() -> None:
     assert capability["status"] == "tested"
 
 
+def test_human_review_payload_artifact_override_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "returned_payload_json.final_text" in readme
+    assert "final_text" in runbook
+    assert "edited by reviewer" in smoke_api
+    assert 'body_after["artifacts"][0]["content"]' in smoke_runtime
+
+    capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "human_review_payload_artifact_override"
+    )
+    assert capability["status"] == "tested"
+
+
 def test_registry_backed_tool_execution_service_is_documented_and_smoked() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")

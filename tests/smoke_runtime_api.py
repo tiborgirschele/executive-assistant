@@ -726,12 +726,13 @@ def test_rewrite_compiled_human_review_branch_pauses_and_resumes() -> None:
     assert all(item["state"] == "done" for item in body["queue_items"])
     assert any(row["human_task_id"] == human_task_id and row["status"] == "pending" for row in body["human_tasks"])
 
+    reviewed_text = "rewrite with human review, edited by reviewer"
     returned = client.post(
         f"/v1/human/tasks/{human_task_id}/return",
         json={
             "operator_id": "reviewer-1",
             "resolution": "ready_for_send",
-            "returned_payload_json": {"final_text": "rewrite with human review"},
+            "returned_payload_json": {"final_text": reviewed_text},
             "provenance_json": {"review_mode": "human"},
         },
     )
@@ -751,6 +752,7 @@ def test_rewrite_compiled_human_review_branch_pauses_and_resumes() -> None:
     assert len(body_after["queue_items"]) == 4
     assert all(item["state"] == "done" for item in body_after["queue_items"])
     assert len(body_after["artifacts"]) == 1
+    assert body_after["artifacts"][0]["content"] == reviewed_text
     assert body_after["steps"][2]["state"] == "completed"
     assert body_after["steps"][3]["state"] == "completed"
 

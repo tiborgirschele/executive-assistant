@@ -534,11 +534,11 @@ if [[ "${HUMAN_REWRITE_SESSION_FIELDS}" != "awaiting_human|True|True|True|True" 
   fail 12 "policy contract mismatch"
 fi
 curl -fsS -X POST "${BASE}/v1/human/tasks/${HUMAN_REWRITE_TASK_ID}/return" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
-  -d '{"operator_id":"reviewer-1","resolution":"ready_for_send","returned_payload_json":{"final_text":"rewrite with human review"},"provenance_json":{"review_mode":"human"}}' >/dev/null
+  -d '{"operator_id":"reviewer-1","resolution":"ready_for_send","returned_payload_json":{"final_text":"rewrite with human review, edited by reviewer"},"provenance_json":{"review_mode":"human"}}' >/dev/null
 HUMAN_REWRITE_DONE_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${HUMAN_REWRITE_SESSION_ID}" "${AUTH_ARGS[@]}")"
-HUMAN_REWRITE_DONE_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); events={e.get('name','') for e in (body.get('events') or [])}; queues=body.get('queue_items') or []; steps=body.get('steps') or []; print('{}|{}|{}|{}|{}|{}'.format(body.get('status',''), len(body.get('artifacts') or []) >= 1, 'human_task_step_started' in events, 'session_resumed_from_human_task' in events, len(queues) == 4 and all((q or {}).get('state','') == 'done' for q in queues), len(steps) == 4 and all((row or {}).get('state') == 'completed' for row in steps)))" <<<"${HUMAN_REWRITE_DONE_JSON}")"
-if [[ "${HUMAN_REWRITE_DONE_FIELDS}" != "completed|True|True|True|True|True" ]]; then
-  echo "expected resumed human-review rewrite to complete with artifact and fully drained queue; got ${HUMAN_REWRITE_DONE_FIELDS}" >&2
+HUMAN_REWRITE_DONE_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); events={e.get('name','') for e in (body.get('events') or [])}; queues=body.get('queue_items') or []; steps=body.get('steps') or []; artifacts=body.get('artifacts') or []; print('{}|{}|{}|{}|{}|{}|{}'.format(body.get('status',''), len(artifacts) >= 1, (artifacts[0] or {}).get('content','') if artifacts else '', 'human_task_step_started' in events, 'session_resumed_from_human_task' in events, len(queues) == 4 and all((q or {}).get('state','') == 'done' for q in queues), len(steps) == 4 and all((row or {}).get('state') == 'completed' for row in steps)))" <<<"${HUMAN_REWRITE_DONE_JSON}")"
+if [[ "${HUMAN_REWRITE_DONE_FIELDS}" != "completed|True|rewrite with human review, edited by reviewer|True|True|True|True" ]]; then
+  echo "expected resumed human-review rewrite to complete with reviewer-edited artifact and fully drained queue; got ${HUMAN_REWRITE_DONE_FIELDS}" >&2
   echo "${HUMAN_REWRITE_DONE_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi

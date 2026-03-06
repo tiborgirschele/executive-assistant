@@ -954,6 +954,29 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_review_payload_artifact_override")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "returned_payload_json.final_text" "README.md" && \
+     grep -Fq "final_text" "RUNBOOK.md" && \
+     grep -Fq "edited by reviewer" "scripts/smoke_api.sh" && \
+     grep -Fq 'body_after["artifacts"][0]["content"]' "tests/smoke_runtime_api.py"; then
+    echo "ok: human-review payload artifact override docs"
+  else
+    echo "missing: human-review payload artifact override docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human-review payload artifact override milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "registry_backed_tool_execution_service")
 assert capability["status"] == "tested"
 PY
