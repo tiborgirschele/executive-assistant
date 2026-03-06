@@ -1019,9 +1019,12 @@
         "plan_step_authority_class_projection",
         "plan_step_review_class_projection",
         "plan_step_failure_strategy_projection",
+        "plan_step_timeout_budget_projection",
+        "plan_step_max_attempts_projection",
+        "plan_step_retry_backoff_projection",
         "runtime_step_input_semantics_projection"
       ],
-      "notes": "Compiled plan steps and queued step input payloads now project explicit owner, authority/review class, and failure strategy semantics so operator tooling can inspect runtime posture before the graph grows deeper."
+      "notes": "Compiled plan steps, queued step input payloads, and `plan_compiled` event metadata now project explicit owner, authority/review class, failure strategy, and timeout/retry semantics so operator tooling can inspect runtime posture before the graph grows deeper."
     },
     {
       "name": "artifact_preview_handle_projection",

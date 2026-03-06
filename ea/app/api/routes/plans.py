@@ -44,6 +44,9 @@ class PlanStepOut(BaseModel):
     authority_class: str
     review_class: str
     failure_strategy: str
+    timeout_budget_seconds: int
+    max_attempts: int
+    retry_backoff_seconds: int
     evidence_required: list[str]
     approval_required: bool
     reversible: bool
@@ -147,6 +150,9 @@ def compile_plan(
                     authority_class=s.authority_class,
                     review_class=s.review_class,
                     failure_strategy=s.failure_strategy,
+                    timeout_budget_seconds=s.timeout_budget_seconds,
+                    max_attempts=s.max_attempts,
+                    retry_backoff_seconds=s.retry_backoff_seconds,
                     evidence_required=list(s.evidence_required),
                     approval_required=s.approval_required,
                     reversible=s.reversible,

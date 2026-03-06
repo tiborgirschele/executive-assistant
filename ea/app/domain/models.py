@@ -423,6 +423,9 @@ class PlanStepSpec:
     authority_class: str = "observe"
     review_class: str = "none"
     failure_strategy: str = "fail"
+    timeout_budget_seconds: int = 0
+    max_attempts: int = 1
+    retry_backoff_seconds: int = 0
     depends_on: tuple[str, ...] = ()
     input_keys: tuple[str, ...] = ()
     output_keys: tuple[str, ...] = ()

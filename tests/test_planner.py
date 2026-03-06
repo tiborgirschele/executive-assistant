@@ -28,6 +28,9 @@ def test_planner_uses_task_contract_defaults() -> None:
     assert plan.steps[0].authority_class == "observe"
     assert plan.steps[0].review_class == "none"
     assert plan.steps[0].failure_strategy == "fail"
+    assert plan.steps[0].timeout_budget_seconds == 30
+    assert plan.steps[0].max_attempts == 1
+    assert plan.steps[0].retry_backoff_seconds == 0
     assert plan.steps[0].output_keys == ("normalized_text", "text_length")
     assert plan.steps[0].approval_required is False
     assert plan.steps[1].step_key == "step_policy_evaluate"
@@ -35,12 +38,14 @@ def test_planner_uses_task_contract_defaults() -> None:
     assert plan.steps[1].depends_on == ("step_input_prepare",)
     assert plan.steps[1].owner == "system"
     assert plan.steps[1].authority_class == "observe"
+    assert plan.steps[1].timeout_budget_seconds == 30
     assert plan.steps[2].tool_name == "artifact_repository"
     assert plan.steps[2].depends_on == ("step_policy_evaluate",)
     assert plan.steps[2].owner == "tool"
     assert plan.steps[2].authority_class == "draft"
     assert plan.steps[2].review_class == "none"
     assert plan.steps[2].failure_strategy == "fail"
+    assert plan.steps[2].timeout_budget_seconds == 60
     assert plan.steps[2].approval_required is True
 
 
@@ -83,6 +88,9 @@ def test_planner_can_compile_human_review_branch_from_task_contract_metadata() -
     assert plan.steps[2].authority_class == "draft"
     assert plan.steps[2].review_class == "operator"
     assert plan.steps[2].failure_strategy == "fail"
+    assert plan.steps[2].timeout_budget_seconds == 2700
+    assert plan.steps[2].max_attempts == 1
+    assert plan.steps[2].retry_backoff_seconds == 0
     assert plan.steps[2].task_type == "communications_review"
     assert plan.steps[2].role_required == "communications_reviewer"
     assert plan.steps[2].priority == "high"

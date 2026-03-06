@@ -540,7 +540,7 @@ GET {{host}}/v1/tasks/contracts?limit=20
 ### Task Contracts -> get by key
 GET {{host}}/v1/tasks/contracts/rewrite_text
 
-### Plans -> compile from task contract (steps include owner/authority/review/failure semantics)
+### Plans -> compile from task contract (steps include owner/authority/review/failure semantics plus timeout/retry budgets)
 POST {{host}}/v1/plans/compile
 Content-Type: application/json
 X-EA-Principal-ID: {{principal_id}}

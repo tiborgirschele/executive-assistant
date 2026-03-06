@@ -85,12 +85,16 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert body["steps"][0]["input_json"]["authority_class"] == "observe"
     assert body["steps"][0]["input_json"]["review_class"] == "none"
     assert body["steps"][0]["input_json"]["failure_strategy"] == "fail"
+    assert body["steps"][0]["input_json"]["timeout_budget_seconds"] == 30
+    assert body["steps"][0]["input_json"]["max_attempts"] == 1
+    assert body["steps"][0]["input_json"]["retry_backoff_seconds"] == 0
     assert body["steps"][1]["input_json"]["plan_step_key"] == "step_policy_evaluate"
     assert body["steps"][1]["input_json"]["owner"] == "system"
     assert body["steps"][1]["input_json"]["authority_class"] == "observe"
     assert body["steps"][2]["input_json"]["plan_step_key"] == "step_artifact_save"
     assert body["steps"][2]["input_json"]["owner"] == "tool"
     assert body["steps"][2]["input_json"]["authority_class"] == "draft"
+    assert body["steps"][2]["input_json"]["timeout_budget_seconds"] == 60
     assert body["human_task_assignment_history"] == []
     assert all(step["state"] in {"completed", "running", "blocked", "waiting_approval", "queued"} for step in body["steps"])
     assert len(body["queue_items"]) >= 3
@@ -2534,6 +2538,9 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
     assert compiled.json()["plan"]["steps"][0]["authority_class"] == "observe"
     assert compiled.json()["plan"]["steps"][0]["review_class"] == "none"
     assert compiled.json()["plan"]["steps"][0]["failure_strategy"] == "fail"
+    assert compiled.json()["plan"]["steps"][0]["timeout_budget_seconds"] == 30
+    assert compiled.json()["plan"]["steps"][0]["max_attempts"] == 1
+    assert compiled.json()["plan"]["steps"][0]["retry_backoff_seconds"] == 0
     assert compiled.json()["plan"]["steps"][1]["step_key"] == "step_policy_evaluate"
     assert compiled.json()["plan"]["steps"][1]["step_kind"] == "policy_check"
     assert compiled.json()["plan"]["steps"][1]["depends_on"] == ["step_input_prepare"]
@@ -2546,6 +2553,7 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
     assert compiled.json()["plan"]["steps"][2]["authority_class"] == "draft"
     assert compiled.json()["plan"]["steps"][2]["review_class"] == "none"
     assert compiled.json()["plan"]["steps"][2]["failure_strategy"] == "fail"
+    assert compiled.json()["plan"]["steps"][2]["timeout_budget_seconds"] == 60
     assert compiled.json()["plan"]["steps"][2]["approval_required"] is True
 
     review_contract = client.post(
@@ -2592,6 +2600,9 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
     assert compiled_review.json()["plan"]["steps"][2]["authority_class"] == "draft"
     assert compiled_review.json()["plan"]["steps"][2]["review_class"] == "operator"
     assert compiled_review.json()["plan"]["steps"][2]["failure_strategy"] == "fail"
+    assert compiled_review.json()["plan"]["steps"][2]["timeout_budget_seconds"] == 2700
+    assert compiled_review.json()["plan"]["steps"][2]["max_attempts"] == 1
+    assert compiled_review.json()["plan"]["steps"][2]["retry_backoff_seconds"] == 0
     assert compiled_review.json()["plan"]["steps"][2]["task_type"] == "communications_review"
     assert compiled_review.json()["plan"]["steps"][2]["role_required"] == "communications_reviewer"
     assert compiled_review.json()["plan"]["steps"][2]["priority"] == "high"
@@ -2676,6 +2687,8 @@ def test_generic_task_execution_uses_compiled_contract_runtime() -> None:
     assert session_body["artifacts"][0]["preview_text"] == "Board context and stakeholder sensitivities."
     assert session_body["artifacts"][0]["storage_handle"] == f"artifact://{body['artifact_id']}"
     assert session_body["steps"][2]["input_json"]["plan_step_key"] == "step_artifact_save"
+    plan_event = next(event for event in session_body["events"] if event["name"] == "plan_compiled")
+    assert plan_event["payload"]["step_semantics"][0]["timeout_budget_seconds"] == 30
 
     fetched_artifact = client.get(f"/v1/rewrite/artifacts/{body['artifact_id']}")
     assert fetched_artifact.status_code == 200
@@ -2948,6 +2961,7 @@ def test_rewrite_compiled_human_review_branch_pauses_and_resumes() -> None:
     assert body["steps"][2]["input_json"]["authority_class"] == "draft"
     assert body["steps"][2]["input_json"]["review_class"] == "operator"
     assert body["steps"][2]["input_json"]["failure_strategy"] == "fail"
+    assert body["steps"][2]["input_json"]["timeout_budget_seconds"] == 2700
     assert body["steps"][2]["state"] == "waiting_human"
     assert body["steps"][3]["state"] == "queued"
     assert len(body["queue_items"]) == 3

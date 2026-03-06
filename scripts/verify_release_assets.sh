@@ -1287,12 +1287,14 @@ capability = next(entry for entry in milestone["capabilities"] if entry["name"] 
 assert capability["status"] == "tested"
 PY
 then
-  if grep -Fq 'owner`, `authority_class`, `review_class`, and `failure_strategy`' "README.md" && \
-     grep -Fq '`owner`, `authority_class`, `review_class`, and `failure_strategy`' "RUNBOOK.md" && \
-     grep -Fq 'Compiled plan steps now project explicit owner, authority_class, review_class, and failure_strategy semantics' "CHANGELOG.md" && \
+  if grep -Fq 'owner`, `authority_class`, `review_class`, `failure_strategy`, `timeout_budget_seconds`, `max_attempts`, and `retry_backoff_seconds`' "README.md" && \
+     grep -Fq '`owner`, `authority_class`, `review_class`, `failure_strategy`, `timeout_budget_seconds`, `max_attempts`, and `retry_backoff_seconds`' "RUNBOOK.md" && \
+     grep -Fq 'Compiled plan steps now project explicit owner, authority_class, review_class, failure_strategy, timeout_budget_seconds, max_attempts, and retry_backoff_seconds semantics' "CHANGELOG.md" && \
      grep -Fq 'expected three-step plan compile response with explicit step semantics' "scripts/smoke_api.sh" && \
      grep -Fq 'compiled.json()["plan"]["steps"][0]["owner"] == "system"' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'compiled.json()["plan"]["steps"][0]["timeout_budget_seconds"] == 30' "tests/smoke_runtime_api.py" && \
      grep -Fq 'compiled_review.json()["plan"]["steps"][2]["review_class"] == "operator"' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'compiled_review.json()["plan"]["steps"][2]["timeout_budget_seconds"] == 2700' "tests/smoke_runtime_api.py" && \
      grep -Fq 'plan.steps[2].authority_class == "draft"' "tests/test_planner.py"; then
     echo "ok: plan step operational semantics docs"
   else
@@ -1397,10 +1399,11 @@ then
      grep -Fq "human_review_sla_minutes" "RUNBOOK.md" && \
      grep -Fq "human_review_desired_output_json" "RUNBOOK.md" && \
      grep -Fq "manager_review" "scripts/smoke_api.sh" && \
-     grep -Fq "high|45|True|manager_review" "scripts/smoke_api.sh" && \
+     grep -Fq "high|45|2700|1|0|True|manager_review" "scripts/smoke_api.sh" && \
      grep -Fq 'review_task["priority"] == "high"' "tests/smoke_runtime_api.py" && \
      grep -Fq 'review_task["desired_output_json"]["escalation_policy"] == "manager_review"' "tests/smoke_runtime_api.py" && \
      grep -Fq "human_review_sla_minutes" "tests/test_planner.py" && \
+     grep -Fq 'timeout_budget_seconds == 2700' "tests/test_planner.py" && \
      grep -Fq 'desired_output_json["escalation_policy"] == "manager_review"' "tests/test_planner.py"; then
     echo "ok: planner human-review operational metadata docs"
   else
