@@ -661,6 +661,12 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
                 "human_review_role": "communications_reviewer",
                 "human_review_task_type": "communications_review",
                 "human_review_brief": "Review the rewrite before finalizing it.",
+                "human_review_priority": "high",
+                "human_review_sla_minutes": 45,
+                "human_review_desired_output_json": {
+                    "format": "review_packet",
+                    "escalation_policy": "manager_review",
+                },
             },
         },
     )
@@ -676,6 +682,9 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
     assert compiled_review.json()["plan"]["steps"][2]["step_kind"] == "human_task"
     assert compiled_review.json()["plan"]["steps"][2]["task_type"] == "communications_review"
     assert compiled_review.json()["plan"]["steps"][2]["role_required"] == "communications_reviewer"
+    assert compiled_review.json()["plan"]["steps"][2]["priority"] == "high"
+    assert compiled_review.json()["plan"]["steps"][2]["sla_minutes"] == 45
+    assert compiled_review.json()["plan"]["steps"][2]["desired_output_json"]["escalation_policy"] == "manager_review"
     assert compiled_review.json()["plan"]["steps"][3]["depends_on"] == ["step_human_review"]
 
     rewrite = client.post("/v1/rewrite/artifact", json={"text": "short rewrite input"})
@@ -701,6 +710,12 @@ def test_rewrite_compiled_human_review_branch_pauses_and_resumes() -> None:
                 "human_review_role": "communications_reviewer",
                 "human_review_task_type": "communications_review",
                 "human_review_brief": "Review the rewrite before finalizing it.",
+                "human_review_priority": "high",
+                "human_review_sla_minutes": 45,
+                "human_review_desired_output_json": {
+                    "format": "review_packet",
+                    "escalation_policy": "manager_review",
+                },
             },
         },
     )
@@ -725,6 +740,10 @@ def test_rewrite_compiled_human_review_branch_pauses_and_resumes() -> None:
     assert len(body["queue_items"]) == 3
     assert all(item["state"] == "done" for item in body["queue_items"])
     assert any(row["human_task_id"] == human_task_id and row["status"] == "pending" for row in body["human_tasks"])
+    review_task = next(row for row in body["human_tasks"] if row["human_task_id"] == human_task_id)
+    assert review_task["priority"] == "high"
+    assert review_task["sla_due_at"]
+    assert review_task["desired_output_json"]["escalation_policy"] == "manager_review"
 
     reviewed_text = "rewrite with human review, edited by reviewer"
     returned = client.post(

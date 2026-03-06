@@ -6,6 +6,14 @@ from app.domain.models import IntentSpecV3, PlanSpec, PlanStepSpec, TaskContract
 from app.services.task_contracts import TaskContractService
 
 
+def _policy_int(value: object, default: int = 0) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed >= 0 else default
+
+
 class PlannerService:
     def __init__(self, task_contracts: TaskContractService) -> None:
         self._task_contracts = task_contracts
@@ -20,6 +28,16 @@ class PlannerService:
             contract.budget_policy_json.get("human_review_brief")
             or "Review the prepared rewrite before finalizing the artifact."
         ).strip()
+        human_review_priority = str(contract.budget_policy_json.get("human_review_priority") or "normal").strip() or "normal"
+        human_review_sla_minutes = _policy_int(contract.budget_policy_json.get("human_review_sla_minutes"), default=0)
+        raw_human_review_output = contract.budget_policy_json.get("human_review_desired_output_json")
+        human_review_desired_output_json = (
+            {str(key): value for key, value in raw_human_review_output.items()}
+            if isinstance(raw_human_review_output, dict)
+            else {}
+        )
+        if not str(human_review_desired_output_json.get("format") or "").strip():
+            human_review_desired_output_json["format"] = "review_packet"
         prepare_step = PlanStepSpec(
             step_key="step_input_prepare",
             step_kind="system_task",
@@ -64,6 +82,9 @@ class PlannerService:
                     task_type=human_review_task_type,
                     role_required=human_review_role,
                     brief=human_review_brief,
+                    priority=human_review_priority,
+                    sla_minutes=human_review_sla_minutes,
+                    desired_output_json=human_review_desired_output_json,
                 )
             )
             save_depends_on = ("step_human_review",)

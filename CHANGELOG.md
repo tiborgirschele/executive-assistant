@@ -211,3 +211,4 @@ All notable changes to the rewrite-kernel baseline are documented here.
 
 ### Removed
 - Legacy assistant runtime modules, legacy docs, and historical test packs from pre-rewrite codebase.
+- Task-contract-projected `step_human_review` branches now carry `priority`, relative SLA minutes, and `desired_output_json` into the runtime-created human task packet so planner-native review work can route with stronger operational metadata.

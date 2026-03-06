@@ -47,6 +47,9 @@ class PlanStepOut(BaseModel):
     task_type: str
     role_required: str
     brief: str
+    priority: str
+    sla_minutes: int
+    desired_output_json: dict[str, object]
 
 
 class PlanOut(BaseModel):
@@ -110,6 +113,9 @@ def compile_plan(
                     task_type=s.task_type,
                     role_required=s.role_required,
                     brief=s.brief,
+                    priority=s.priority,
+                    sla_minutes=s.sla_minutes,
+                    desired_output_json=dict(s.desired_output_json),
                 )
                 for s in plan.steps
             ],

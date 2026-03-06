@@ -415,6 +415,9 @@ class PlanStepSpec:
     task_type: str = ""
     role_required: str = ""
     brief: str = ""
+    priority: str = ""
+    sla_minutes: int = 0
+    desired_output_json: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

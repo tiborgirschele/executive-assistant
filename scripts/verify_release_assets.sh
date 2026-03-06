@@ -977,6 +977,37 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "planner_human_review_operational_metadata")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "human_review_priority" "README.md" && \
+     grep -Fq "human_review_sla_minutes" "README.md" && \
+     grep -Fq "human_review_desired_output_json" "README.md" && \
+     grep -Fq "human_review_priority" "RUNBOOK.md" && \
+     grep -Fq "human_review_sla_minutes" "RUNBOOK.md" && \
+     grep -Fq "human_review_desired_output_json" "RUNBOOK.md" && \
+     grep -Fq "manager_review" "scripts/smoke_api.sh" && \
+     grep -Fq "high|45|manager_review" "scripts/smoke_api.sh" && \
+     grep -Fq 'review_task["priority"] == "high"' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'review_task["desired_output_json"]["escalation_policy"] == "manager_review"' "tests/smoke_runtime_api.py" && \
+     grep -Fq "human_review_sla_minutes" "tests/test_planner.py" && \
+     grep -Fq 'desired_output_json["escalation_policy"] == "manager_review"' "tests/test_planner.py"; then
+    echo "ok: planner human-review operational metadata docs"
+  else
+    echo "missing: planner human-review operational metadata docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: planner human-review operational metadata milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "registry_backed_tool_execution_service")
 assert capability["status"] == "tested"
 PY

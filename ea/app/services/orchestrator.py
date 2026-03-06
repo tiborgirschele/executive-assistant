@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
 from app.domain.models import (
     ApprovalDecision,
@@ -227,6 +228,18 @@ class RewriteOrchestrator:
         if session is None:
             raise RuntimeError(f"session missing for human-task step: {session_id}")
         input_json = dict(rewrite_step.input_json or {})
+        desired_output_json = dict(input_json.get("desired_output_json") or {})
+        if not str(desired_output_json.get("format") or "").strip():
+            desired_output_json["format"] = str(input_json.get("expected_artifact") or "review_packet")
+        priority = str(input_json.get("priority") or "normal").strip() or "normal"
+        sla_due_at = str(input_json.get("sla_due_at") or "").strip()
+        if not sla_due_at:
+            try:
+                sla_minutes = int(input_json.get("sla_minutes") or 0)
+            except (TypeError, ValueError):
+                sla_minutes = 0
+            if sla_minutes > 0:
+                sla_due_at = (datetime.now(timezone.utc) + timedelta(minutes=sla_minutes)).isoformat()
         row = self.create_human_task(
             session_id=session_id,
             step_id=rewrite_step.step_id,
@@ -240,7 +253,9 @@ class RewriteOrchestrator:
                 "plan_id": str(input_json.get("plan_id") or ""),
                 "plan_step_key": str(input_json.get("plan_step_key") or ""),
             },
-            desired_output_json={"format": str(input_json.get("expected_artifact") or "review_packet")},
+            desired_output_json=desired_output_json,
+            priority=priority,
+            sla_due_at=sla_due_at or None,
             resume_session_on_return=True,
         )
         self._ledger.append_event(
@@ -251,6 +266,8 @@ class RewriteOrchestrator:
                 "human_task_id": row.human_task_id,
                 "task_type": row.task_type,
                 "role_required": row.role_required,
+                "priority": row.priority,
+                "sla_due_at": row.sla_due_at or "",
             },
         )
         return row
@@ -563,6 +580,9 @@ class RewriteOrchestrator:
                         "task_type": plan_step.task_type,
                         "role_required": plan_step.role_required,
                         "brief": plan_step.brief,
+                        "priority": plan_step.priority,
+                        "sla_minutes": plan_step.sla_minutes,
+                        "desired_output_json": dict(plan_step.desired_output_json),
                         "step_index": index,
                         "step_count": len(plan_steps),
                     },
@@ -737,6 +757,8 @@ class RewriteOrchestrator:
                 "task_type": row.task_type,
                 "role_required": row.role_required,
                 "priority": row.priority,
+                "sla_due_at": row.sla_due_at or "",
+                "desired_output_json": row.desired_output_json,
                 "assignment_state": row.assignment_state,
                 "resume_session_on_return": row.resume_session_on_return,
             },

@@ -428,6 +428,33 @@ def test_human_review_payload_artifact_override_is_documented_and_smoked() -> No
     assert capability["status"] == "tested"
 
 
+def test_planner_human_review_operational_metadata_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    planner_test = (ROOT / "tests/test_planner.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "human_review_priority" in readme
+    assert "human_review_sla_minutes" in readme
+    assert "human_review_desired_output_json" in readme
+    assert "human_review_priority" in runbook
+    assert "human_review_sla_minutes" in runbook
+    assert "human_review_desired_output_json" in runbook
+    assert "manager_review" in smoke_api
+    assert "high|45|manager_review" in smoke_api
+    assert 'review_task["priority"] == "high"' in smoke_runtime
+    assert 'review_task["desired_output_json"]["escalation_policy"] == "manager_review"' in smoke_runtime
+    assert "human_review_sla_minutes" in planner_test
+    assert 'desired_output_json["escalation_policy"] == "manager_review"' in planner_test
+
+    capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "planner_human_review_operational_metadata"
+    )
+    assert capability["status"] == "tested"
+
+
 def test_registry_backed_tool_execution_service_is_documented_and_smoked() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")

@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-193 | P1 | Add task-contract-driven SLA/priority metadata for compiled human-review steps so planner-native review work can route with stronger operational semantics | codex | queued | `step_human_review` is now planner-native and runtime-backed, but the compiled branch still uses fixed `priority`/`desired_output` defaults instead of contract-projected review SLAs and escalation metadata |
+| Q-194 | P1 | Add planner-native human-review quality rubric and authority metadata so operator packets explain why a human is needed and how returned work should be judged | codex | queued | Compiled review steps now project routing metadata, but they still do not carry explicit `quality_rubric`, `authority_required`, or `why_human` fields that make hybrid-intelligence review packets self-describing for operators |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-193 | P1 | Add task-contract-driven SLA/priority metadata for compiled human-review steps so planner-native review work can route with stronger operational semantics | codex | done | Planner output now projects `priority`, relative `human_review_sla_minutes`, and `human_review_desired_output_json` onto `step_human_review`, and the runtime-created human task packet consumes those values directly for reviewer routing and SLA visibility |
 | D-192 | P1 | Let downstream tool steps consume returned human-review payloads so compiled review branches can modify final artifacts instead of only gating them | codex | done | The artifact-save step now reads `returned_payload_json.final_text` from its completed human-review parent step, and the smoke path proves reviewer-edited text becomes the final persisted artifact content |
 | D-191 | P1 | Execute compiled `human_task` plan steps through the queue runtime so review branches pause and resume without a separate API create call | codex | done | Rewrite execution now auto-runs `step_human_review` into a linked human task packet, returns `202 awaiting_human`, and resumes the remaining queue path when the packet is returned |
 | D-190 | P1 | Let the planner emit the first non-artifact workflow branch so human review becomes a compiled step kind instead of an external follow-up API call | codex | done | Task contracts can now project `step_human_review` plan nodes through `budget_policy_json.human_review_role`, with plan-step role/task/brief metadata exposed over HTTP smoke coverage and release docs while runtime auto-execution remains queued as the next slice |
