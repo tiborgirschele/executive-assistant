@@ -790,10 +790,21 @@ fi
 if grep -Fq "tests/test_postgres_contract_matrix_integration.py" "scripts/test_postgres_contracts.sh" && \
    grep -Fq "tests/test_memory_router_contracts.py" "scripts/test_postgres_contracts.sh" && \
    grep -Fq "tests/test_rewrite_scope_contracts.py" "scripts/test_postgres_contracts.sh" && \
-   grep -Fq "tests/test_rewrite_api_scope_contracts.py" "scripts/test_postgres_contracts.sh"; then
+   grep -Fq "tests/test_rewrite_api_scope_contracts.py" "scripts/test_postgres_contracts.sh" && \
+   grep -Fq "tests/test_rewrite_dependency_projection_contracts.py" "scripts/test_postgres_contracts.sh"; then
   echo "ok: postgres contract script covers focused router and rewrite scope invariants"
 else
   echo "missing: postgres contract script focused invariant coverage" >&2
+  missing=1
+fi
+
+if grep -Fq "dependency_keys: list[str]" "ea/app/api/routes/rewrite.py" && \
+   grep -Fq 's.input_json.get("depends_on")' "ea/app/api/routes/rewrite.py" && \
+   grep -Fq "step_policy_evaluate" "tests/test_rewrite_dependency_projection_contracts.py" && \
+   grep -Fq '["step_policy_evaluate"]' "tests/test_rewrite_dependency_projection_contracts.py"; then
+  echo "ok: session step dependency projection contract coverage"
+else
+  echo "missing: session step dependency projection contract coverage" >&2
   missing=1
 fi
 

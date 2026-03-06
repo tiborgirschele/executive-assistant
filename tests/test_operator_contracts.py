@@ -87,6 +87,18 @@ def test_postgres_contract_script_help_and_wiring() -> None:
     assert "tests/test_memory_router_contracts.py" in script
     assert "tests/test_rewrite_scope_contracts.py" in script
     assert "tests/test_rewrite_api_scope_contracts.py" in script
+    assert "tests/test_rewrite_dependency_projection_contracts.py" in script
+
+
+def test_session_step_dependency_projection_is_covered_by_contract_tests() -> None:
+    rewrite_route = (ROOT / "ea/app/api/routes/rewrite.py").read_text(encoding="utf-8")
+    contract_test = (ROOT / "tests/test_rewrite_dependency_projection_contracts.py").read_text(encoding="utf-8")
+
+    assert "dependency_keys: list[str]" in rewrite_route
+    assert 's.input_json.get("depends_on")' in rewrite_route
+    assert "step_policy_evaluate" in contract_test
+    assert '["step_input_prepare"]' in contract_test
+    assert '["step_policy_evaluate"]' in contract_test
 
 
 def test_policy_docs_and_milestone_cover_external_action_evaluation() -> None:
