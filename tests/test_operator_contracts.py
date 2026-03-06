@@ -256,3 +256,25 @@ def test_principal_request_context_guardrails_are_documented_and_smoked() -> Non
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "principal_request_context_guardrails")
     assert capability["status"] == "tested"
+
+
+def test_typed_step_handler_gateway_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    planner_test = (ROOT / "tests/test_planner.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "step_input_prepare" in readme
+    assert "step_artifact_save" in readme
+    assert "step_input_prepare" in runbook
+    assert "step_artifact_save" in runbook
+    assert "step_input_prepare" in smoke_api
+    assert "input_prepared" in smoke_api
+    assert "step_input_prepare" in smoke_runtime
+    assert "input_prepared" in smoke_runtime
+    assert "step_input_prepare" in planner_test
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "typed_step_handler_gateway")
+    assert capability["status"] == "tested"

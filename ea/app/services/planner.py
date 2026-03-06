@@ -42,6 +42,16 @@ class PlannerService:
     ) -> tuple[IntentSpecV3, PlanSpec]:
         intent = self.compile_intent(task_key=task_key, principal_id=principal_id, goal=goal)
         approval_required = intent.approval_class not in {"", "none"}
+        prepare_step = PlanStepSpec(
+            step_key="step_input_prepare",
+            step_kind="system_task",
+            tool_name="",
+            evidence_required=(),
+            approval_required=False,
+            reversible=False,
+            expected_artifact="",
+            fallback="request_human_intervention",
+        )
         save_step = PlanStepSpec(
             step_key="step_artifact_save",
             step_kind="tool_call",
@@ -57,6 +67,6 @@ class PlannerService:
             task_key=intent.task_type,
             principal_id=intent.principal_id,
             created_at=now_utc_iso(),
-            steps=(save_step,),
+            steps=(prepare_step, save_step),
         )
         return intent, plan

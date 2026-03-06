@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.37.0",
+  "version": "0.38.0",
   "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
@@ -235,6 +235,17 @@
         "foreign_connector_status_hidden"
       ],
       "notes": "Principal-scoped connector and memory routes now derive scope from request context, fall back to `EA_DEFAULT_PRINCIPAL_ID`, reject caller-supplied mismatches with `403 principal_scope_mismatch`, and hide foreign connector updates."
+    },
+    {
+      "name": "typed_step_handler_gateway",
+      "status": "tested",
+      "scope": [
+        "rewrite_two_step_plan",
+        "step_input_prepare_handler",
+        "step_artifact_save_handler",
+        "inline_multi_step_queue_drain"
+      ],
+      "notes": "The rewrite scaffold now compiles and executes a typed two-step queue path (`step_input_prepare` then `step_artifact_save`) through explicit step handlers instead of a single hardcoded artifact-save execution path."
     }
   ],
   "migrations": [

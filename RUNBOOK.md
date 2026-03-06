@@ -103,6 +103,7 @@ Policy notes:
 - `POST /v1/policy/evaluate` provides a direct HTTP path for previewing external-send approval requirements.
 - Approving a paused rewrite resumes execution immediately on the current scaffold, so the session should move from `awaiting_approval` to `completed` with an artifact, receipt, and run-cost row.
 - Allowed and approved rewrites now pass through durable `execution_queue` rows first; the current API path drains that queue inline, while non-API runner roles can drain it as workers.
+- The current rewrite scaffold now executes as two explicit queued steps: `step_input_prepare` followed by `step_artifact_save`.
 
 ## Operator Script Help Index
 

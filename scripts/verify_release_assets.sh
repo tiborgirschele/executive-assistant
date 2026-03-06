@@ -858,6 +858,34 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "typed_step_handler_gateway")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "step_input_prepare" "README.md" && \
+     grep -Fq "step_artifact_save" "README.md" && \
+     grep -Fq "step_input_prepare" "RUNBOOK.md" && \
+     grep -Fq "step_artifact_save" "RUNBOOK.md" && \
+     grep -Fq "step_input_prepare" "scripts/smoke_api.sh" && \
+     grep -Fq "input_prepared" "scripts/smoke_api.sh" && \
+     grep -Fq "step_input_prepare" "tests/smoke_runtime_api.py" && \
+     grep -Fq "input_prepared" "tests/smoke_runtime_api.py" && \
+     grep -Fq "step_input_prepare" "tests/test_planner.py"; then
+    echo "ok: typed step-handler gateway docs"
+  else
+    echo "missing: typed step-handler gateway docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: typed step-handler gateway milestone status" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1

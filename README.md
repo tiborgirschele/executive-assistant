@@ -43,7 +43,7 @@ Removed:
 - `/v1/memory/interruption-budgets*` upserts/list/gets principal-scoped interruption budgets
 - the principal-scoped memory seed surface is explicitly covered by both `tests/smoke_runtime_api.py` and the approved host smoke path (`scripts/smoke_api.sh` via `scripts/smoke_postgres.sh`)
 - principal-scoped connector and memory routes now derive their effective principal from `X-EA-Principal-ID` or `EA_DEFAULT_PRINCIPAL_ID` instead of trusting caller-supplied body/query IDs
-- rewrite execution now records `plan_compiled` and executes the primary typed plan step in the ledger
+- rewrite execution now records `plan_compiled` and runs a typed two-step queue path (`step_input_prepare` -> `step_artifact_save`) through the execution ledger
 - observation intake supports `source_id`/`external_id`/`dedupe_key` attribution and auth/raw-payload pointers
 - delivery outbox supports idempotency keys plus retry/dead-letter state fields
 - `/v1/channels/telegram/ingest` maps raw Telegram updates into normalized observation events

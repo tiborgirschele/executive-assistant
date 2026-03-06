@@ -21,6 +21,9 @@ def test_planner_uses_task_contract_defaults() -> None:
     assert intent.task_type == "rewrite_text"
     assert intent.approval_class == "manager"
     assert intent.allowed_tools == ("artifact_repository",)
-    assert len(plan.steps) == 1
-    assert plan.steps[0].tool_name == "artifact_repository"
-    assert plan.steps[0].approval_required is True
+    assert len(plan.steps) == 2
+    assert plan.steps[0].step_key == "step_input_prepare"
+    assert plan.steps[0].tool_name == ""
+    assert plan.steps[0].approval_required is False
+    assert plan.steps[1].tool_name == "artifact_repository"
+    assert plan.steps[1].approval_required is True

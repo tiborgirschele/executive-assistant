@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-177 | P1 | Replace hardcoded `artifact_repository`-only execution with a typed step-handler/tool-execution gateway | codex | queued | Approval resume and queue draining are now real, but planner/runtime still collapse most work into a single scaffold step instead of executing typed handlers |
+| Q-178 | P1 | Promote the rewrite step-handler scaffold into a reusable tool-execution service with registry-backed handlers and normalized invocation contracts | codex | queued | The runtime now has a typed two-step rewrite path, but handler dispatch still lives inside the orchestrator instead of a shared tool execution plane |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-177 | P1 | Replace hardcoded `artifact_repository`-only execution with a typed step-handler/tool-execution gateway | codex | done | Rewrite planning/execution now uses `step_input_prepare` and `step_artifact_save` handlers with sequential queue execution instead of a single hardcoded artifact-save step |
 | D-176 | P1 | Derive principal context from auth/middleware instead of caller-supplied fields on normal user routes | codex | done | Principal-scoped connector and memory routes now derive request scope from `X-EA-Principal-ID`/`EA_DEFAULT_PRINCIPAL_ID`, reject mismatched caller-supplied principal IDs with `403 principal_scope_mismatch`, and hide foreign connector status updates |
 | D-001 | P0 | Create rewrite baseline skeleton and harden container privileges | codex | done | Removed docker runtime package from app image |
 | D-002 | P0 | Add execution ledger + policy gating + channel runtime core | codex | done | Memory + postgres-capable backends with fallback |

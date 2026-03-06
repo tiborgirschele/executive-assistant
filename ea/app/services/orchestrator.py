@@ -79,6 +79,16 @@ class RewriteOrchestrator:
         )
 
     def _fallback_plan(self, intent: IntentSpecV3) -> PlanSpec:
+        prepare_step = PlanStepSpec(
+            step_key="step_input_prepare",
+            step_kind="system_task",
+            tool_name="",
+            evidence_required=(),
+            approval_required=False,
+            reversible=False,
+            expected_artifact="",
+            fallback="request_human_intervention",
+        )
         step = PlanStepSpec(
             step_key="step_rewrite_fallback",
             step_kind="tool_call",
@@ -94,7 +104,7 @@ class RewriteOrchestrator:
             task_key=intent.task_type,
             principal_id=intent.principal_id,
             created_at=now_utc_iso(),
-            steps=(step,),
+            steps=(prepare_step, step),
         )
 
     def _queue_idempotency_key(self, session_id: str, step_id: str) -> str:
@@ -116,6 +126,33 @@ class RewriteOrchestrator:
             },
         )
         return queue_item
+
+    def _complete_input_prepare_step(self, session_id: str, rewrite_step: ExecutionStep) -> None:
+        input_json = dict(rewrite_step.input_json or {})
+        source_text = str(input_json.get("source_text") or "").strip()
+        plan_id = str(input_json.get("plan_id") or "")
+        plan_step_key = str(input_json.get("plan_step_key") or "")
+        self._ledger.update_step(
+            rewrite_step.step_id,
+            state="completed",
+            output_json={
+                "normalized_text": source_text,
+                "text_length": len(source_text),
+                "plan_id": plan_id,
+                "plan_step_key": plan_step_key,
+            },
+            error_json={},
+        )
+        self._ledger.append_event(
+            session_id,
+            "input_prepared",
+            {
+                "step_id": rewrite_step.step_id,
+                "text_length": len(source_text),
+                "plan_id": plan_id,
+                "plan_step_key": plan_step_key,
+            },
+        )
 
     def _complete_rewrite_step(self, session_id: str, rewrite_step: ExecutionStep) -> Artifact:
         input_json = dict(rewrite_step.input_json or {})
@@ -175,7 +212,32 @@ class RewriteOrchestrator:
         )
         return artifact
 
-    def _execute_leased_queue_item(self, queue_item: ExecutionQueueItem) -> Artifact:
+    def _execute_step_handler(self, session_id: str, rewrite_step: ExecutionStep) -> Artifact | None:
+        plan_step_key = str((rewrite_step.input_json or {}).get("plan_step_key") or "")
+        if plan_step_key == "step_input_prepare":
+            self._complete_input_prepare_step(session_id, rewrite_step)
+            return None
+        if plan_step_key in {"step_artifact_save", "step_rewrite_fallback"}:
+            return self._complete_rewrite_step(session_id, rewrite_step)
+        raise RuntimeError(f"unsupported_step_handler:{plan_step_key or rewrite_step.step_kind}")
+
+    def _queue_next_step_after(self, session_id: str, step_id: str, *, lease_owner: str) -> Artifact | None:
+        steps = self._ledger.steps_for(session_id)
+        for index, row in enumerate(steps):
+            if row.step_id != step_id:
+                continue
+            if index + 1 >= len(steps):
+                self._ledger.complete_session(session_id, status="completed")
+                self._ledger.append_event(session_id, "session_completed", {"status": "completed"})
+                return None
+            next_step = steps[index + 1]
+            queue_item = self._enqueue_rewrite_step(session_id, next_step.step_id)
+            if lease_owner == "inline":
+                return self.run_queue_item(queue_item.queue_id, lease_owner="inline")
+            return None
+        raise RuntimeError(f"step missing from session order: {step_id}")
+
+    def _execute_leased_queue_item(self, queue_item: ExecutionQueueItem) -> Artifact | None:
         step = self._ledger.get_step(queue_item.step_id)
         if step is None:
             self._ledger.fail_queue_item(queue_item.queue_id, last_error="step_not_found")
@@ -201,7 +263,7 @@ class RewriteOrchestrator:
             },
         )
         try:
-            artifact = self._complete_rewrite_step(queue_item.session_id, running_step)
+            artifact = self._execute_step_handler(queue_item.session_id, running_step)
         except Exception as exc:
             self._ledger.fail_queue_item(queue_item.queue_id, last_error=str(exc))
             self._ledger.update_step(
@@ -223,8 +285,13 @@ class RewriteOrchestrator:
             "queue_item_completed",
             {"queue_id": queue_item.queue_id, "step_id": queue_item.step_id},
         )
-        self._ledger.complete_session(queue_item.session_id, status="completed")
-        self._ledger.append_event(queue_item.session_id, "session_completed", {"status": "completed"})
+        next_artifact = self._queue_next_step_after(
+            queue_item.session_id,
+            running_step.step_id,
+            lease_owner=queue_item.lease_owner,
+        )
+        if next_artifact is not None:
+            return next_artifact
         return artifact
 
     def run_queue_item(self, queue_id: str, *, lease_owner: str = "inline") -> Artifact | None:
@@ -274,10 +341,18 @@ class RewriteOrchestrator:
             },
         )
         normalized_text = str(req.text or "").strip()
-        primary_step = (
-            plan.steps[0]
-            if plan.steps
-            else PlanStepSpec(
+        plan_steps = tuple(plan.steps) or (
+            PlanStepSpec(
+                step_key="step_input_prepare",
+                step_kind="system_task",
+                tool_name="",
+                evidence_required=(),
+                approval_required=False,
+                reversible=False,
+                expected_artifact="",
+                fallback="request_human_intervention",
+            ),
+            PlanStepSpec(
                 step_key="step_rewrite_fallback",
                 step_kind="tool_call",
                 tool_name="artifact_repository",
@@ -286,30 +361,41 @@ class RewriteOrchestrator:
                 reversible=False,
                 expected_artifact=intent.deliverable_type,
                 fallback="request_human_intervention",
+            ),
+        )
+        policy_step = next((step for step in plan_steps if str(step.tool_name or "").strip()), plan_steps[0])
+        created_steps: list[ExecutionStep] = []
+        parent_step_id: str | None = None
+        for index, plan_step in enumerate(plan_steps):
+            created_steps.append(
+                self._ledger.start_step(
+                    session.session_id,
+                    plan_step.step_kind or "tool_call",
+                    parent_step_id=parent_step_id,
+                    input_json={
+                        "source_text": normalized_text,
+                        "text_length": len(normalized_text),
+                        "plan_id": plan.plan_id,
+                        "plan_step_key": plan_step.step_key,
+                        "plan_step_kind": plan_step.step_kind,
+                        "tool_name": plan_step.tool_name,
+                        "expected_artifact": plan_step.expected_artifact,
+                        "fallback": plan_step.fallback,
+                        "step_index": index,
+                        "step_count": len(plan_steps),
+                    },
+                    correlation_id=correlation_id,
+                    causation_id=plan.plan_id,
+                    actor_type="assistant",
+                    actor_id="orchestrator",
+                )
             )
-        )
-        rewrite_step = self._ledger.start_step(
-            session.session_id,
-            primary_step.step_kind or "tool_call",
-            input_json={
-                "source_text": normalized_text,
-                "text_length": len(normalized_text),
-                "plan_id": plan.plan_id,
-                "plan_step_key": primary_step.step_key,
-                "plan_step_kind": primary_step.step_kind,
-                "tool_name": primary_step.tool_name,
-                "expected_artifact": primary_step.expected_artifact,
-                "fallback": primary_step.fallback,
-            },
-            correlation_id=correlation_id,
-            causation_id=plan.plan_id,
-            actor_type="assistant",
-            actor_id="orchestrator",
-        )
+            parent_step_id = created_steps[-1].step_id
+        rewrite_step = created_steps[0]
         policy_decision = self._policy.evaluate_rewrite(
             intent,
             normalized_text,
-            tool_name=primary_step.tool_name or "artifact_repository",
+            tool_name=policy_step.tool_name or "artifact_repository",
             action_kind="artifact.save",
         )
         self._policy_repo.append(session.session_id, policy_decision)
@@ -346,8 +432,8 @@ class RewriteOrchestrator:
                     "artifact_kind": "rewrite_note",
                     "text_length": len(normalized_text),
                     "plan_id": plan.plan_id,
-                    "plan_step_key": primary_step.step_key,
-                    "tool_name": primary_step.tool_name,
+                    "plan_step_key": policy_step.step_key,
+                    "tool_name": policy_step.tool_name,
                 },
             )
             self._ledger.update_step(
