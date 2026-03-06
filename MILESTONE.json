@@ -940,6 +940,16 @@
         "generic_task_resume_shared_async_paths"
       ],
       "notes": "Generic POST /v1/plans/execute task runs now return the same first-class awaiting-approval and awaiting-human async contract as rewrite execution, and those non-rewrite task sessions resume through the shared approval and human-task endpoints."
+    },
+    {
+      "name": "artifact_lookup_task_identity_projection",
+      "status": "tested",
+      "scope": [
+        "artifact_lookup_task_key",
+        "artifact_lookup_deliverable_type",
+        "generic_artifact_identity_without_session_expand"
+      ],
+      "notes": "GET /v1/rewrite/artifacts/{artifact_id} now returns the originating task key and deliverable type, so generic non-rewrite artifact runs can be inspected without fetching the full session envelope first."
     }
   ],
   "migrations": [

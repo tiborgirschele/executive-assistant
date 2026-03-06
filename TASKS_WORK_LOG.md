@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-248 | P1 | Project task identity onto direct artifact lookup so non-rewrite executions can be inspected without expanding the full session envelope | codex | queued | Generic `/v1/plans/execute` now preserves task identity at session level, but `GET /v1/rewrite/artifacts/{artifact_id}` still only returns artifact kind/content/session ID instead of the originating task key or deliverable context |
+| Q-249 | P1 | Project task identity onto direct receipt and run-cost lookup so non-rewrite executions can inspect proof records without expanding the full session envelope | codex | queued | Direct artifact lookup now carries `task_key` and `deliverable_type`, but `GET /v1/rewrite/receipts/{receipt_id}` and `/v1/rewrite/run-costs/{cost_id}` still omit the originating task identity that generic task execution now preserves elsewhere |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-248 | P1 | Project task identity onto direct artifact lookup so non-rewrite executions can be inspected without expanding the full session envelope | codex | done | `GET /v1/rewrite/artifacts/{artifact_id}` now returns the originating `task_key` and `deliverable_type`, and the approved smoke path proves generic task artifacts carry that identity without requiring a separate session fetch |
 | D-247 | P1 | Extend generic task execution coverage so non-rewrite contracts can pause into `awaiting_human` or `awaiting_approval` with the same first-class async contract as rewrite execution | codex | done | Approved smoke plus in-process API coverage now prove `POST /v1/plans/execute` returns first-class `202 awaiting_approval` / `202 awaiting_human` contracts for non-rewrite task keys and that those sessions resume through the shared approval and human-task endpoints |
 | D-246 | P1 | Carry merged dependency outputs into generic task execution so non-rewrite workflows can stop hardcoding `rewrite_text` and reuse the graph runtime for other executive contracts | codex | done | Added `POST /v1/plans/execute`, generalized orchestrator task execution beyond `rewrite_text`, and proved via smoke/Postgres contract coverage that non-rewrite task contracts preserve task identity, deliverable type, and principal scoping through the same queue-backed runtime |
 | D-245 | P1 | Propagate dependency outputs across human/system/tool execution so non-linear plans can consume merged branch context instead of leaning on parent-step assumptions | codex | done | Human-review step execution now merges dependency outputs into packet input, and the shared input merge helper normalizes `source_text`, `normalized_text`, and `text_length` before policy/tool/human handlers consume dependency-produced context |

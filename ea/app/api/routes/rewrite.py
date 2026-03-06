@@ -25,6 +25,8 @@ class RewriteOut(BaseModel):
     kind: str
     content: str
     execution_session_id: str
+    task_key: str = ""
+    deliverable_type: str = ""
 
 
 class RewriteAcceptedOut(BaseModel):
@@ -224,11 +226,14 @@ def create_artifact(
     except PolicyDeniedError as exc:
         reason = str(exc or "policy_denied")
         raise HTTPException(status_code=403, detail=f"policy_denied:{reason}") from exc
+    session = container.orchestrator.fetch_session(artifact.execution_session_id)
     return RewriteOut(
         artifact_id=artifact.artifact_id,
         kind=artifact.kind,
         content=artifact.content,
         execution_session_id=artifact.execution_session_id,
+        task_key=session.session.intent.task_type if session is not None else "rewrite_text",
+        deliverable_type=session.session.intent.deliverable_type if session is not None else artifact.kind,
     )
 
 
@@ -402,6 +407,8 @@ def get_artifact(
         kind=found.kind,
         content=found.content,
         execution_session_id=found.execution_session_id,
+        task_key=session.session.intent.task_type,
+        deliverable_type=session.session.intent.deliverable_type,
     )
 
 

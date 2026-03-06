@@ -86,6 +86,7 @@ class PlanExecuteOut(BaseModel):
     kind: str
     content: str
     execution_session_id: str
+    deliverable_type: str = ""
 
 
 class PlanExecuteAcceptedOut(BaseModel):
@@ -208,4 +209,5 @@ def execute_plan(
         kind=artifact.kind,
         content=artifact.content,
         execution_session_id=artifact.execution_session_id,
+        deliverable_type=artifact.kind,
     )

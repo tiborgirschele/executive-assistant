@@ -1343,18 +1343,26 @@ curl -fsS -X POST "${BASE}/v1/tasks/contracts" "${AUTH_ARGS[@]}" -H 'content-typ
   -d '{"task_key":"stakeholder_briefing","deliverable_type":"stakeholder_briefing","default_risk_class":"low","default_approval_class":"none","allowed_tools":["artifact_repository"],"evidence_requirements":["stakeholder_context"],"memory_write_policy":"reviewed_only","budget_policy_json":{"class":"low"}}' >/dev/null
 TASK_EXECUTE_JSON="$(curl -fsS -X POST "${BASE}/v1/plans/execute" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"task_key":"stakeholder_briefing","text":"Board context and stakeholder sensitivities.","goal":"prepare a stakeholder briefing"}')"
-TASK_EXECUTE_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); print('{}|{}|{}|{}|{}'.format(body.get('task_key',''), body.get('kind',''), body.get('content',''), bool(body.get('artifact_id','')), bool(body.get('execution_session_id',''))))" <<<"${TASK_EXECUTE_JSON}")"
-if [[ "${TASK_EXECUTE_FIELDS}" != "stakeholder_briefing|stakeholder_briefing|Board context and stakeholder sensitivities.|True|True" ]]; then
+TASK_EXECUTE_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); print('{}|{}|{}|{}|{}|{}'.format(body.get('task_key',''), body.get('kind',''), body.get('deliverable_type',''), body.get('content',''), bool(body.get('artifact_id','')), bool(body.get('execution_session_id',''))))" <<<"${TASK_EXECUTE_JSON}")"
+if [[ "${TASK_EXECUTE_FIELDS}" != "stakeholder_briefing|stakeholder_briefing|stakeholder_briefing|Board context and stakeholder sensitivities.|True|True" ]]; then
   echo "expected generic task execution route to reuse the compiled contract runtime; got ${TASK_EXECUTE_FIELDS}" >&2
   echo "${TASK_EXECUTE_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+TASK_EXECUTE_ARTIFACT_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read() or "{}").get("artifact_id",""))' <<<"${TASK_EXECUTE_JSON}")"
 TASK_EXECUTE_SESSION_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read() or "{}").get("execution_session_id",""))' <<<"${TASK_EXECUTE_JSON}")"
 TASK_EXECUTE_SESSION_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${TASK_EXECUTE_SESSION_ID}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
 TASK_EXECUTE_SESSION_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); artifacts=body.get('artifacts') or []; print('{}|{}|{}|{}|{}'.format(body.get('intent_task_type',''), body.get('status',''), len(body.get('steps') or []), (artifacts[0] or {}).get('kind','') if artifacts else '', any((event or {}).get('name') == 'plan_compiled' for event in (body.get('events') or []))))" <<<"${TASK_EXECUTE_SESSION_JSON}")"
 if [[ "${TASK_EXECUTE_SESSION_FIELDS}" != "stakeholder_briefing|completed|3|stakeholder_briefing|True" ]]; then
   echo "expected generic task execution session to retain the compiled task identity and persisted artifact kind; got ${TASK_EXECUTE_SESSION_FIELDS}" >&2
   echo "${TASK_EXECUTE_SESSION_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+TASK_EXECUTE_ARTIFACT_JSON="$(curl -fsS "${BASE}/v1/rewrite/artifacts/${TASK_EXECUTE_ARTIFACT_ID}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+TASK_EXECUTE_ARTIFACT_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); print('{}|{}|{}|{}'.format(body.get('task_key',''), body.get('kind',''), body.get('deliverable_type',''), body.get('execution_session_id','')))" <<<"${TASK_EXECUTE_ARTIFACT_JSON}")"
+if [[ "${TASK_EXECUTE_ARTIFACT_FIELDS}" != "stakeholder_briefing|stakeholder_briefing|stakeholder_briefing|${TASK_EXECUTE_SESSION_ID}" ]]; then
+  echo "expected direct artifact lookup to project generic task identity and deliverable context; got ${TASK_EXECUTE_ARTIFACT_FIELDS}" >&2
+  echo "${TASK_EXECUTE_ARTIFACT_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
 TASK_EXECUTE_MISMATCH_CODE="$(curl -sS -o /tmp/ea_task_execute_mismatch_resp.json -w '%{http_code}' -X POST "${BASE}/v1/plans/execute" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' -d "{\"task_key\":\"stakeholder_briefing\",\"text\":\"Should stay in principal scope.\",\"principal_id\":\"${MISMATCH_PRINCIPAL_ID}\",\"goal\":\"prepare a stakeholder briefing\"}")"

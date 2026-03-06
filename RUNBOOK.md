@@ -14,7 +14,7 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | GET | `/health/ready` | `200` | `503 not_ready:*` |
 | GET | `/version` | `200` | n/a |
 | POST | `/v1/rewrite/artifact` | `200`, `202 awaiting_approval`, `202 awaiting_human` | `400 text is required`, `403 principal_scope_mismatch`, `403 policy_denied:*` (including `tool_not_allowed`) |
-| GET | `/v1/rewrite/artifacts/{artifact_id}` | `200` | `404 artifact_not_found`, `403 principal_scope_mismatch` |
+| GET | `/v1/rewrite/artifacts/{artifact_id}` | `200` | `404 artifact_not_found`, `403 principal_scope_mismatch` (returns artifact content plus originating `task_key`/`deliverable_type`) |
 | GET | `/v1/rewrite/receipts/{receipt_id}` | `200` | `404 receipt_not_found`, `403 principal_scope_mismatch` |
 | GET | `/v1/rewrite/run-costs/{cost_id}` | `200` | `404 run_cost_not_found`, `403 principal_scope_mismatch` |
 | GET | `/v1/rewrite/sessions/{session_id}` | `200` | `404 session not found`, `403 principal_scope_mismatch` (returns events + steps + queue items + receipts + artifacts + costs + human task packets, inline human task assignment history, `plan_compiled` event, computed reviewer routing hints, and supports `human_task_assignment_source`) |

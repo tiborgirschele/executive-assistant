@@ -98,6 +98,8 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert fetched_artifact.json()["artifact_id"] == artifact_id
     assert fetched_artifact.json()["execution_session_id"] == session_id
     assert fetched_artifact.json()["content"] == "smoke"
+    assert fetched_artifact.json()["task_key"] == "rewrite_text"
+    assert fetched_artifact.json()["deliverable_type"] == "rewrite_note"
 
     fetched_receipt = client.get(f"/v1/rewrite/receipts/{receipt_id}")
     assert fetched_receipt.status_code == 200
@@ -2621,6 +2623,7 @@ def test_generic_task_execution_uses_compiled_contract_runtime() -> None:
     assert body["kind"] == "stakeholder_briefing"
     assert body["content"] == "Board context and stakeholder sensitivities."
     assert body["execution_session_id"]
+    assert body["deliverable_type"] == "stakeholder_briefing"
 
     session = client.get(f"/v1/rewrite/sessions/{body['execution_session_id']}")
     assert session.status_code == 200
@@ -2629,6 +2632,11 @@ def test_generic_task_execution_uses_compiled_contract_runtime() -> None:
     assert session_body["status"] == "completed"
     assert session_body["artifacts"][0]["kind"] == "stakeholder_briefing"
     assert session_body["steps"][2]["input_json"]["plan_step_key"] == "step_artifact_save"
+
+    fetched_artifact = client.get(f"/v1/rewrite/artifacts/{body['artifact_id']}")
+    assert fetched_artifact.status_code == 200
+    assert fetched_artifact.json()["task_key"] == "stakeholder_briefing"
+    assert fetched_artifact.json()["deliverable_type"] == "stakeholder_briefing"
 
     mismatch = client.post(
         "/v1/plans/execute",
