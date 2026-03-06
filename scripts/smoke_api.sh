@@ -542,6 +542,37 @@ if [[ "${PRIORITY_FILTER_MINE_FIELDS}" != "${PRIORITY_FILTER_URGENT_MINE_ID}|Fal
 fi
 echo "human task priority filter ok"
 
+echo "== smoke: human task multi-priority filter =="
+MULTI_PRIORITY_LIST_JSON="$(curl -fsS "${BASE}/v1/human/tasks?session_id=${PRIORITY_FILTER_SESSION_ID}&status=pending&role_required=${PRIORITY_FILTER_ROLE}&priority=urgent,high&sort=priority_desc_created_asc&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+MULTI_PRIORITY_LIST_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted=['${PRIORITY_FILTER_URGENT_MINE_ID}','${PRIORITY_FILTER_HIGH_MINE_ID}','${PRIORITY_FILTER_HIGH_UNASSIGNED_ID}']; filtered=[row for row in rows if (row or {}).get('human_task_id') in wanted]; ids=[(row or {}).get('human_task_id','') for row in filtered[:3]]; print('{}|{}|{}'.format('|'.join(ids), '${PRIORITY_FILTER_NORMAL_ID}' in [row.get('human_task_id','') for row in rows], len(rows)))" <<<"${MULTI_PRIORITY_LIST_JSON}")"
+if [[ "${MULTI_PRIORITY_LIST_FIELDS}" != "${PRIORITY_FILTER_URGENT_MINE_ID}|${PRIORITY_FILTER_HIGH_MINE_ID}|${PRIORITY_FILTER_HIGH_UNASSIGNED_ID}|False|3" ]]; then
+  echo "expected multi-priority list filter to return urgent and high tasks in priority-band order; got ${MULTI_PRIORITY_LIST_FIELDS}" >&2
+  echo "${MULTI_PRIORITY_LIST_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+MULTI_PRIORITY_BACKLOG_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?role_required=${PRIORITY_FILTER_ROLE}&priority=urgent,high&sort=priority_desc_created_asc&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+MULTI_PRIORITY_BACKLOG_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted=['${PRIORITY_FILTER_URGENT_MINE_ID}','${PRIORITY_FILTER_HIGH_MINE_ID}','${PRIORITY_FILTER_HIGH_UNASSIGNED_ID}']; filtered=[row for row in rows if (row or {}).get('human_task_id') in wanted]; ids=[(row or {}).get('human_task_id','') for row in filtered[:3]]; print('{}|{}|{}'.format('|'.join(ids), '${PRIORITY_FILTER_NORMAL_ID}' in [row.get('human_task_id','') for row in rows], len(rows)))" <<<"${MULTI_PRIORITY_BACKLOG_JSON}")"
+if [[ "${MULTI_PRIORITY_BACKLOG_FIELDS}" != "${PRIORITY_FILTER_URGENT_MINE_ID}|${PRIORITY_FILTER_HIGH_MINE_ID}|${PRIORITY_FILTER_HIGH_UNASSIGNED_ID}|False|3" ]]; then
+  echo "expected multi-priority backlog filter to return urgent and high tasks in priority-band order; got ${MULTI_PRIORITY_BACKLOG_FIELDS}" >&2
+  echo "${MULTI_PRIORITY_BACKLOG_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+MULTI_PRIORITY_UNASSIGNED_JSON="$(curl -fsS "${BASE}/v1/human/tasks/unassigned?role_required=${PRIORITY_FILTER_ROLE}&priority=urgent,high&sort=priority_desc_created_asc&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+MULTI_PRIORITY_UNASSIGNED_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); ids=[(row or {}).get('human_task_id','') for row in rows]; print('{}|{}|{}'.format('|'.join([row for row in ids if row == '${PRIORITY_FILTER_HIGH_UNASSIGNED_ID}']), '${PRIORITY_FILTER_URGENT_MINE_ID}' in ids, len(ids)))" <<<"${MULTI_PRIORITY_UNASSIGNED_JSON}")"
+if [[ "${MULTI_PRIORITY_UNASSIGNED_FIELDS}" != "${PRIORITY_FILTER_HIGH_UNASSIGNED_ID}|False|1" ]]; then
+  echo "expected multi-priority unassigned filter to keep only high unassigned work when urgent tasks are assigned elsewhere; got ${MULTI_PRIORITY_UNASSIGNED_FIELDS}" >&2
+  echo "${MULTI_PRIORITY_UNASSIGNED_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+MULTI_PRIORITY_MINE_JSON="$(curl -fsS "${BASE}/v1/human/tasks/mine?operator_id=${PRIORITY_FILTER_OPERATOR}&status=pending&priority=urgent,high&sort=priority_desc_created_asc&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+MULTI_PRIORITY_MINE_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted=['${PRIORITY_FILTER_URGENT_MINE_ID}','${PRIORITY_FILTER_HIGH_MINE_ID}']; filtered=[row for row in rows if (row or {}).get('human_task_id') in wanted]; ids=[(row or {}).get('human_task_id','') for row in filtered[:2]]; print('{}|{}|{}'.format('|'.join(ids), '${PRIORITY_FILTER_NORMAL_ID}' in [row.get('human_task_id','') for row in rows], len(rows)))" <<<"${MULTI_PRIORITY_MINE_JSON}")"
+if [[ "${MULTI_PRIORITY_MINE_FIELDS}" != "${PRIORITY_FILTER_URGENT_MINE_ID}|${PRIORITY_FILTER_HIGH_MINE_ID}|False|2" ]]; then
+  echo "expected multi-priority mine filter to return urgent and high assigned work in priority-band order; got ${MULTI_PRIORITY_MINE_FIELDS}" >&2
+  echo "${MULTI_PRIORITY_MINE_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+echo "human task multi-priority filter ok"
+
 echo "== smoke: human task SLA sort =="
 SLA_REWRITE_JSON="$(curl -fsS -X POST "${BASE}/v1/rewrite/artifact" "${AUTH_ARGS[@]}" -H 'content-type: application/json' -d '{"text":"sla sort seed"}')"
 SLA_SESSION_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("execution_session_id",""))' <<<"${SLA_REWRITE_JSON}")"

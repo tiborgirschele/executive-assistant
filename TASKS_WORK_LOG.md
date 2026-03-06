@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-212 | P1 | Add comma-separated priority filters on operator human-task queues so reviewers can pull urgent and high work together without client-side merging | codex | queued | Exact priority filters now exist, but operators still cannot request combined `urgent,high` backlog slices without multiple requests or client-side set union |
+| Q-213 | P1 | Add priority summary counts on operator human-task queues so reviewers can see urgent/high/normal load before applying queue filters | codex | queued | Combined priority filters now exist, but operators still cannot ask the queue for band counts to decide whether to pull urgent-only or urgent+high work before triage |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-212 | P1 | Add comma-separated priority filters on operator human-task queues so reviewers can pull urgent and high work together without client-side merging | codex | done | Human task list/backlog/unassigned/mine endpoints now accept comma-separated `priority` filters such as `urgent,high`, and approved smoke coverage proves combined priority-band queues stay ordered correctly without client-side union logic |
 | D-211 | P1 | Add priority filter support on operator human-task queues so reviewers can isolate urgent or high work before applying sort order | codex | done | Human task list/backlog/unassigned/mine endpoints now accept exact `priority` filters, and approved smoke coverage proves operators can isolate specific priority bands before applying created-order queue views |
 | D-210 | P1 | Add priority-desc-created-asc sort mode for operator queues so urgent human work floats first while preserving FIFO within each priority band | codex | done | Human task list/backlog/unassigned/mine endpoints now accept `sort=priority_desc_created_asc`, and approved smoke coverage proves urgent/high packets sort ahead of normal work while each priority band stays oldest-created-first |
 | D-209 | P1 | Add explicit created-asc sort mode for operator queues so manual backlog triage can pin oldest untouched work first without relying on SLA fields | codex | done | Human task list/backlog/unassigned/mine endpoints now accept `sort=created_asc`, and approved smoke coverage proves FIFO oldest-created ordering survives assignment churn across operator queue views |

@@ -344,7 +344,11 @@ class RewriteOrchestrator:
         principal = str(principal_id or "").strip()
         status_filter = str(status or "").strip()
         role_filter = str(role_required or "").strip()
-        priority_filter = str(priority or "").strip().lower()
+        priority_filters = {
+            value.strip().lower()
+            for value in str(priority or "").split(",")
+            if value.strip()
+        }
         operator_filter = str(assigned_operator_id or "").strip()
         assignment_filter = str(assignment_state or "").strip().lower()
         filtered = [row for row in rows if row.principal_id == principal]
@@ -352,8 +356,8 @@ class RewriteOrchestrator:
             filtered = [row for row in filtered if row.status == status_filter]
         if role_filter:
             filtered = [row for row in filtered if row.role_required == role_filter]
-        if priority_filter:
-            filtered = [row for row in filtered if str(row.priority or "").strip().lower() == priority_filter]
+        if priority_filters:
+            filtered = [row for row in filtered if str(row.priority or "").strip().lower() in priority_filters]
         if operator_filter:
             filtered = [row for row in filtered if row.assigned_operator_id == operator_filter]
         if assignment_filter:

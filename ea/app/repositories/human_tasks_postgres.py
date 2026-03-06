@@ -312,7 +312,11 @@ class PostgresHumanTaskRepository:
         principal = str(principal_id or "")
         status_filter = str(status or "").strip()
         role_filter = str(role_required or "").strip()
-        priority_filter = str(priority or "").strip().lower()
+        priority_filters = tuple(
+            value.strip().lower()
+            for value in str(priority or "").split(",")
+            if value.strip()
+        )
         operator_filter = str(assigned_operator_id or "").strip()
         assignment_filter = str(assignment_state or "").strip().lower()
         n = max(1, min(500, int(limit or 50)))
@@ -324,9 +328,9 @@ class PostgresHumanTaskRepository:
         if role_filter:
             clauses.append("role_required = %s")
             params.append(role_filter)
-        if priority_filter:
-            clauses.append("LOWER(priority) = %s")
-            params.append(priority_filter)
+        if priority_filters:
+            clauses.append(f"LOWER(priority) IN ({', '.join(['%s'] * len(priority_filters))})")
+            params.extend(priority_filters)
         if operator_filter:
             clauses.append("assigned_operator_id = %s")
             params.append(operator_filter)

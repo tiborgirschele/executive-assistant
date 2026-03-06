@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.72.0",
+  "version": "0.73.0",
   "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
@@ -595,6 +595,16 @@
         "human_task_operator_priority_band_views"
       ],
       "notes": "Human task list/backlog/unassigned/mine endpoints now accept exact `priority` filters so operators can isolate one priority band before applying backlog sort order."
+    },
+    {
+      "name": "human_task_multi_priority_filters",
+      "status": "tested",
+      "scope": [
+        "human_task_list_multi_priority_filter",
+        "human_task_backlog_multi_priority_filter",
+        "combined_priority_band_queue_views"
+      ],
+      "notes": "Human task list/backlog/unassigned/mine endpoints now accept comma-separated `priority` filters such as `urgent,high`, so operators can pull combined priority-band queues without client-side request merging."
     }
   ],
   "migrations": [

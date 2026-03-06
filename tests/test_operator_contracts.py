@@ -725,6 +725,29 @@ def test_human_task_priority_filters_are_documented_and_smoked() -> None:
     assert "human_task_operator_priority_band_views" in capability["scope"]
 
 
+def test_human_task_multi_priority_filters_are_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "comma-separated values like `priority=urgent,high`" in readme
+    assert "priority=urgent,high" in runbook
+    assert "human task multi-priority filter ok" in smoke_api
+    assert "MULTI_PRIORITY_LIST_JSON" in smoke_api
+    assert "MULTI_PRIORITY_MINE_JSON" in smoke_api
+    assert 'params={"status": "pending", "priority": "urgent,high", "sort": "priority_desc_created_asc", "limit": 10}' in smoke_runtime
+    assert 'params={"priority": "urgent,high", "sort": "priority_desc_created_asc", "limit": 10}' in smoke_runtime
+    assert 'params={"operator_id": "operator-sorter", "status": "pending", "priority": "urgent,high", "sort": "priority_desc_created_asc", "limit": 10}' in smoke_runtime
+    assert "/v1/human/tasks/backlog?priority=urgent,high&sort=priority_desc_created_asc&limit=20" in http_examples
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_multi_priority_filters")
+    assert capability["status"] == "tested"
+    assert "combined_priority_band_queue_views" in capability["scope"]
+
+
 def test_milestone_marks_postgres_contract_matrix_tested() -> None:
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "postgres_contract_matrix")

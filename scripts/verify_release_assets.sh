@@ -1729,6 +1729,34 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_multi_priority_filters")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "comma-separated values like \`priority=urgent,high\`" "README.md" && \
+     grep -Fq "priority=urgent,high" "RUNBOOK.md" && \
+     grep -Fq "human task multi-priority filter ok" "scripts/smoke_api.sh" && \
+     grep -Fq "MULTI_PRIORITY_LIST_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq "MULTI_PRIORITY_MINE_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq 'params={"status": "pending", "priority": "urgent,high", "sort": "priority_desc_created_asc", "limit": 10}' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'params={"priority": "urgent,high", "sort": "priority_desc_created_asc", "limit": 10}' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'params={"operator_id": "operator-sorter", "status": "pending", "priority": "urgent,high", "sort": "priority_desc_created_asc", "limit": 10}' "tests/smoke_runtime_api.py" && \
+     grep -Fq "/v1/human/tasks/backlog?priority=urgent,high&sort=priority_desc_created_asc&limit=20" "HTTP_EXAMPLES.http"; then
+    echo "ok: human task multi priority filters docs"
+  else
+    echo "missing: human task multi priority filters docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task multi priority filters milestone" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1
