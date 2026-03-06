@@ -50,3 +50,13 @@ def test_memory_router_module_is_a_thin_aggregator() -> None:
     assert "include_router(memory_governance_router)" in source
     assert "@router.post(" not in source
     assert "@router.get(" not in source
+
+
+def test_memory_operations_module_is_a_thin_aggregator() -> None:
+    source = Path("ea/app/api/routes/memory_operations.py").read_text(encoding="utf-8")
+
+    assert "include_router(memory_commitments_router)" in source
+    assert "include_router(memory_followups_router)" in source
+    assert "include_router(memory_windows_router)" in source
+    assert "@router.post(" not in source
+    assert "@router.get(" not in source
