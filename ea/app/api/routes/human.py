@@ -133,6 +133,41 @@ def list_human_tasks(
     return [_to_out(row) for row in rows]
 
 
+@router.get("/backlog")
+def list_human_task_backlog(
+    role_required: str | None = None,
+    overdue_only: bool = False,
+    limit: int = Query(default=50, ge=1, le=500),
+    container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
+) -> list[HumanTaskOut]:
+    rows = container.orchestrator.list_human_tasks(
+        principal_id=context.principal_id,
+        status="pending",
+        role_required=role_required,
+        overdue_only=overdue_only,
+        limit=limit,
+    )
+    return [_to_out(row) for row in rows]
+
+
+@router.get("/mine")
+def list_my_human_tasks(
+    operator_id: str,
+    status: str = "claimed",
+    limit: int = Query(default=50, ge=1, le=500),
+    container: AppContainer = Depends(get_container),
+    context: RequestContext = Depends(get_request_context),
+) -> list[HumanTaskOut]:
+    rows = container.orchestrator.list_human_tasks(
+        principal_id=context.principal_id,
+        status=status,
+        assigned_operator_id=operator_id,
+        limit=limit,
+    )
+    return [_to_out(row) for row in rows]
+
+
 @router.get("/{human_task_id}")
 def get_human_task(
     human_task_id: str,

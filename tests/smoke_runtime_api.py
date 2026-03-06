@@ -280,6 +280,13 @@ def test_human_task_flow_and_session_projection() -> None:
     assert role_filtered.status_code == 200
     assert any(row["human_task_id"] == task_id for row in role_filtered.json())
 
+    backlog = client.get(
+        "/v1/human/tasks/backlog",
+        params={"limit": 10, "role_required": "communications_reviewer", "overdue_only": True},
+    )
+    assert backlog.status_code == 200
+    assert any(row["human_task_id"] == task_id for row in backlog.json())
+
     claimed = client.post(f"/v1/human/tasks/{task_id}/claim", json={"operator_id": "operator-1"})
     assert claimed.status_code == 200
     assert claimed.json()["status"] == "claimed"
@@ -290,6 +297,10 @@ def test_human_task_flow_and_session_projection() -> None:
     )
     assert operator_filtered.status_code == 200
     assert any(row["human_task_id"] == task_id for row in operator_filtered.json())
+
+    mine = client.get("/v1/human/tasks/mine", params={"limit": 10, "operator_id": "operator-1"})
+    assert mine.status_code == 200
+    assert any(row["human_task_id"] == task_id for row in mine.json())
 
     returned = client.post(
         f"/v1/human/tasks/{task_id}/return",

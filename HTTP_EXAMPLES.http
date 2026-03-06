@@ -144,6 +144,14 @@ X-EA-Principal-ID: {{principal_id}}
 GET {{host}}/v1/human/tasks?principal_id={{principal_id}}&assigned_operator_id=operator&status=claimed&limit=20
 X-EA-Principal-ID: {{principal_id}}
 
+### Human tasks -> direct pending backlog
+GET {{host}}/v1/human/tasks/backlog?role_required=communications_reviewer&overdue_only=true&limit=20
+X-EA-Principal-ID: {{principal_id}}
+
+### Human tasks -> direct operator queue
+GET {{host}}/v1/human/tasks/mine?operator_id=operator&limit=20
+X-EA-Principal-ID: {{principal_id}}
+
 ### Human tasks -> claim
 POST {{host}}/v1/human/tasks/{{human_task_id}}/claim
 Content-Type: application/json

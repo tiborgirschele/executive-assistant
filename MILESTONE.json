@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.45.0",
+  "version": "0.46.0",
   "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
@@ -322,6 +322,16 @@
         "human_task_overdue_only_filter"
       ],
       "notes": "Human task queue listings now support role, assigned-operator, and overdue-SLA filters across both HTTP smoke coverage and the Postgres repository contract matrix."
+    },
+    {
+      "name": "human_task_operator_backlog_endpoints",
+      "status": "tested",
+      "scope": [
+        "human_task_backlog_route",
+        "human_task_mine_route",
+        "claim_assigns_operator_queue"
+      ],
+      "notes": "Operators now have direct pending-backlog and assigned-queue endpoints on top of the filtered human task store, and the smoke path asserts that claim actions surface immediately in those views."
     }
   ],
   "migrations": [

@@ -21,6 +21,7 @@ Removed:
 - `/v1/rewrite/receipts/{receipt_id}` and `/v1/rewrite/run-costs/{cost_id}` expose direct execution proof records without requiring full session expansion
 - `/v1/rewrite/sessions/{session_id}` exposes execution ledger detail (events, steps, queue items, receipts, artifacts, costs, human task packets)
 - `/v1/human/tasks*` manages principal-scoped human review/work packets linked back to execution sessions and steps
+- `/v1/human/tasks/backlog` and `/v1/human/tasks/mine` expose direct operator backlog views on top of the human task queue
 - `/v1/observations/ingest` and `/v1/observations/recent` provide channel-agnostic observation intake
 - `/v1/delivery/outbox` endpoints provide channel-agnostic queued delivery tracking
 - `/v1/delivery/outbox/{delivery_id}/failed` marks retry/dead-letter transitions with error context
