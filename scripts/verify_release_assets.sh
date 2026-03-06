@@ -2206,6 +2206,36 @@ from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(
+    entry
+    for entry in milestone["capabilities"]
+    if entry["name"] == "human_task_session_ownerless_mixed_source_isolation"
+)
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "manual and auto-preselected neighbors too" "README.md" && \
+     grep -Fq "manual and auto-preselected neighbors present" "RUNBOOK.md" && \
+     grep -Fq "SESSION_HUMAN_NONE_CREATED_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq "SESSION_HUMAN_NONE_TRANSITION_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq "keeping mixed-source neighbors out" "scripts/smoke_api.sh" && \
+     grep -Fq "ownerless_session_created_all_ids ==" "tests/smoke_runtime_api.py" && \
+     grep -Fq "ownerless_session_transition_all_ids ==" "tests/smoke_runtime_api.py"; then
+    echo "ok: human task session ownerless mixed-source isolation docs"
+  else
+    echo "missing: human task session ownerless mixed-source isolation docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task session ownerless mixed-source isolation milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(
     entry for entry in milestone["capabilities"] if entry["name"] == "session_ownerless_projection_created_order"
 )
 assert capability["status"] == "tested"

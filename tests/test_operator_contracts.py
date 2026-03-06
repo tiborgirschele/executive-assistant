@@ -1115,6 +1115,30 @@ def test_human_task_session_ownerless_last_transition_sort_is_documented_and_smo
     assert "session_ownerless_last_transition_desc_ordering" in capability["scope"]
 
 
+def test_human_task_session_ownerless_mixed_source_isolation_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "manual and auto-preselected neighbors too" in readme
+    assert "manual and auto-preselected neighbors present" in runbook
+    assert "SESSION_HUMAN_NONE_CREATED_JSON" in smoke_api
+    assert "SESSION_HUMAN_NONE_TRANSITION_JSON" in smoke_api
+    assert "keeping mixed-source neighbors out" in smoke_api
+    assert "ownerless_session_created_all_ids ==" in smoke_runtime
+    assert "ownerless_session_transition_all_ids ==" in smoke_runtime
+
+    capability = next(
+        entry
+        for entry in milestone["capabilities"]
+        if entry["name"] == "human_task_session_ownerless_mixed_source_isolation"
+    )
+    assert capability["status"] == "tested"
+    assert "session_ownerless_created_asc_excludes_non_ownerless" in capability["scope"]
+
+
 def test_session_ownerless_projection_created_order_is_documented_and_smoked() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")

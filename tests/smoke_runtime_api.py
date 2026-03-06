@@ -1737,6 +1737,8 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
         params={"session_id": session_id, "assignment_source": "none", "sort": "created_asc"},
     )
     assert ownerless_session_created.status_code == 200
+    ownerless_session_created_all_ids = [row["human_task_id"] for row in ownerless_session_created.json()]
+    assert ownerless_session_created_all_ids == [ownerless_task_id, ownerless_newer_task_id]
     ownerless_session_created_ids = [
         row["human_task_id"]
         for row in ownerless_session_created.json()
@@ -1749,6 +1751,8 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
         params={"session_id": session_id, "assignment_source": "none", "sort": "last_transition_desc"},
     )
     assert ownerless_session_transition.status_code == 200
+    ownerless_session_transition_all_ids = [row["human_task_id"] for row in ownerless_session_transition.json()]
+    assert ownerless_session_transition_all_ids == [ownerless_newer_task_id, ownerless_task_id]
     ownerless_session_transition_ids = [
         row["human_task_id"]
         for row in ownerless_session_transition.json()
