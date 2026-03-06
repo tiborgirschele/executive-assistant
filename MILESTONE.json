@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.64.0",
+  "version": "0.65.0",
   "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
@@ -513,6 +513,18 @@
         "claimed_and_returned_assignment_projection"
       ],
       "notes": "Human task payloads now persist and project explicit `assignment_state` values (`unassigned`, `assigned`, `claimed`, `returned`) so operator backlogs and session views can distinguish assignment lifecycle state without inferring it from generic pending status plus owner fields."
+    },
+    {
+      "name": "human_task_last_transition_summary_projection",
+      "status": "tested",
+      "scope": [
+        "last_transition_event_name_field",
+        "last_transition_assignment_state_field",
+        "last_transition_operator_projection",
+        "last_transition_actor_projection",
+        "session_and_queue_row_summary"
+      ],
+      "notes": "Human task list/detail/session rows now expose compact `last_transition_*` fields derived from the latest ownership event so operator UIs can triage the newest reassignment, claim, or return state without fetching the full assignment-history chain."
     }
   ],
   "migrations": [

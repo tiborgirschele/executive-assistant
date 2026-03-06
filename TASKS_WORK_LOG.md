@@ -13,13 +13,13 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-205 | P1 | Add a compact last-transition summary on human task list/session rows so operators can spot recent reassignment or return state without expanding the full history chain | codex | queued | The full assignment-history chain is now available on the task route and session detail, but list views still lack a one-row summary for high-volume operator triage |
+| Q-205 | P1 | Add last-transition-aware sorting on human task backlog/list endpoints so operators can order queues by the freshest ownership churn | codex | queued | Compact `last_transition_*` summaries now exist on task rows, but list endpoints still rely on repository/default ordering instead of surfacing the newest reassignment or return work first |
 
 ## In Progress
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-204 | P1 | Add last-transition summaries on human task backlog/session rows so operators can spot recent reassignments without expanding the full history chain | codex | in_progress | The filtered history route is now live, but list/session rows still make operators open the full transition chain to answer simple “who touched this last?” questions |
+| - | - | - | - | - | - |
 
 ## Blocked
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-204 | P1 | Add last-transition summaries on human task backlog/session rows so operators can spot recent reassignments without expanding the full history chain | codex | done | Human task list/detail/session rows now expose compact `last_transition_*` fields derived from the latest ownership event, so operators can answer “who touched this last?” without opening the full assignment-history chain |
 | D-203 | P1 | Add operator-facing filters on task assignment history so reviewers can isolate reassignments, claims, or returns without scanning the full transition list | codex | done | `GET /v1/human/tasks/{human_task_id}/assignment-history` now accepts `event_name`, `assigned_operator_id`, and `assigned_by_actor_id`, with approved smoke coverage proving reassignment-only and return-only audit views |
 | D-202 | P1 | Expose human-task assignment history directly in session projections so operator UIs do not need a second fetch to audit reassignment decisions | codex | done | `/v1/rewrite/sessions/{session_id}` now includes `human_task_assignment_history`, mirroring the task-scoped ownership transition chain inline with human task packets so reassignment audit is available in a single session fetch |
 | D-201 | P1 | Add assignment transition history so reassignments can be audited without overwriting earlier reviewer ownership provenance | codex | done | Added `GET /v1/human/tasks/{human_task_id}/assignment-history`, backed by filtered execution-ledger transitions, and expanded the smoke path to prove recommended assignment, later manual reassignment, claim, and return remain queryable after the packet state advances |

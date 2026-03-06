@@ -219,8 +219,44 @@ class RewriteOrchestrator:
             "suggestions": suggestions[:3],
         }
 
+    def _human_task_assignment_events(self, row: HumanTask) -> list[ExecutionEvent]:
+        return [
+            event
+            for event in self._ledger.events_for(row.session_id)
+            if event.name in self._HUMAN_TASK_ASSIGNMENT_EVENT_NAMES
+            and str((event.payload or {}).get("human_task_id") or "") == row.human_task_id
+        ]
+
+    def _build_human_task_last_transition_summary(self, row: HumanTask) -> dict[str, object]:
+        events = self._human_task_assignment_events(row)
+        if not events:
+            return {
+                "last_transition_event_name": "",
+                "last_transition_at": None,
+                "last_transition_assignment_state": "",
+                "last_transition_operator_id": "",
+                "last_transition_assignment_source": "",
+                "last_transition_by_actor_id": "",
+            }
+        last = events[-1]
+        payload = dict(last.payload or {})
+        return {
+            "last_transition_event_name": last.name,
+            "last_transition_at": str(last.created_at or "") or None,
+            "last_transition_assignment_state": str(payload.get("assignment_state") or row.assignment_state or ""),
+            "last_transition_operator_id": str(
+                payload.get("assigned_operator_id") or payload.get("operator_id") or row.assigned_operator_id or ""
+            ),
+            "last_transition_assignment_source": str(payload.get("assignment_source") or row.assignment_source or ""),
+            "last_transition_by_actor_id": str(payload.get("assigned_by_actor_id") or row.assigned_by_actor_id or ""),
+        }
+
     def _decorate_human_task(self, row: HumanTask) -> HumanTask:
-        return replace(row, routing_hints_json=self._build_human_task_routing_hints(row))
+        return replace(
+            row,
+            routing_hints_json=self._build_human_task_routing_hints(row),
+            **self._build_human_task_last_transition_summary(row),
+        )
 
     def _fallback_rewrite_intent(self) -> IntentSpecV3:
         return IntentSpecV3(
@@ -1006,12 +1042,7 @@ class RewriteOrchestrator:
         event_filter = str(event_name or "").strip()
         operator_filter = str(assigned_operator_id or "").strip()
         actor_filter = str(assigned_by_actor_id or "").strip()
-        rows = [
-            event
-            for event in self._ledger.events_for(found.session_id)
-            if event.name in self._HUMAN_TASK_ASSIGNMENT_EVENT_NAMES
-            and str((event.payload or {}).get("human_task_id") or "") == found.human_task_id
-        ]
+        rows = self._human_task_assignment_events(found)
         if event_filter:
             rows = [event for event in rows if event.name == event_filter]
         if operator_filter:
@@ -1104,9 +1135,9 @@ class RewriteOrchestrator:
                 "operator_id": updated.assigned_operator_id,
                 "assigned_operator_id": updated.assigned_operator_id,
                 "assignment_state": updated.assignment_state,
-                "assignment_source": updated.assignment_source,
+                "assignment_source": "manual",
                 "assigned_at": updated.assigned_at or "",
-                "assigned_by_actor_id": updated.assigned_by_actor_id,
+                "assigned_by_actor_id": str(assigned_by_actor_id or operator_id or ""),
                 "step_id": updated.step_id or "",
             },
         )
@@ -1179,9 +1210,9 @@ class RewriteOrchestrator:
                 "assigned_operator_id": updated.assigned_operator_id,
                 "resolution": updated.resolution,
                 "assignment_state": updated.assignment_state,
-                "assignment_source": updated.assignment_source,
+                "assignment_source": "manual",
                 "assigned_at": updated.assigned_at or "",
-                "assigned_by_actor_id": updated.assigned_by_actor_id,
+                "assigned_by_actor_id": operator_id,
                 "step_id": updated.step_id or "",
             },
         )

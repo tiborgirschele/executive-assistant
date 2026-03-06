@@ -487,6 +487,12 @@ class HumanTask:
     returned_payload_json: dict[str, Any] = field(default_factory=dict)
     provenance_json: dict[str, Any] = field(default_factory=dict)
     routing_hints_json: dict[str, Any] = field(default_factory=dict)
+    last_transition_event_name: str = ""
+    last_transition_at: str | None = None
+    last_transition_assignment_state: str = ""
+    last_transition_operator_id: str = ""
+    last_transition_assignment_source: str = ""
+    last_transition_by_actor_id: str = ""
 
 
 @dataclass(frozen=True)

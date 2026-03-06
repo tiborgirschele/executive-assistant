@@ -138,6 +138,7 @@ Policy notes:
 - Human task payloads now expose `assignment_state` directly (`unassigned`, `assigned`, `claimed`, `returned`) so session projections and operator queues do not have to infer assignment from `status` plus `assigned_operator_id`.
 - Human task payloads now also persist `assignment_source` so operators can tell whether ownership came from a manual choice, a route-level recommended assignment, or planner-time auto-preselection even after later claim/return transitions.
 - Human task payloads now also persist `assigned_at` and `assigned_by_actor_id` so current reviewer ownership is timestamped and the last assigning actor remains visible across assignment, claim, return, and planner auto-preselection.
+- Human task list/detail/session rows now also expose compact `last_transition_event_name`, `last_transition_at`, `last_transition_assignment_state`, `last_transition_operator_id`, `last_transition_assignment_source`, and `last_transition_by_actor_id` fields so operators can see the most recent ownership event (`created`, `assigned`, `claimed`, or `returned`) plus its actor/source metadata without fetching the full assignment-history chain first.
 
 ## Operator Script Help Index
 

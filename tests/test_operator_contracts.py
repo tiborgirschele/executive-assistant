@@ -519,6 +519,38 @@ def test_human_task_assignment_history_filters_are_documented_and_smoked() -> No
     assert "assigned_by_actor_history_filter" in capability["scope"]
 
 
+def test_human_task_last_transition_summary_projection_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    human_route = (ROOT / "ea/app/api/routes/human.py").read_text(encoding="utf-8")
+    rewrite_route = (ROOT / "ea/app/api/routes/rewrite.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "last_transition_event_name" in readme
+    assert "last_transition_operator_id" in readme
+    assert "last_transition_by_actor_id" in readme
+    assert "last_transition_event_name" in runbook
+    assert "last_transition_operator_id" in runbook
+    assert "last_transition_by_actor_id" in runbook
+    assert "HUMAN_CREATE_SUMMARY_FIELDS" in smoke_api
+    assert "HUMAN_REWRITE_SUMMARY_FIELDS" in smoke_api
+    assert "human_task_returned|True|returned|operator-junior|manual|operator-junior" in smoke_api
+    assert 'task["last_transition_event_name"] == "human_task_created"' in smoke_runtime
+    assert 'assigned.json()["last_transition_event_name"] == "human_task_assigned"' in smoke_runtime
+    assert 'returned.json()["last_transition_event_name"] == "human_task_returned"' in smoke_runtime
+    assert 'review_task["last_transition_event_name"] == "human_task_assigned"' in smoke_runtime
+    assert 'last_transition_event_name: str' in human_route
+    assert 'last_transition_event_name: str' in rewrite_route
+
+    capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "human_task_last_transition_summary_projection"
+    )
+    assert capability["status"] == "tested"
+    assert "session_and_queue_row_summary" in capability["scope"]
+
+
 def test_milestone_marks_postgres_contract_matrix_tested() -> None:
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "postgres_contract_matrix")

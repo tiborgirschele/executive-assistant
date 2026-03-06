@@ -124,10 +124,22 @@ if [[ "${HUMAN_CREATE_FIELDS}" != "pending|unassigned||True||True|send_on_behalf
   echo "${HUMAN_CREATE_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+HUMAN_CREATE_SUMMARY_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}|{}|{}|{}|{}".format(body.get("last_transition_event_name",""), bool(body.get("last_transition_at","")), body.get("last_transition_assignment_state",""), body.get("last_transition_operator_id",""), body.get("last_transition_assignment_source",""), body.get("last_transition_by_actor_id","")))' <<<"${HUMAN_CREATE_JSON}")"
+if [[ "${HUMAN_CREATE_SUMMARY_FIELDS}" != "human_task_created|True|unassigned|||" ]]; then
+  echo "expected create response to expose compact last-transition summary after human_task_created; got ${HUMAN_CREATE_SUMMARY_FIELDS}" >&2
+  echo "${HUMAN_CREATE_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 SESSION_HUMAN_WAITING_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${SESSION_ID}" "${AUTH_ARGS[@]}")"
 SESSION_HUMAN_WAITING_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); events={e.get('name','') for e in (body.get('events') or [])}; steps=body.get('steps') or []; step_id='${SESSION_STEP_ID}'; print('{}|{}|{}'.format(body.get('status',''), 'session_paused_for_human_task' in events, any((row or {}).get('step_id') == step_id and (row or {}).get('state') == 'waiting_human' for row in steps)))" <<<"${SESSION_HUMAN_WAITING_JSON}")"
 if [[ "${SESSION_HUMAN_WAITING_FIELDS}" != "awaiting_human|True|True" ]]; then
   echo "expected session to reopen into awaiting_human with waiting_human step after human task creation; got ${SESSION_HUMAN_WAITING_FIELDS}" >&2
+  echo "${SESSION_HUMAN_WAITING_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+SESSION_HUMAN_WAITING_SUMMARY_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); task_id='${HUMAN_TASK_ID}'; task=next((row for row in (body.get('human_tasks') or []) if (row or {}).get('human_task_id') == task_id), {}); print('{}|{}|{}|{}|{}|{}'.format(task.get('last_transition_event_name',''), bool(task.get('last_transition_at','')), task.get('last_transition_assignment_state',''), task.get('last_transition_operator_id',''), task.get('last_transition_assignment_source',''), task.get('last_transition_by_actor_id','')))" <<<"${SESSION_HUMAN_WAITING_JSON}")"
+if [[ "${SESSION_HUMAN_WAITING_SUMMARY_FIELDS}" != "human_task_created|True|unassigned|||" ]]; then
+  echo "expected awaiting_human session row to expose human_task_created transition summary; got ${SESSION_HUMAN_WAITING_SUMMARY_FIELDS}" >&2
   echo "${SESSION_HUMAN_WAITING_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
@@ -175,6 +187,12 @@ if [[ "${HUMAN_ASSIGN_FIELDS}" != "pending|assigned|operator-specialist|recommen
   echo "${HUMAN_ASSIGN_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+HUMAN_ASSIGN_SUMMARY_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}|{}|{}|{}|{}".format(body.get("last_transition_event_name",""), bool(body.get("last_transition_at","")), body.get("last_transition_assignment_state",""), body.get("last_transition_operator_id",""), body.get("last_transition_assignment_source",""), body.get("last_transition_by_actor_id","")))' <<<"${HUMAN_ASSIGN_JSON}")"
+if [[ "${HUMAN_ASSIGN_SUMMARY_FIELDS}" != "human_task_assigned|True|assigned|operator-specialist|recommended|exec-1" ]]; then
+  echo "expected assigned response to expose recommended last-transition summary; got ${HUMAN_ASSIGN_SUMMARY_FIELDS}" >&2
+  echo "${HUMAN_ASSIGN_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 HUMAN_ASSIGNED_BACKLOG_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?role_required=communications_reviewer&overdue_only=true&assignment_state=assigned&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
 HUMAN_ASSIGNED_BACKLOG_MATCH="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); task_id='${HUMAN_TASK_ID}'; print(any((row or {}).get('human_task_id') == task_id for row in rows))" <<<"${HUMAN_ASSIGNED_BACKLOG_JSON}")"
 if [[ "${HUMAN_ASSIGNED_BACKLOG_MATCH}" != "True" ]]; then
@@ -217,10 +235,22 @@ if [[ "${HUMAN_REASSIGN_FIELDS}" != "pending|assigned|operator-junior|manual|Tru
   echo "${HUMAN_REASSIGN_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+HUMAN_REASSIGN_SUMMARY_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}|{}|{}|{}|{}".format(body.get("last_transition_event_name",""), bool(body.get("last_transition_at","")), body.get("last_transition_assignment_state",""), body.get("last_transition_operator_id",""), body.get("last_transition_assignment_source",""), body.get("last_transition_by_actor_id","")))' <<<"${HUMAN_REASSIGN_JSON}")"
+if [[ "${HUMAN_REASSIGN_SUMMARY_FIELDS}" != "human_task_assigned|True|assigned|operator-junior|manual|exec-1" ]]; then
+  echo "expected reassigned response to expose manual last-transition summary; got ${HUMAN_REASSIGN_SUMMARY_FIELDS}" >&2
+  echo "${HUMAN_REASSIGN_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 HUMAN_CLAIM_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks/${HUMAN_TASK_ID}/claim" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' -d '{"operator_id":"operator-junior"}')"
 HUMAN_CLAIM_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}|{}|{}|{}".format(body.get("status",""), body.get("assignment_state",""), body.get("assignment_source",""), bool(body.get("assigned_at","")), body.get("assigned_by_actor_id","")))' <<<"${HUMAN_CLAIM_JSON}")"
 if [[ "${HUMAN_CLAIM_FIELDS}" != "claimed|claimed|manual|True|operator-junior" ]]; then
   echo "expected claimed human task after claim; got ${HUMAN_CLAIM_FIELDS}" >&2
+  echo "${HUMAN_CLAIM_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HUMAN_CLAIM_SUMMARY_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}|{}|{}|{}|{}".format(body.get("last_transition_event_name",""), bool(body.get("last_transition_at","")), body.get("last_transition_assignment_state",""), body.get("last_transition_operator_id",""), body.get("last_transition_assignment_source",""), body.get("last_transition_by_actor_id","")))' <<<"${HUMAN_CLAIM_JSON}")"
+if [[ "${HUMAN_CLAIM_SUMMARY_FIELDS}" != "human_task_claimed|True|claimed|operator-junior|manual|operator-junior" ]]; then
+  echo "expected claim response to expose claimed last-transition summary; got ${HUMAN_CLAIM_SUMMARY_FIELDS}" >&2
   echo "${HUMAN_CLAIM_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
@@ -243,6 +273,12 @@ HUMAN_RETURN_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks/${HUMAN_TASK_ID}/
 HUMAN_RETURN_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}|{}|{}|{}|{}".format(body.get("status",""), body.get("assignment_state",""), body.get("assignment_source",""), body.get("resolution",""), bool(body.get("assigned_at","")), body.get("assigned_by_actor_id","")))' <<<"${HUMAN_RETURN_JSON}")"
 if [[ "${HUMAN_RETURN_FIELDS}" != "returned|returned|manual|ready_for_send|True|operator-junior" ]]; then
   echo "expected returned human task after return; got ${HUMAN_RETURN_FIELDS}" >&2
+  echo "${HUMAN_RETURN_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HUMAN_RETURN_SUMMARY_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}|{}|{}|{}|{}".format(body.get("last_transition_event_name",""), bool(body.get("last_transition_at","")), body.get("last_transition_assignment_state",""), body.get("last_transition_operator_id",""), body.get("last_transition_assignment_source",""), body.get("last_transition_by_actor_id","")))' <<<"${HUMAN_RETURN_JSON}")"
+if [[ "${HUMAN_RETURN_SUMMARY_FIELDS}" != "human_task_returned|True|returned|operator-junior|manual|operator-junior" ]]; then
+  echo "expected return response to expose returned last-transition summary; got ${HUMAN_RETURN_SUMMARY_FIELDS}" >&2
   echo "${HUMAN_RETURN_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
@@ -271,6 +307,12 @@ SESSION_HUMAN_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${SESSION_ID}" "${A
 SESSION_HUMAN_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); events={e.get('name','') for e in (body.get('events') or [])}; tasks=body.get('human_tasks') or []; steps=body.get('steps') or []; history=body.get('human_task_assignment_history') or []; task_id='${HUMAN_TASK_ID}'; step_id='${SESSION_STEP_ID}'; names=[(row or {}).get('event_name','') for row in history if (row or {}).get('human_task_id') == task_id]; operators=[(row or {}).get('assigned_operator_id','') for row in history if (row or {}).get('human_task_id') == task_id]; print('{}|{}|{}|{}|{}|{}|{}|{}|{}|{}'.format(body.get('status',''), 'human_task_created' in events and 'human_task_assigned' in events, 'human_task_claimed' in events, 'human_task_returned' in events and 'session_resumed_from_human_task' in events, any((row or {}).get('human_task_id') == task_id and (row or {}).get('status') == 'returned' and (row or {}).get('assignment_state') == 'returned' and (row or {}).get('assignment_source') == 'manual' and bool((row or {}).get('assigned_at','')) and (row or {}).get('assigned_by_actor_id') == 'operator-junior' for row in tasks), any((row or {}).get('step_id') == step_id and (row or {}).get('state') == 'completed' and ((row or {}).get('output_json') or {}).get('human_task_id') == task_id for row in steps), any((row or {}).get('assignment_source') == 'manual' for row in tasks if (row or {}).get('human_task_id') == task_id), any((row or {}).get('assigned_by_actor_id') == 'operator-junior' for row in tasks if (row or {}).get('human_task_id') == task_id), ','.join(names), ','.join(operators)))" <<<"${SESSION_HUMAN_JSON}")"
 if [[ "${SESSION_HUMAN_FIELDS}" != "completed|True|True|True|True|True|True|True|human_task_created,human_task_assigned,human_task_assigned,human_task_claimed,human_task_returned|,operator-specialist,operator-junior,operator-junior,operator-junior" ]]; then
   echo "expected resumed session projection to expose returned row, completed resumed step, and inline assignment history; got ${SESSION_HUMAN_FIELDS}" >&2
+  echo "${SESSION_HUMAN_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+SESSION_HUMAN_SUMMARY_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); task_id='${HUMAN_TASK_ID}'; task=next((row for row in (body.get('human_tasks') or []) if (row or {}).get('human_task_id') == task_id), {}); print('{}|{}|{}|{}|{}|{}'.format(task.get('last_transition_event_name',''), bool(task.get('last_transition_at','')), task.get('last_transition_assignment_state',''), task.get('last_transition_operator_id',''), task.get('last_transition_assignment_source',''), task.get('last_transition_by_actor_id','')))" <<<"${SESSION_HUMAN_JSON}")"
+if [[ "${SESSION_HUMAN_SUMMARY_FIELDS}" != "human_task_returned|True|returned|operator-junior|manual|operator-junior" ]]; then
+  echo "expected resumed session task row to expose returned last-transition summary; got ${SESSION_HUMAN_SUMMARY_FIELDS}" >&2
   echo "${SESSION_HUMAN_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
@@ -593,8 +635,20 @@ if [[ "${HUMAN_REWRITE_SESSION_FIELDS}" != "awaiting_human|True|True|True|True|h
   echo "${HUMAN_REWRITE_SESSION_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
-curl -fsS -X POST "${BASE}/v1/human/tasks/${HUMAN_REWRITE_TASK_ID}/return" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
-  -d '{"operator_id":"reviewer-1","resolution":"ready_for_send","returned_payload_json":{"final_text":"rewrite with human review, edited by reviewer"},"provenance_json":{"review_mode":"human"}}' >/dev/null
+HUMAN_REWRITE_SUMMARY_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); review=next((row for row in (body.get('human_tasks') or []) if (row or {}).get('human_task_id') == '${HUMAN_REWRITE_TASK_ID}'), {}); print('{}|{}|{}|{}|{}|{}'.format(review.get('last_transition_event_name',''), bool(review.get('last_transition_at','')), review.get('last_transition_assignment_state',''), review.get('last_transition_operator_id',''), review.get('last_transition_assignment_source',''), review.get('last_transition_by_actor_id','')))" <<<"${HUMAN_REWRITE_SESSION_JSON}")"
+if [[ "${HUMAN_REWRITE_SUMMARY_FIELDS}" != "human_task_assigned|True|assigned|operator-specialist|auto_preselected|orchestrator:auto_preselected" ]]; then
+  echo "expected planner-native human review row to expose compact auto-preselected transition summary; got ${HUMAN_REWRITE_SUMMARY_FIELDS}" >&2
+  echo "${HUMAN_REWRITE_SESSION_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HUMAN_REWRITE_RETURN_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks/${HUMAN_REWRITE_TASK_ID}/return" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"operator_id":"reviewer-1","resolution":"ready_for_send","returned_payload_json":{"final_text":"rewrite with human review, edited by reviewer"},"provenance_json":{"review_mode":"human"}}')"
+HUMAN_REWRITE_RETURN_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}|{}|{}|{}|{}".format(body.get("last_transition_event_name",""), bool(body.get("last_transition_at","")), body.get("last_transition_assignment_state",""), body.get("last_transition_operator_id",""), body.get("last_transition_assignment_source",""), body.get("last_transition_by_actor_id","")))' <<<"${HUMAN_REWRITE_RETURN_JSON}")"
+if [[ "${HUMAN_REWRITE_RETURN_FIELDS}" != "human_task_returned|True|returned|reviewer-1|manual|reviewer-1" ]]; then
+  echo "expected human-review return response to expose compact returned transition summary; got ${HUMAN_REWRITE_RETURN_FIELDS}" >&2
+  echo "${HUMAN_REWRITE_RETURN_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 HUMAN_REWRITE_DONE_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${HUMAN_REWRITE_SESSION_ID}" "${AUTH_ARGS[@]}")"
 HUMAN_REWRITE_DONE_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); events={e.get('name','') for e in (body.get('events') or [])}; queues=body.get('queue_items') or []; steps=body.get('steps') or []; artifacts=body.get('artifacts') or []; print('{}|{}|{}|{}|{}|{}|{}'.format(body.get('status',''), len(artifacts) >= 1, (artifacts[0] or {}).get('content','') if artifacts else '', 'human_task_step_started' in events, 'session_resumed_from_human_task' in events, len(queues) == 4 and all((q or {}).get('state','') == 'done' for q in queues), len(steps) == 4 and all((row or {}).get('state') == 'completed' for row in steps)))" <<<"${HUMAN_REWRITE_DONE_JSON}")"
 if [[ "${HUMAN_REWRITE_DONE_FIELDS}" != "completed|True|rewrite with human review, edited by reviewer|True|True|True|True" ]]; then

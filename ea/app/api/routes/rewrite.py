@@ -122,6 +122,12 @@ class SessionHumanTaskOut(BaseModel):
     returned_payload_json: dict[str, object]
     provenance_json: dict[str, object]
     routing_hints_json: dict[str, object]
+    last_transition_event_name: str
+    last_transition_at: str | None
+    last_transition_assignment_state: str
+    last_transition_operator_id: str
+    last_transition_assignment_source: str
+    last_transition_by_actor_id: str
     created_at: str
     updated_at: str
 
@@ -341,6 +347,12 @@ def get_session(
                 returned_payload_json=t.returned_payload_json,
                 provenance_json=t.provenance_json,
                 routing_hints_json=t.routing_hints_json,
+                last_transition_event_name=t.last_transition_event_name,
+                last_transition_at=t.last_transition_at,
+                last_transition_assignment_state=t.last_transition_assignment_state,
+                last_transition_operator_id=t.last_transition_operator_id,
+                last_transition_assignment_source=t.last_transition_assignment_source,
+                last_transition_by_actor_id=t.last_transition_by_actor_id,
                 created_at=t.created_at,
                 updated_at=t.updated_at,
             )

@@ -1496,6 +1496,40 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_last_transition_summary_projection")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "last_transition_event_name" "README.md" && \
+     grep -Fq "last_transition_operator_id" "README.md" && \
+     grep -Fq "last_transition_by_actor_id" "README.md" && \
+     grep -Fq "last_transition_event_name" "RUNBOOK.md" && \
+     grep -Fq "last_transition_operator_id" "RUNBOOK.md" && \
+     grep -Fq "last_transition_by_actor_id" "RUNBOOK.md" && \
+     grep -Fq "HUMAN_CREATE_SUMMARY_FIELDS" "scripts/smoke_api.sh" && \
+     grep -Fq "HUMAN_REWRITE_SUMMARY_FIELDS" "scripts/smoke_api.sh" && \
+     grep -Fq "human_task_returned|True|returned|operator-junior|manual|operator-junior" "scripts/smoke_api.sh" && \
+     grep -Fq 'task["last_transition_event_name"] == "human_task_created"' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'assigned.json()["last_transition_event_name"] == "human_task_assigned"' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'returned.json()["last_transition_event_name"] == "human_task_returned"' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'review_task["last_transition_event_name"] == "human_task_assigned"' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'last_transition_event_name: str' "ea/app/api/routes/human.py" && \
+     grep -Fq 'last_transition_event_name: str' "ea/app/api/routes/rewrite.py"; then
+    echo "ok: human task last transition summary docs"
+  else
+    echo "missing: human task last transition summary docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task last transition summary milestone" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1
