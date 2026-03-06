@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.41.0",
+  "version": "0.42.0",
   "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
@@ -279,6 +279,17 @@
         "dispatch_pre_side_effect_guard"
       ],
       "notes": "`connector.dispatch` now requires an enabled connector binding in the caller's principal scope before `/v1/tools/execute` queues delivery, preventing foreign-scope or unbound dispatch attempts from producing side effects."
+    },
+    {
+      "name": "approval_async_acceptance_contract",
+      "status": "tested",
+      "scope": [
+        "rewrite_artifact_202_response",
+        "approval_id_session_id_acceptance_payload",
+        "awaiting_approval_status_contract",
+        "poll_or_subscribe_next_action"
+      ],
+      "notes": "Approval-required rewrite requests now return `202 Accepted` with `session_id`, `approval_id`, `status=awaiting_approval`, and `next_action=poll_or_subscribe`, making the paused workflow state explicit at the API boundary."
     }
   ],
   "migrations": [

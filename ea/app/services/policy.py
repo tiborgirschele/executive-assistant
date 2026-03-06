@@ -7,6 +7,14 @@ class PolicyDeniedError(RuntimeError):
     pass
 
 
+class ApprovalRequiredError(PolicyDeniedError):
+    def __init__(self, *, session_id: str, approval_id: str, status: str = "awaiting_approval") -> None:
+        super().__init__("approval_required")
+        self.session_id = str(session_id or "")
+        self.approval_id = str(approval_id or "")
+        self.status = str(status or "awaiting_approval")
+
+
 class PolicyDecisionService:
     def __init__(self, max_rewrite_chars: int = 20000, approval_required_chars: int = 5000) -> None:
         self._max_rewrite_chars = max(1, int(max_rewrite_chars))

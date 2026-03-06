@@ -55,6 +55,7 @@ Removed:
 - `/v1/policy/evaluate` exposes direct policy checks for tool/action/channel combinations, including external-send approval branches
 - `/v1/policy/approvals/*` exposes pending/history plus approve/deny/expire decision endpoints
 - approving a paused rewrite now resumes execution inline and completes the artifact/ledger flow instead of stopping at a dead intermediate status
+- approval-required rewrite requests now return `202 Accepted` with `session_id`, `approval_id`, and `status=awaiting_approval` instead of an error-shaped denial
 - rewrite execution now persists durable `execution_queue` rows and drains them inline for API requests before returning
 - `app.runner` supports role-based startup (`EA_ROLE=api` or queue-draining worker roles)
 - `app.domain.IntentSpecV3` and execution session/event models provide a typed kernel scaffold

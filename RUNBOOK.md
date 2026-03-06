@@ -13,7 +13,7 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | GET | `/health/live` | `200` | n/a |
 | GET | `/health/ready` | `200` | `503 not_ready:*` |
 | GET | `/version` | `200` | n/a |
-| POST | `/v1/rewrite/artifact` | `200` | `400 text is required`, `403 policy_denied:*` (including `tool_not_allowed`), `409 policy_denied:approval_required` |
+| POST | `/v1/rewrite/artifact` | `200`, `202 awaiting_approval` | `400 text is required`, `403 policy_denied:*` (including `tool_not_allowed`) |
 | GET | `/v1/rewrite/artifacts/{artifact_id}` | `200` | `404 artifact_not_found` |
 | GET | `/v1/rewrite/receipts/{receipt_id}` | `200` | `404 receipt_not_found` |
 | GET | `/v1/rewrite/run-costs/{cost_id}` | `200` | `404 run_cost_not_found` |
@@ -103,6 +103,7 @@ Policy notes:
 - Rewrite policy requires approval for explicit approval classes, long inputs, and high-risk/high-budget or external-send actions.
 - `POST /v1/policy/evaluate` provides a direct HTTP path for previewing external-send approval requirements.
 - Approving a paused rewrite resumes execution immediately on the current scaffold, so the session should move from `awaiting_approval` to `completed` with an artifact, receipt, and run-cost row.
+- Approval-required rewrites now return `202` with `session_id`, `approval_id`, `status=awaiting_approval`, and `next_action=poll_or_subscribe` instead of a `409` error contract.
 - Allowed and approved rewrites now pass through durable `execution_queue` rows first; the current API path drains that queue inline, while non-API runner roles can drain it as workers.
 - The current rewrite scaffold now executes as two explicit queued steps: `step_input_prepare` followed by `step_artifact_save`.
 - Tool-call steps now flow through a registry-backed `ToolExecutionService`; the built-in `artifact_repository` handler emits normalized `tool.v1` receipt metadata and `tool_execution_completed` events.

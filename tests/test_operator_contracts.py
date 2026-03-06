@@ -346,3 +346,25 @@ def test_connector_dispatch_binding_scope_guardrails_are_documented_and_smoked()
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "connector_dispatch_binding_scope_guardrails")
     assert capability["status"] == "tested"
+
+
+def test_approval_async_acceptance_contract_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "202 Accepted" in readme
+    assert "awaiting_approval" in readme
+    assert "202 awaiting_approval" in runbook
+    assert "poll_or_subscribe" in runbook
+    assert "expected 202 for approval-required path" in smoke_api
+    assert "awaiting_approval|poll_or_subscribe" in smoke_api
+    assert "assert create.status_code == 202" in smoke_runtime
+    assert "next_action" in smoke_runtime
+    assert "approval-required acceptance contract" in http_examples
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "approval_async_acceptance_contract")
+    assert capability["status"] == "tested"

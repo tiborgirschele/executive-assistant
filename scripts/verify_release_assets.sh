@@ -970,6 +970,34 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "approval_async_acceptance_contract")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "202 Accepted" "README.md" && \
+     grep -Fq "awaiting_approval" "README.md" && \
+     grep -Fq "202 awaiting_approval" "RUNBOOK.md" && \
+     grep -Fq "poll_or_subscribe" "RUNBOOK.md" && \
+     grep -Fq "approval-required acceptance contract" "HTTP_EXAMPLES.http" && \
+     grep -Fq "expected 202 for approval-required path" "scripts/smoke_api.sh" && \
+     grep -Fq "awaiting_approval|poll_or_subscribe" "scripts/smoke_api.sh" && \
+     grep -Fq "assert create.status_code == 202" "tests/smoke_runtime_api.py" && \
+     grep -Fq "next_action" "tests/smoke_runtime_api.py"; then
+    echo "ok: approval async acceptance contract docs"
+  else
+    echo "missing: approval async acceptance contract docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: approval async acceptance contract milestone status" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1

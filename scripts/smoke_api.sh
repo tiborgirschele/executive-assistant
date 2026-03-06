@@ -121,12 +121,12 @@ PY
 )" > "${APPROVAL_PAYLOAD}"
 APPROVAL_CODE="$(curl -sS -o /tmp/ea_approval_required_resp.json -w '%{http_code}' -X POST "${BASE}/v1/rewrite/artifact" "${AUTH_ARGS[@]}" -H 'content-type: application/json' --data-binary @"${APPROVAL_PAYLOAD}")"
 rm -f "${APPROVAL_PAYLOAD}"
-if [[ "${APPROVAL_CODE}" != "409" ]]; then
-  echo "expected 409 for approval-required path; got ${APPROVAL_CODE}" >&2
+if [[ "${APPROVAL_CODE}" != "202" ]]; then
+  echo "expected 202 for approval-required path; got ${APPROVAL_CODE}" >&2
   cat /tmp/ea_approval_required_resp.json >&2 || true
   fail 12 "policy contract mismatch"
 fi
-APPROVAL_REASON="$(python3 - <<'PY'
+APPROVAL_FIELDS="$(python3 - <<'PY'
 import json
 from pathlib import Path
 
@@ -139,22 +139,55 @@ try:
 except Exception:
     print("")
     raise SystemExit(0)
-print(((body.get("error") or {}).get("code") or ""))
+print("{}|{}|{}|{}".format(body.get("status",""), body.get("next_action",""), body.get("session_id",""), body.get("approval_id","")))
 PY
 )"
-if [[ "${APPROVAL_REASON}" != "policy_denied:approval_required" ]]; then
-  echo "expected approval-required code policy_denied:approval_required; got ${APPROVAL_REASON}" >&2
+APPROVAL_SESSION_ID="$(python3 - <<'PY'
+import json
+from pathlib import Path
+
+path = Path("/tmp/ea_approval_required_resp.json")
+if not path.exists():
+    print("")
+    raise SystemExit(0)
+try:
+    body = json.loads(path.read_text())
+except Exception:
+    print("")
+    raise SystemExit(0)
+print(body.get("session_id",""))
+PY
+)"
+APPROVAL_ID="$(python3 - <<'PY'
+import json
+from pathlib import Path
+
+path = Path("/tmp/ea_approval_required_resp.json")
+if not path.exists():
+    print("")
+    raise SystemExit(0)
+try:
+    body = json.loads(path.read_text())
+except Exception:
+    print("")
+    raise SystemExit(0)
+print(body.get("approval_id",""))
+PY
+)"
+if [[ "${APPROVAL_FIELDS}" != "awaiting_approval|poll_or_subscribe|${APPROVAL_SESSION_ID}|${APPROVAL_ID}" ]]; then
+  echo "expected approval-required acceptance contract; got ${APPROVAL_FIELDS}" >&2
   cat /tmp/ea_approval_required_resp.json >&2 || true
   fail 12 "policy contract mismatch"
 fi
-PENDING_APPROVALS_JSON="$(curl -fsS "${BASE}/v1/policy/approvals/pending?limit=5" "${AUTH_ARGS[@]}")"
-APPROVAL_ID="$(python3 -c 'import json,sys; rows=json.loads(sys.stdin.read() or "[]"); print(((rows[0] or {}).get("approval_id")) if rows else "")' <<<"${PENDING_APPROVALS_JSON}")"
-APPROVAL_SESSION_ID="$(python3 -c 'import json,sys; rows=json.loads(sys.stdin.read() or "[]"); print(((rows[0] or {}).get("session_id")) if rows else "")' <<<"${PENDING_APPROVALS_JSON}")"
-if [[ -z "${APPROVAL_ID}" ]]; then
-  fail 13 "missing approval_id from pending approval response"
+if [[ -z "${APPROVAL_ID}" || -z "${APPROVAL_SESSION_ID}" ]]; then
+  fail 13 "missing approval metadata from acceptance response"
 fi
-if [[ -z "${APPROVAL_SESSION_ID}" ]]; then
-  fail 13 "missing session_id from pending approval response"
+PENDING_APPROVALS_JSON="$(curl -fsS "${BASE}/v1/policy/approvals/pending?limit=5" "${AUTH_ARGS[@]}")"
+PENDING_MATCH="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); approval_id='${APPROVAL_ID}'; session_id='${APPROVAL_SESSION_ID}'; print(any((row or {}).get('approval_id') == approval_id and (row or {}).get('session_id') == session_id for row in rows))" <<<"${PENDING_APPROVALS_JSON}")"
+if [[ "${PENDING_MATCH}" != "True" ]]; then
+  echo "expected pending approvals to contain acceptance response ids approval_id=${APPROVAL_ID} session_id=${APPROVAL_SESSION_ID}" >&2
+  echo "${PENDING_APPROVALS_JSON}" >&2
+  fail 12 "policy contract mismatch"
 fi
 curl -fsS -X POST "${BASE}/v1/policy/approvals/${APPROVAL_ID}/approve" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"decided_by":"smoke-operator","reason":"resume execution"}' >/dev/null

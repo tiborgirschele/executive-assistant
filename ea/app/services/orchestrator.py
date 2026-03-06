@@ -31,7 +31,7 @@ from app.repositories.policy_decisions import InMemoryPolicyDecisionRepository, 
 from app.repositories.policy_decisions_postgres import PostgresPolicyDecisionRepository
 from app.settings import Settings, ensure_storage_fallback_allowed, get_settings
 from app.services.planner import PlannerService
-from app.services.policy import PolicyDecisionService, PolicyDeniedError
+from app.services.policy import ApprovalRequiredError, PolicyDecisionService, PolicyDeniedError
 from app.services.task_contracts import TaskContractService, build_task_contract_service
 from app.services.tool_execution import ToolExecutionService
 
@@ -464,7 +464,11 @@ class RewriteOrchestrator:
                 "session_paused_for_approval",
                 {"reason": "approval_required", "approval_id": approval_request.approval_id},
             )
-            raise PolicyDeniedError("approval_required")
+            raise ApprovalRequiredError(
+                session_id=session.session_id,
+                approval_id=approval_request.approval_id,
+                status="awaiting_approval",
+            )
         queue_item = self._enqueue_rewrite_step(session.session_id, rewrite_step.step_id)
         artifact = self.run_queue_item(queue_item.queue_id, lease_owner="inline")
         if artifact is None:

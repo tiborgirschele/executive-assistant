@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.api.dependencies import get_container
 from app.container import AppContainer
 from app.domain.models import RewriteRequest
-from app.services.policy import PolicyDeniedError
+from app.services.policy import ApprovalRequiredError, PolicyDeniedError
 
 router = APIRouter(prefix="/v1/rewrite", tags=["rewrite"])
 
@@ -20,6 +21,13 @@ class RewriteOut(BaseModel):
     kind: str
     content: str
     execution_session_id: str
+
+
+class RewriteAcceptedOut(BaseModel):
+    session_id: str
+    approval_id: str
+    status: str
+    next_action: str
 
 
 class SessionEventOut(BaseModel):
@@ -105,16 +113,25 @@ class SessionOut(BaseModel):
 def create_artifact(
     payload: RewriteIn,
     container: AppContainer = Depends(get_container),
-) -> RewriteOut:
+) -> RewriteOut | RewriteAcceptedOut:
     text = str(payload.text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
     try:
         artifact = container.orchestrator.build_artifact(RewriteRequest(text=text))
+    except ApprovalRequiredError as exc:
+        return JSONResponse(
+            status_code=202,
+            content=RewriteAcceptedOut(
+                session_id=exc.session_id,
+                approval_id=exc.approval_id,
+                status=exc.status,
+                next_action="poll_or_subscribe",
+            ).model_dump(),
+        )
     except PolicyDeniedError as exc:
         reason = str(exc or "policy_denied")
-        status_code = 409 if reason == "approval_required" else 403
-        raise HTTPException(status_code=status_code, detail=f"policy_denied:{reason}") from exc
+        raise HTTPException(status_code=403, detail=f"policy_denied:{reason}") from exc
     return RewriteOut(
         artifact_id=artifact.artifact_id,
         kind=artifact.kind,

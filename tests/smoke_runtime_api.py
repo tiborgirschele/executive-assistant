@@ -127,15 +127,17 @@ def test_rewrite_and_policy_audit_flow() -> None:
 def test_rewrite_requires_approval_then_approve_flow() -> None:
     client = _client(storage_backend="memory", approval_threshold_chars=5)
     create = client.post("/v1/rewrite/artifact", json={"text": "approval smoke payload"})
-    assert create.status_code == 409
-    assert create.json()["error"]["code"] == "policy_denied:approval_required"
+    assert create.status_code == 202
+    assert create.json()["status"] == "awaiting_approval"
+    assert create.json()["next_action"] == "poll_or_subscribe"
 
     pending = client.get("/v1/policy/approvals/pending", params={"limit": 10})
     assert pending.status_code == 200
     rows = pending.json()
     assert len(rows) >= 1
-    approval_id = rows[0]["approval_id"]
-    session_id = rows[0]["session_id"]
+    approval_id = create.json()["approval_id"]
+    session_id = create.json()["session_id"]
+    assert any(row["approval_id"] == approval_id and row["session_id"] == session_id for row in rows)
     assert rows[0]["status"] == "pending"
 
     session = client.get(f"/v1/rewrite/sessions/{session_id}")
@@ -181,11 +183,11 @@ def test_rewrite_requires_approval_then_approve_flow() -> None:
 def test_rewrite_requires_approval_then_expire_flow() -> None:
     client = _client(storage_backend="memory", approval_threshold_chars=5)
     create = client.post("/v1/rewrite/artifact", json={"text": "expire smoke payload"})
-    assert create.status_code == 409
+    assert create.status_code == 202
     pending = client.get("/v1/policy/approvals/pending", params={"limit": 10})
     assert pending.status_code == 200
-    approval_id = pending.json()[0]["approval_id"]
-    session_id = pending.json()[0]["session_id"]
+    approval_id = create.json()["approval_id"]
+    session_id = create.json()["session_id"]
 
     expired = client.post(
         f"/v1/policy/approvals/{approval_id}/expire",
@@ -484,8 +486,9 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
     assert compiled.json()["plan"]["steps"][1]["approval_required"] is True
 
     rewrite = client.post("/v1/rewrite/artifact", json={"text": "short rewrite input"})
-    assert rewrite.status_code == 409
-    assert rewrite.json()["error"]["code"] == "policy_denied:approval_required"
+    assert rewrite.status_code == 202
+    assert rewrite.json()["status"] == "awaiting_approval"
+    assert rewrite.json()["next_action"] == "poll_or_subscribe"
 
 
 def test_memory_candidate_promotion_flow() -> None:

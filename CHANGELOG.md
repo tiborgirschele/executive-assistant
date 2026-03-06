@@ -12,6 +12,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Rewrite tool-call execution now flows through a registry-backed `ToolExecutionService`, and `artifact_repository` receipts expose a normalized `tool.v1` invocation contract.
 - The built-in `connector.dispatch` handler now executes through the shared tool plane and `POST /v1/tools/execute` can enqueue delivery outbox rows with normalized `tool.v1` receipt metadata.
 - `connector.dispatch` now requires an enabled connector binding owned by the request principal before the shared tool plane will queue delivery.
+- Approval-required rewrite requests now return a first-class `202 Accepted` workflow contract with `session_id` and `approval_id` instead of a `409` error envelope.
 
 ## 2026-03-05
 

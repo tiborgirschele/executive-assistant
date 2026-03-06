@@ -189,6 +189,14 @@ Content-Type: application/json
 ### Rewrite -> unknown session (expected 404)
 GET {{host}}/v1/rewrite/sessions/not-a-real-session-id
 
+### Rewrite -> approval-required acceptance contract (expected 202)
+POST {{host}}/v1/rewrite/artifact
+Content-Type: application/json
+
+{
+  "text": "This payload should be longer than the approval threshold configured in your runtime profile."
+}
+
 ### Tools -> upsert registry entry
 POST {{host}}/v1/tools/registry
 Content-Type: application/json
