@@ -687,6 +687,86 @@ def test_human_task_sort_by_sla_due_at_asc() -> None:
     assert [row["human_task_id"] for row in backlog_rows[:2]] == [sooner_due_task_id, later_due_task_id]
 
 
+def test_human_task_sort_by_sla_then_last_transition() -> None:
+    client = _client(storage_backend="memory")
+    create = client.post("/v1/rewrite/artifact", json={"text": "combined sort seed"})
+    assert create.status_code == 200
+    session_id = create.json()["execution_session_id"]
+
+    session = client.get(f"/v1/rewrite/sessions/{session_id}")
+    assert session.status_code == 200
+    step_id = session.json()["steps"][-1]["step_id"]
+
+    early_stale = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": "communications_reviewer",
+            "brief": "Earlier due stale task.",
+            "sla_due_at": "2100-01-01T00:00:00+00:00",
+            "resume_session_on_return": False,
+        },
+    )
+    assert early_stale.status_code == 200
+    early_stale_id = early_stale.json()["human_task_id"]
+
+    early_recent = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": "communications_reviewer",
+            "brief": "Earlier due recently touched task.",
+            "sla_due_at": "2100-01-01T00:00:00+00:00",
+            "resume_session_on_return": False,
+        },
+    )
+    assert early_recent.status_code == 200
+    early_recent_id = early_recent.json()["human_task_id"]
+
+    later_due = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": "communications_reviewer",
+            "brief": "Later due task.",
+            "sla_due_at": "2100-01-02T00:00:00+00:00",
+            "resume_session_on_return": False,
+        },
+    )
+    assert later_due.status_code == 200
+    later_due_id = later_due.json()["human_task_id"]
+
+    assigned = client.post(f"/v1/human/tasks/{early_recent_id}/assign", json={"operator_id": "operator-sorter"})
+    assert assigned.status_code == 200
+    assert assigned.json()["last_transition_event_name"] == "human_task_assigned"
+
+    listed = client.get(
+        "/v1/human/tasks",
+        params={"status": "pending", "sort": "sla_due_at_asc_last_transition_desc", "limit": 10},
+    )
+    assert listed.status_code == 200
+    listed_rows = [
+        row for row in listed.json() if row["human_task_id"] in {early_stale_id, early_recent_id, later_due_id}
+    ]
+    assert [row["human_task_id"] for row in listed_rows[:3]] == [early_recent_id, early_stale_id, later_due_id]
+
+    backlog = client.get(
+        "/v1/human/tasks/backlog",
+        params={"sort": "sla_due_at_asc_last_transition_desc", "limit": 10},
+    )
+    assert backlog.status_code == 200
+    backlog_rows = [
+        row for row in backlog.json() if row["human_task_id"] in {early_stale_id, early_recent_id, later_due_id}
+    ]
+    assert [row["human_task_id"] for row in backlog_rows[:3]] == [early_recent_id, early_stale_id, later_due_id]
+
+
 def test_rewrite_blocked_policy_flow_has_error_envelope() -> None:
     client = _client(storage_backend="memory")
     blocked = client.post("/v1/rewrite/artifact", json={"text": "x" * 20001})

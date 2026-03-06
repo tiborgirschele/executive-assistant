@@ -287,6 +287,14 @@ class RewriteOrchestrator:
                     str(row.human_task_id or ""),
                 ),
             )
+        if sort_key == "sla_due_at_asc_last_transition_desc":
+            return sorted(
+                self._sort_human_tasks(rows, sort="last_transition_desc"),
+                key=lambda row: (
+                    0 if row.sla_due_at else 1,
+                    str(row.sla_due_at or ""),
+                ),
+            )
         return rows
 
     def _fallback_rewrite_intent(self) -> IntentSpecV3:

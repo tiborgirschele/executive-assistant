@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.67.0",
+  "version": "0.68.0",
   "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
@@ -545,6 +545,16 @@
         "sla_due_at_asc_runtime_ordering"
       ],
       "notes": "Human task list/backlog endpoints now accept `sort=sla_due_at_asc` so operator queues can order pending work by the earliest pending SLA instead of default repository order."
+    },
+    {
+      "name": "human_task_sla_transition_combined_sorting",
+      "status": "tested",
+      "scope": [
+        "human_task_list_combined_sort_param",
+        "human_task_backlog_combined_sort_param",
+        "sla_due_at_asc_last_transition_desc_runtime_ordering"
+      ],
+      "notes": "Human task list/backlog endpoints now accept `sort=sla_due_at_asc_last_transition_desc` so operator queues can break same-SLA ties by the freshest ownership churn instead of default repository order."
     }
   ],
   "migrations": [

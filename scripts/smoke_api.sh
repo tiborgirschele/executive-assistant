@@ -391,6 +391,49 @@ if [[ "${SLA_BACKLOG_FIELDS}" != "${SLA_TASK_SOON_ID}|${SLA_TASK_LATE_ID}" ]]; t
 fi
 echo "human task SLA sort ok"
 
+echo "== smoke: human task combined SLA + transition sort =="
+COMBINED_REWRITE_JSON="$(curl -fsS -X POST "${BASE}/v1/rewrite/artifact" "${AUTH_ARGS[@]}" -H 'content-type: application/json' -d '{"text":"combined sort seed"}')"
+COMBINED_SESSION_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("execution_session_id",""))' <<<"${COMBINED_REWRITE_JSON}")"
+COMBINED_SESSION_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${COMBINED_SESSION_ID}" "${AUTH_ARGS[@]}")"
+COMBINED_STEP_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); rows=body.get("steps") or []; print(((rows[-1] or {}).get("step_id")) if rows else "")' <<<"${COMBINED_SESSION_JSON}")"
+if [[ -z "${COMBINED_STEP_ID}" ]]; then
+  fail 13 "missing combined sort step_id from session response"
+fi
+COMBINED_TASK_STALE_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d "{\"session_id\":\"${COMBINED_SESSION_ID}\",\"step_id\":\"${COMBINED_STEP_ID}\",\"task_type\":\"communications_review\",\"role_required\":\"communications_reviewer\",\"brief\":\"Earlier due stale task.\",\"sla_due_at\":\"2100-01-01T00:00:00+00:00\",\"resume_session_on_return\":false}")"
+COMBINED_TASK_STALE_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("human_task_id",""))' <<<"${COMBINED_TASK_STALE_JSON}")"
+COMBINED_TASK_RECENT_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d "{\"session_id\":\"${COMBINED_SESSION_ID}\",\"step_id\":\"${COMBINED_STEP_ID}\",\"task_type\":\"communications_review\",\"role_required\":\"communications_reviewer\",\"brief\":\"Earlier due recently touched task.\",\"sla_due_at\":\"2100-01-01T00:00:00+00:00\",\"resume_session_on_return\":false}")"
+COMBINED_TASK_RECENT_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("human_task_id",""))' <<<"${COMBINED_TASK_RECENT_JSON}")"
+COMBINED_TASK_LATE_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d "{\"session_id\":\"${COMBINED_SESSION_ID}\",\"step_id\":\"${COMBINED_STEP_ID}\",\"task_type\":\"communications_review\",\"role_required\":\"communications_reviewer\",\"brief\":\"Later due task.\",\"sla_due_at\":\"2100-01-02T00:00:00+00:00\",\"resume_session_on_return\":false}")"
+COMBINED_TASK_LATE_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("human_task_id",""))' <<<"${COMBINED_TASK_LATE_JSON}")"
+if [[ -z "${COMBINED_TASK_STALE_ID}" || -z "${COMBINED_TASK_RECENT_ID}" || -z "${COMBINED_TASK_LATE_ID}" ]]; then
+  fail 13 "missing human task ids from combined sort smoke setup"
+fi
+COMBINED_ASSIGN_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks/${COMBINED_TASK_RECENT_ID}/assign" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' -d '{"operator_id":"operator-sorter"}')"
+COMBINED_ASSIGN_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}".format(body.get("human_task_id",""), body.get("last_transition_event_name","")))' <<<"${COMBINED_ASSIGN_JSON}")"
+if [[ "${COMBINED_ASSIGN_FIELDS}" != "${COMBINED_TASK_RECENT_ID}|human_task_assigned" ]]; then
+  echo "expected combined-sort setup assignment to mark the tied-SLA task as recently touched; got ${COMBINED_ASSIGN_FIELDS}" >&2
+  echo "${COMBINED_ASSIGN_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+COMBINED_LIST_JSON="$(curl -fsS "${BASE}/v1/human/tasks?status=pending&sort=sla_due_at_asc_last_transition_desc&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+COMBINED_LIST_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted=['${COMBINED_TASK_RECENT_ID}','${COMBINED_TASK_STALE_ID}','${COMBINED_TASK_LATE_ID}']; filtered=[row for row in rows if (row or {}).get('human_task_id') in wanted]; ids=[(row or {}).get('human_task_id','') for row in filtered[:3]]; print('|'.join(ids))" <<<"${COMBINED_LIST_JSON}")"
+if [[ "${COMBINED_LIST_FIELDS}" != "${COMBINED_TASK_RECENT_ID}|${COMBINED_TASK_STALE_ID}|${COMBINED_TASK_LATE_ID}" ]]; then
+  echo "expected sort=sla_due_at_asc_last_transition_desc to break SLA ties by freshest transition in the general list; got ${COMBINED_LIST_FIELDS}" >&2
+  echo "${COMBINED_LIST_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+COMBINED_BACKLOG_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?sort=sla_due_at_asc_last_transition_desc&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+COMBINED_BACKLOG_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted=['${COMBINED_TASK_RECENT_ID}','${COMBINED_TASK_STALE_ID}','${COMBINED_TASK_LATE_ID}']; filtered=[row for row in rows if (row or {}).get('human_task_id') in wanted]; ids=[(row or {}).get('human_task_id','') for row in filtered[:3]]; print('|'.join(ids))" <<<"${COMBINED_BACKLOG_JSON}")"
+if [[ "${COMBINED_BACKLOG_FIELDS}" != "${COMBINED_TASK_RECENT_ID}|${COMBINED_TASK_STALE_ID}|${COMBINED_TASK_LATE_ID}" ]]; then
+  echo "expected backlog sort=sla_due_at_asc_last_transition_desc to break SLA ties by freshest transition; got ${COMBINED_BACKLOG_FIELDS}" >&2
+  echo "${COMBINED_BACKLOG_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+echo "human task combined sort ok"
+
 echo "== smoke: approval resume path =="
 if (( APPROVAL_THRESHOLD_CHARS >= MAX_REWRITE_CHARS )); then
   fail 12 "approval smoke misconfigured: threshold must be below max rewrite chars"
