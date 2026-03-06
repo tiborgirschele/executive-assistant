@@ -100,6 +100,8 @@ def test_session_step_dependency_projection_is_covered_by_contract_tests() -> No
     assert "dependency_step_ids: dict[str, str]" in rewrite_route
     assert "blocked_dependency_keys: list[str]" in rewrite_route
     assert "dependencies_satisfied: bool" in rewrite_route
+    assert "Current state for each declared dependency key. Paused approval-backed sessions keep completed " in rewrite_route
+    assert "This can still be true for a `waiting_approval` step, " in rewrite_route
     assert "_step_dependency_projection(" in rewrite_route
     assert "step_policy_evaluate" in contract_test
     assert '["step_input_prepare"]' in contract_test

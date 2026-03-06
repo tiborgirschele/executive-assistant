@@ -49,11 +49,26 @@ class SessionEventOut(BaseModel):
 class SessionStepOut(BaseModel):
     step_id: str
     parent_step_id: str | None
-    dependency_keys: list[str]
-    dependency_states: dict[str, str]
-    dependency_step_ids: dict[str, str]
-    blocked_dependency_keys: list[str]
-    dependencies_satisfied: bool
+    dependency_keys: list[str] = Field(description="Declared plan-step dependency keys for this session step.")
+    dependency_states: dict[str, str] = Field(
+        description=(
+            "Current state for each declared dependency key. Paused approval-backed sessions keep completed "
+            "dependency states visible while the gated step waits in `waiting_approval`, and downstream queued "
+            "steps can expose `waiting_human` dependencies when a human-review node still blocks execution."
+        )
+    )
+    dependency_step_ids: dict[str, str] = Field(
+        description="Resolved execution step id for each declared dependency key when that dependency exists in the session graph."
+    )
+    blocked_dependency_keys: list[str] = Field(
+        description="Dependency keys that are not yet completed and are still blocking this step from becoming runnable."
+    )
+    dependencies_satisfied: bool = Field(
+        description=(
+            "Whether every declared dependency is completed. This can still be true for a `waiting_approval` step, "
+            "while downstream queued human-review paths stay false until the blocking review step completes."
+        )
+    )
     step_kind: str
     state: str
     attempt_count: int

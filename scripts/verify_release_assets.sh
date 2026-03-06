@@ -804,6 +804,8 @@ if grep -Fq "dependency_keys: list[str]" "ea/app/api/routes/rewrite.py" && \
    grep -Fq "dependency_step_ids: dict[str, str]" "ea/app/api/routes/rewrite.py" && \
    grep -Fq "blocked_dependency_keys: list[str]" "ea/app/api/routes/rewrite.py" && \
    grep -Fq "dependencies_satisfied: bool" "ea/app/api/routes/rewrite.py" && \
+   grep -Fq "Current state for each declared dependency key. Paused approval-backed sessions keep completed " "ea/app/api/routes/rewrite.py" && \
+   grep -Fq 'This can still be true for a `waiting_approval` step, ' "ea/app/api/routes/rewrite.py" && \
    grep -Fq "_step_dependency_projection(" "ea/app/api/routes/rewrite.py" && \
    grep -Fq "step_policy_evaluate" "tests/test_rewrite_dependency_projection_contracts.py" && \
    grep -Fq '["step_policy_evaluate"]' "tests/test_rewrite_dependency_projection_contracts.py" && \
