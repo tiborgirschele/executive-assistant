@@ -2118,6 +2118,37 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(
+    entry
+    for entry in milestone["capabilities"]
+    if entry["name"] == "human_task_ownerless_list_last_transition_sort"
+)
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "status=pending&assignment_state=unassigned&assignment_source=none&sort=last_transition_desc" "README.md" && \
+     grep -Fq "status=pending&assignment_state=unassigned&assignment_source=none&sort=last_transition_desc" "RUNBOOK.md" && \
+     grep -Fq "HUMAN_OWNERLESS_LIST_TRANSITION_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq '"status": "pending"' "tests/smoke_runtime_api.py" && \
+     grep -Fq '"assignment_state": "unassigned"' "tests/smoke_runtime_api.py" && \
+     grep -Fq '"assignment_source": "none"' "tests/smoke_runtime_api.py" && \
+     grep -Fq '"sort": "last_transition_desc"' "tests/smoke_runtime_api.py" && \
+     grep -Fq "/v1/human/tasks?status=pending&assignment_state=unassigned&assignment_source=none&sort=last_transition_desc&limit=20" "HTTP_EXAMPLES.http"; then
+    echo "ok: human task ownerless list last-transition sort docs"
+  else
+    echo "missing: human task ownerless list last-transition sort docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task ownerless list last-transition sort milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assignment_history_source_filter")
 assert capability["status"] == "tested"
 PY

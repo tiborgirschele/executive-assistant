@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-229 | P1 | Add ownerless alias freshest-transition coverage on the general pending human-task list so `/v1/human/tasks?status=pending&assignment_state=unassigned&assignment_source=none&sort=last_transition_desc` is explicitly mirrored in smoke/docs too | codex | queued | The general pending list now has explicit FIFO ownerless coverage queued next, but it still lacks the same newest-first untouched-ownerless ordering contract already documented for backlog and direct unassigned views |
+| Q-230 | P1 | Add ownerless alias FIFO coverage on session-scoped human-task lists so `/v1/human/tasks?session_id=<id>&assignment_source=none&sort=created_asc` is explicitly mirrored in smoke/docs too | codex | queued | Global list, backlog, and direct unassigned ownerless slices now align on both FIFO and newest-first ordering, but session-scoped list surfaces still lack explicit oldest-first ownerless sort coverage in smoke/docs |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-229 | P1 | Add ownerless alias freshest-transition coverage on the general pending human-task list so `/v1/human/tasks?status=pending&assignment_state=unassigned&assignment_source=none&sort=last_transition_desc` is explicitly mirrored in smoke/docs too | codex | done | Added approved smoke/docs coverage proving the general pending list preserves the same newest-first untouched-ownerless transition ordering as the backlog and direct unassigned queues under `sort=last_transition_desc` |
 | D-228 | P1 | Add ownerless alias FIFO coverage on the general pending human-task list so `/v1/human/tasks?status=pending&assignment_state=unassigned&assignment_source=none&sort=created_asc` is explicitly mirrored in smoke/docs too | codex | done | Added approved smoke/docs coverage proving the general pending list preserves the same oldest-first FIFO ownerless ordering as the backlog and direct unassigned queues under `sort=created_asc` |
 | D-227 | P1 | Add ownerless alias created-order coverage on direct unassigned queues so `/v1/human/tasks/unassigned?assignment_source=none&sort=created_asc` is explicitly mirrored in smoke/docs too | codex | done | Added approved smoke/docs coverage proving the direct unassigned ownerless queue mirrors the backlog’s oldest-first FIFO ordering under `sort=created_asc`, keeping untouched ownerless triage aligned across both queue surfaces |
 | D-226 | P1 | Add ownerless alias last-transition sort coverage on direct unassigned queues so `/v1/human/tasks/unassigned?assignment_source=none&sort=last_transition_desc` matches the backlog ordering contract | codex | done | Added approved smoke/docs coverage proving the direct unassigned ownerless queue mirrors the backlog’s newest-first ordering under `sort=last_transition_desc`, even when each row only has the initial creation transition |
