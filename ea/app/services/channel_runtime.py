@@ -7,7 +7,7 @@ from app.repositories.delivery_outbox import DeliveryOutboxRepository, InMemoryD
 from app.repositories.delivery_outbox_postgres import PostgresDeliveryOutboxRepository
 from app.repositories.observation import ObservationEventRepository, InMemoryObservationEventRepository
 from app.repositories.observation_postgres import PostgresObservationEventRepository
-from app.settings import Settings, get_settings
+from app.settings import Settings, ensure_storage_fallback_allowed, get_settings
 
 
 class ChannelRuntimeService:
@@ -95,6 +95,7 @@ def _build_observation_repo(settings: Settings) -> ObservationEventRepository:
     backend = str(settings.storage.backend or "auto").strip().lower()
     log = logging.getLogger("ea.observations")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "observation repo configured for memory")
         return InMemoryObservationEventRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -104,7 +105,9 @@ def _build_observation_repo(settings: Settings) -> ObservationEventRepository:
         try:
             return PostgresObservationEventRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "observation repo auto fallback", exc)
             log.warning("postgres observation backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "observation repo auto backend without DATABASE_URL")
     return InMemoryObservationEventRepository()
 
 
@@ -112,6 +115,7 @@ def _build_outbox_repo(settings: Settings) -> DeliveryOutboxRepository:
     backend = str(settings.storage.backend or "auto").strip().lower()
     log = logging.getLogger("ea.outbox")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "delivery outbox configured for memory")
         return InMemoryDeliveryOutboxRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -121,7 +125,9 @@ def _build_outbox_repo(settings: Settings) -> DeliveryOutboxRepository:
         try:
             return PostgresDeliveryOutboxRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "delivery outbox auto fallback", exc)
             log.warning("postgres outbox backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "delivery outbox auto backend without DATABASE_URL")
     return InMemoryDeliveryOutboxRepository()
 
 

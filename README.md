@@ -62,10 +62,12 @@ The principal-scoped memory seed surface is explicitly covered by both `tests/sm
 
 ## Storage Backends
 
+- `EA_RUNTIME_MODE=dev|test|prod` controls whether automatic memory fallback is allowed; `prod` fails fast instead
 - `EA_STORAGE_BACKEND=postgres` forces Postgres-backed repositories (`DATABASE_URL` required)
 - `EA_STORAGE_BACKEND=memory` keeps repositories in-process (dev/test convenience)
-- `EA_STORAGE_BACKEND=auto` (default) attempts Postgres first, then falls back to memory
+- `EA_STORAGE_BACKEND=auto` (default) attempts Postgres first, then falls back to memory in `dev`/`test`
 - `EA_LEDGER_BACKEND` is still accepted as a temporary backward-compatible alias, but it is deprecated in favor of `EA_STORAGE_BACKEND`
+- `EA_RUNTIME_MODE=prod` requires durable Postgres boot and rejects `memory` or `auto` degradation paths
 - baseline schema migration: `ea/schema/20260305_v0_2_execution_ledger_kernel.sql`
 - channel runtime migration: `ea/schema/20260305_v0_3_channel_runtime_kernel.sql`
 - policy audit migration: `ea/schema/20260305_v0_4_policy_decisions_kernel.sql`

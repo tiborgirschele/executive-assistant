@@ -175,6 +175,23 @@ def test_execution_queue_docs_and_milestone_cover_runtime_path() -> None:
     assert "ea/schema/20260305_v0_23_execution_queue_kernel.sql" in milestone["migrations"]
 
 
+def test_runtime_mode_docs_and_smoke_cover_prod_fail_fast_storage() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    env_matrix = (ROOT / "ENVIRONMENT_MATRIX.md").read_text(encoding="utf-8")
+    smoke_postgres = (ROOT / "scripts/smoke_postgres.sh").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "EA_RUNTIME_MODE=dev|test|prod" in readme
+    assert "EA_RUNTIME_MODE=prod" in readme
+    assert "EA_RUNTIME_MODE=prod" in runbook
+    assert "EA_RUNTIME_MODE" in env_matrix
+    assert "prod fail-fast path ok" in smoke_postgres
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "runtime_mode_fail_fast_storage")
+    assert capability["status"] == "tested"
+
+
 def test_milestone_marks_postgres_contract_matrix_tested() -> None:
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "postgres_contract_matrix")

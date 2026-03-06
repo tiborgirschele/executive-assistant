@@ -50,7 +50,7 @@ from app.repositories.relationships import InMemoryRelationshipRepository, Relat
 from app.repositories.relationships_postgres import PostgresRelationshipRepository
 from app.repositories.stakeholders import InMemoryStakeholderRepository, StakeholderRepository
 from app.repositories.stakeholders_postgres import PostgresStakeholderRepository
-from app.settings import Settings, get_settings
+from app.settings import Settings, ensure_storage_fallback_allowed, get_settings
 
 
 class MemoryRuntimeService:
@@ -747,6 +747,7 @@ def _build_candidate_repo(settings: Settings) -> MemoryCandidateRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.memory_candidates")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "memory candidates configured for memory")
         return InMemoryMemoryCandidateRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -756,7 +757,9 @@ def _build_candidate_repo(settings: Settings) -> MemoryCandidateRepository:
         try:
             return PostgresMemoryCandidateRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "memory candidates auto fallback", exc)
             log.warning("postgres memory-candidate backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "memory candidates auto backend without DATABASE_URL")
     return InMemoryMemoryCandidateRepository()
 
 
@@ -764,6 +767,7 @@ def _build_item_repo(settings: Settings) -> MemoryItemRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.memory_items")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "memory items configured for memory")
         return InMemoryMemoryItemRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -773,7 +777,9 @@ def _build_item_repo(settings: Settings) -> MemoryItemRepository:
         try:
             return PostgresMemoryItemRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "memory items auto fallback", exc)
             log.warning("postgres memory-item backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "memory items auto backend without DATABASE_URL")
     return InMemoryMemoryItemRepository()
 
 
@@ -781,6 +787,7 @@ def _build_entity_repo(settings: Settings) -> EntityRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.entities")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "entities configured for memory")
         return InMemoryEntityRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -790,7 +797,9 @@ def _build_entity_repo(settings: Settings) -> EntityRepository:
         try:
             return PostgresEntityRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "entities auto fallback", exc)
             log.warning("postgres entity backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "entities auto backend without DATABASE_URL")
     return InMemoryEntityRepository()
 
 
@@ -798,6 +807,7 @@ def _build_relationship_repo(settings: Settings) -> RelationshipRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.relationships")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "relationships configured for memory")
         return InMemoryRelationshipRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -807,7 +817,9 @@ def _build_relationship_repo(settings: Settings) -> RelationshipRepository:
         try:
             return PostgresRelationshipRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "relationships auto fallback", exc)
             log.warning("postgres relationship backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "relationships auto backend without DATABASE_URL")
     return InMemoryRelationshipRepository()
 
 
@@ -815,6 +827,7 @@ def _build_commitment_repo(settings: Settings) -> CommitmentRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.commitments")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "commitments configured for memory")
         return InMemoryCommitmentRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -824,7 +837,9 @@ def _build_commitment_repo(settings: Settings) -> CommitmentRepository:
         try:
             return PostgresCommitmentRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "commitments auto fallback", exc)
             log.warning("postgres commitment backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "commitments auto backend without DATABASE_URL")
     return InMemoryCommitmentRepository()
 
 
@@ -832,6 +847,7 @@ def _build_communication_policy_repo(settings: Settings) -> CommunicationPolicyR
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.communication_policies")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "communication policies configured for memory")
         return InMemoryCommunicationPolicyRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -841,10 +857,12 @@ def _build_communication_policy_repo(settings: Settings) -> CommunicationPolicyR
         try:
             return PostgresCommunicationPolicyRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "communication policies auto fallback", exc)
             log.warning(
                 "postgres communication-policy backend unavailable in auto mode; falling back to memory: %s",
                 exc,
             )
+    ensure_storage_fallback_allowed(settings, "communication policies auto backend without DATABASE_URL")
     return InMemoryCommunicationPolicyRepository()
 
 
@@ -852,6 +870,7 @@ def _build_decision_window_repo(settings: Settings) -> DecisionWindowRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.decision_windows")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "decision windows configured for memory")
         return InMemoryDecisionWindowRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -861,7 +880,9 @@ def _build_decision_window_repo(settings: Settings) -> DecisionWindowRepository:
         try:
             return PostgresDecisionWindowRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "decision windows auto fallback", exc)
             log.warning("postgres decision-window backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "decision windows auto backend without DATABASE_URL")
     return InMemoryDecisionWindowRepository()
 
 
@@ -869,6 +890,7 @@ def _build_deadline_window_repo(settings: Settings) -> DeadlineWindowRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.deadline_windows")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "deadline windows configured for memory")
         return InMemoryDeadlineWindowRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -878,7 +900,9 @@ def _build_deadline_window_repo(settings: Settings) -> DeadlineWindowRepository:
         try:
             return PostgresDeadlineWindowRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "deadline windows auto fallback", exc)
             log.warning("postgres deadline-window backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "deadline windows auto backend without DATABASE_URL")
     return InMemoryDeadlineWindowRepository()
 
 
@@ -886,6 +910,7 @@ def _build_stakeholder_repo(settings: Settings) -> StakeholderRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.stakeholders")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "stakeholders configured for memory")
         return InMemoryStakeholderRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -895,7 +920,9 @@ def _build_stakeholder_repo(settings: Settings) -> StakeholderRepository:
         try:
             return PostgresStakeholderRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "stakeholders auto fallback", exc)
             log.warning("postgres stakeholder backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "stakeholders auto backend without DATABASE_URL")
     return InMemoryStakeholderRepository()
 
 
@@ -903,6 +930,7 @@ def _build_authority_binding_repo(settings: Settings) -> AuthorityBindingReposit
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.authority_bindings")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "authority bindings configured for memory")
         return InMemoryAuthorityBindingRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -912,7 +940,9 @@ def _build_authority_binding_repo(settings: Settings) -> AuthorityBindingReposit
         try:
             return PostgresAuthorityBindingRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "authority bindings auto fallback", exc)
             log.warning("postgres authority-binding backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "authority bindings auto backend without DATABASE_URL")
     return InMemoryAuthorityBindingRepository()
 
 
@@ -920,6 +950,7 @@ def _build_delivery_preference_repo(settings: Settings) -> DeliveryPreferenceRep
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.delivery_preferences")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "delivery preferences configured for memory")
         return InMemoryDeliveryPreferenceRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -929,7 +960,9 @@ def _build_delivery_preference_repo(settings: Settings) -> DeliveryPreferenceRep
         try:
             return PostgresDeliveryPreferenceRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "delivery preferences auto fallback", exc)
             log.warning("postgres delivery-preference backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "delivery preferences auto backend without DATABASE_URL")
     return InMemoryDeliveryPreferenceRepository()
 
 
@@ -937,6 +970,7 @@ def _build_follow_up_repo(settings: Settings) -> FollowUpRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.follow_ups")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "follow-ups configured for memory")
         return InMemoryFollowUpRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -946,7 +980,9 @@ def _build_follow_up_repo(settings: Settings) -> FollowUpRepository:
         try:
             return PostgresFollowUpRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "follow-ups auto fallback", exc)
             log.warning("postgres follow-up backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "follow-ups auto backend without DATABASE_URL")
     return InMemoryFollowUpRepository()
 
 
@@ -954,6 +990,7 @@ def _build_follow_up_rule_repo(settings: Settings) -> FollowUpRuleRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.follow_up_rules")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "follow-up rules configured for memory")
         return InMemoryFollowUpRuleRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -963,7 +1000,9 @@ def _build_follow_up_rule_repo(settings: Settings) -> FollowUpRuleRepository:
         try:
             return PostgresFollowUpRuleRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "follow-up rules auto fallback", exc)
             log.warning("postgres follow-up-rule backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "follow-up rules auto backend without DATABASE_URL")
     return InMemoryFollowUpRuleRepository()
 
 
@@ -971,6 +1010,7 @@ def _build_interruption_budget_repo(settings: Settings) -> InterruptionBudgetRep
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.interruption_budgets")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "interruption budgets configured for memory")
         return InMemoryInterruptionBudgetRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -980,7 +1020,9 @@ def _build_interruption_budget_repo(settings: Settings) -> InterruptionBudgetRep
         try:
             return PostgresInterruptionBudgetRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "interruption budgets auto fallback", exc)
             log.warning("postgres interruption-budget backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "interruption budgets auto backend without DATABASE_URL")
     return InMemoryInterruptionBudgetRepository()
 
 

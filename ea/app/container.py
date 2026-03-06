@@ -28,7 +28,7 @@ from app.services.planner import PlannerService
 from app.services.policy import PolicyDecisionService
 from app.services.task_contracts import TaskContractService, build_task_contract_service
 from app.services.tool_runtime import ToolRuntimeService, build_tool_runtime
-from app.settings import Settings, get_settings
+from app.settings import Settings, ensure_storage_fallback_allowed, get_settings
 
 
 class ReadinessService:
@@ -37,6 +37,12 @@ class ReadinessService:
 
     def check(self) -> tuple[bool, str]:
         backend = str(self._settings.storage.backend or "auto").strip().lower()
+        if self._settings.runtime.mode == "prod":
+            if backend != "postgres":
+                return False, "prod_requires_postgres_backend"
+            if not self._settings.database_url:
+                return False, "database_url_missing"
+            return self._probe_database()
         if backend == "memory":
             return True, "memory_ready"
         if backend == "postgres":
@@ -81,6 +87,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
     try:
         orchestrator = build_default_orchestrator(settings=resolved)
     except Exception as exc:
+        ensure_storage_fallback_allowed(resolved, "orchestrator bootstrap", exc)
         log.warning("orchestrator bootstrap failed, using in-memory fallback: %s", exc)
         orchestrator = RewriteOrchestrator(
             policy=PolicyDecisionService(
@@ -91,6 +98,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
     try:
         channel_runtime = build_channel_runtime(settings=resolved)
     except Exception as exc:
+        ensure_storage_fallback_allowed(resolved, "channel runtime bootstrap", exc)
         log.warning("channel runtime bootstrap failed, using in-memory fallback: %s", exc)
         channel_runtime = ChannelRuntimeService(
             observations=InMemoryObservationEventRepository(),
@@ -99,6 +107,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
     try:
         tool_runtime = build_tool_runtime(settings=resolved)
     except Exception as exc:
+        ensure_storage_fallback_allowed(resolved, "tool runtime bootstrap", exc)
         log.warning("tool runtime bootstrap failed, using in-memory fallback: %s", exc)
         tool_runtime = ToolRuntimeService(
             tool_registry=InMemoryToolRegistryRepository(),
@@ -107,6 +116,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
     try:
         memory_runtime = build_memory_runtime(settings=resolved)
     except Exception as exc:
+        ensure_storage_fallback_allowed(resolved, "memory runtime bootstrap", exc)
         log.warning("memory runtime bootstrap failed, using in-memory fallback: %s", exc)
         memory_runtime = MemoryRuntimeService(
             candidates=InMemoryMemoryCandidateRepository(),
@@ -127,6 +137,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
     try:
         task_contracts = build_task_contract_service(settings=resolved)
     except Exception as exc:
+        ensure_storage_fallback_allowed(resolved, "task-contract bootstrap", exc)
         log.warning("task-contract bootstrap failed, using in-memory fallback: %s", exc)
         from app.repositories.task_contracts import InMemoryTaskContractRepository
 

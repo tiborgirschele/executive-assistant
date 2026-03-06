@@ -213,6 +213,15 @@
         "worker_queue_drain"
       ],
       "notes": "Rewrite execution now persists durable execution-queue rows, exposes queue state in session projections, drains queued work inline for API requests, and lets non-API runner roles lease queued work as workers."
+    },
+    {
+      "name": "runtime_mode_fail_fast_storage",
+      "status": "tested",
+      "scope": [
+        "runtime_mode_prod",
+        "storage_fallback_guard"
+      ],
+      "notes": "Setting `EA_RUNTIME_MODE=prod` now forces durable Postgres boot, rejects memory/auto fallback degradation, and is asserted by the approved Postgres smoke path."
     }
   ],
   "migrations": [

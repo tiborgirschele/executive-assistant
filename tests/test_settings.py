@@ -15,6 +15,7 @@ def _clear_env() -> None:
         "EA_PORT",
         "EA_LOG_LEVEL",
         "EA_TENANT_ID",
+        "EA_RUNTIME_MODE",
         "EA_STORAGE_BACKEND",
         "EA_LEDGER_BACKEND",
         "DATABASE_URL",
@@ -33,6 +34,7 @@ def test_settings_defaults() -> None:
     s = get_settings()
     assert s.core.app_name == "ea-rewrite"
     assert s.core.role == "api"
+    assert s.runtime.mode == "dev"
     assert s.storage.backend == "auto"
     assert s.storage.database_url == ""
     assert s.auth.enabled is False
@@ -73,3 +75,18 @@ def test_policy_threshold_overrides() -> None:
     s = get_settings()
     assert s.policy.approval_required_chars == 42
     assert s.policy.approval_ttl_minutes == 15
+
+
+def test_runtime_mode_prod_disables_storage_fallback() -> None:
+    _clear_env()
+    os.environ["EA_RUNTIME_MODE"] = "prod"
+    s = get_settings()
+    assert s.runtime.mode == "prod"
+    assert s.storage_fallback_allowed is False
+
+
+def test_runtime_mode_unknown_defaults_to_dev() -> None:
+    _clear_env()
+    os.environ["EA_RUNTIME_MODE"] = "unknown-mode"
+    s = get_settings()
+    assert s.runtime.mode == "dev"

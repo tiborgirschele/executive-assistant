@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-175 | P1 | Enforce explicit runtime-mode storage policy so production cannot silently fall back to memory | codex | queued | The queue/runtime path is now durable, but `EA_STORAGE_BACKEND=auto` still makes production safety caller-convention instead of enforced policy |
+| Q-176 | P1 | Derive principal context from auth/middleware instead of caller-supplied fields on normal user routes | codex | queued | Runtime durability is now enforced in prod mode, but multi-tenant correctness still relies too heavily on request-supplied principal identifiers |
 
 ## In Progress
 
@@ -205,6 +205,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 | D-172 | P1 | Expose direct tool-receipt and run-cost lookup APIs with docs/smoke coverage | codex | done | Added direct rewrite receipt/run-cost fetch routes, extended smoke/docs/milestone coverage, and queued approval-request lookup as the next slice |
 | D-173 | P1 | Make approval decisions resume rewrite execution to completion | codex | done | Persisted resumable rewrite input on the waiting step, resumed approved rewrites inline to artifact/receipt/run-cost completion, extended host smoke coverage, and queued the durable execution-queue slice next |
 | D-174 | P1 | Introduce a durable execution queue and inline worker path for resumable step execution | codex | done | Added execution-queue schema/repository support, routed rewrite execution through leased queue rows, exposed queue state in session projections, taught non-API runner roles to drain queued work, and queued runtime-mode hardening next |
+| D-175 | P1 | Enforce explicit runtime-mode storage policy so production cannot silently fall back to memory | codex | done | Added `EA_RUNTIME_MODE=prod` fail-fast storage guards across runtime bootstrap paths, exposed the contract in docs/env guidance, extended the approved Postgres smoke path with a prod misconfiguration failure check, and queued principal-context hardening next |
 
 ## Intake Template
 

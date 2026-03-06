@@ -24,6 +24,11 @@ class CoreSettings:
 
 
 @dataclass(frozen=True)
+class RuntimeSettings:
+    mode: str
+
+
+@dataclass(frozen=True)
 class StorageSettings:
     backend: str
     database_url: str
@@ -54,6 +59,7 @@ class ChannelSettings:
 @dataclass(frozen=True)
 class Settings:
     core: CoreSettings
+    runtime: RuntimeSettings
     storage: StorageSettings
     auth: AuthSettings
     policy: PolicySettings
@@ -89,6 +95,10 @@ class Settings:
         return self.core.tenant_id
 
     @property
+    def runtime_mode(self) -> str:
+        return self.runtime.mode
+
+    @property
     def storage_backend(self) -> str:
         return self.storage.backend
 
@@ -101,6 +111,30 @@ class Settings:
     def ledger_backend(self) -> str:
         return self.storage.backend
 
+    @property
+    def storage_fallback_allowed(self) -> bool:
+        return self.runtime.mode != "prod"
+
+
+def _runtime_mode(raw: str) -> str:
+    mode = str(raw or "").strip().lower() or "dev"
+    if mode not in {"dev", "test", "prod"}:
+        return "dev"
+    return mode
+
+
+def ensure_storage_fallback_allowed(
+    settings: Settings,
+    reason: str,
+    exc: Exception | None = None,
+) -> None:
+    if settings.storage_fallback_allowed:
+        return
+    message = f"EA_RUNTIME_MODE=prod forbids memory fallback ({reason})"
+    if exc is not None:
+        raise RuntimeError(message) from exc
+    raise RuntimeError(message)
+
 
 def get_settings() -> Settings:
     app_name = (os.environ.get("EA_APP_NAME") or "ea-rewrite").strip() or "ea-rewrite"
@@ -110,6 +144,7 @@ def get_settings() -> Settings:
     port = max(1, min(65535, _to_int(os.environ.get("EA_PORT") or "8090", 8090)))
     log_level = (os.environ.get("EA_LOG_LEVEL") or "INFO").strip().upper() or "INFO"
     tenant_id = (os.environ.get("EA_TENANT_ID") or "default").strip() or "default"
+    runtime_mode = _runtime_mode(os.environ.get("EA_RUNTIME_MODE") or "dev")
 
     legacy_backend = (os.environ.get("EA_LEDGER_BACKEND") or "").strip().lower()
     configured_storage_backend = (os.environ.get("EA_STORAGE_BACKEND") or "").strip().lower()
@@ -145,6 +180,7 @@ def get_settings() -> Settings:
             log_level=log_level,
             tenant_id=tenant_id,
         ),
+        runtime=RuntimeSettings(mode=runtime_mode),
         storage=StorageSettings(
             backend=storage_backend,
             database_url=database_url,

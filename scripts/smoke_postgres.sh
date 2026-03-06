@@ -22,6 +22,7 @@ Runs a Postgres-backed smoke path against an isolated smoke database:
   5) verifies /health/ready reason is postgres_ready
   6) runs scripts/smoke_api.sh
   7) verifies DB row growth for core runtime tables
+  8) verifies `EA_RUNTIME_MODE=prod` fails fast instead of falling back to memory
 
 Options:
   --legacy-fixture          Seed a legacy UUID/approval schema fixture before
@@ -106,6 +107,16 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+
+set_env_value() {
+  local key="$1"
+  local value="$2"
+  if grep -q "^${key}=" "${EA_ROOT}/.env"; then
+    sed -i "s|^${key}=.*$|${key}=${value}|" "${EA_ROOT}/.env"
+  else
+    echo "${key}=${value}" >> "${EA_ROOT}/.env"
+  fi
+}
 
 apply_legacy_fixture() {
   echo "== smoke-postgres: apply legacy fixture =="
@@ -293,5 +304,38 @@ if [[ "${sessions_count}" -lt 1 || "${events_count}" -lt 1 || "${policy_count}" 
   echo "postgres smoke failed: expected non-zero execution_sessions/execution_events/policy_decisions/execution_queue counts" >&2
   exit 32
 fi
+
+echo "== smoke-postgres: prod fail-fast check =="
+set_env_value "EA_RUNTIME_MODE" "prod"
+set_env_value "EA_STORAGE_BACKEND" "auto"
+set_env_value "DATABASE_URL" ""
+"${DC[@]}" up -d --build ea-api >/dev/null
+prod_status=""
+for _ in $(seq 1 10); do
+  prod_status="$(docker inspect -f '{{.State.Status}}' ea-api 2>/dev/null | tr -d '[:space:]' || true)"
+  if [[ "${prod_status}" == "exited" || "${prod_status}" == "dead" || "${prod_status}" == "restarting" ]]; then
+    break
+  fi
+  sleep 1
+done
+if [[ "${prod_status}" != "exited" && "${prod_status}" != "dead" && "${prod_status}" != "restarting" ]]; then
+  echo "expected prod auto-backend boot to fail fast; ea-api status=${prod_status}" >&2
+  docker logs --tail 80 ea-api >&2 || true
+  exit 35
+fi
+prod_log_ok=0
+for _ in $(seq 1 10); do
+  if docker logs --tail 120 ea-api 2>&1 | grep -Fq "EA_RUNTIME_MODE=prod forbids memory fallback"; then
+    prod_log_ok=1
+    break
+  fi
+  sleep 1
+done
+if [[ "${prod_log_ok}" != "1" ]]; then
+  echo "expected prod fail-fast log message from ea-api" >&2
+  docker logs --tail 120 ea-api >&2 || true
+  exit 36
+fi
+echo "prod fail-fast path ok"
 
 echo "smoke-postgres complete (${SMOKE_DB})"

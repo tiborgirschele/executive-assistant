@@ -5,7 +5,7 @@ import logging
 from app.domain.models import IntentSpecV3, TaskContract, now_utc_iso
 from app.repositories.task_contracts import InMemoryTaskContractRepository, TaskContractRepository
 from app.repositories.task_contracts_postgres import PostgresTaskContractRepository
-from app.settings import Settings, get_settings
+from app.settings import Settings, ensure_storage_fallback_allowed, get_settings
 
 
 class TaskContractService:
@@ -97,6 +97,7 @@ def build_task_contract_repo(settings: Settings) -> TaskContractRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.task_contracts")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "task contracts configured for memory")
         return InMemoryTaskContractRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -106,7 +107,9 @@ def build_task_contract_repo(settings: Settings) -> TaskContractRepository:
         try:
             return PostgresTaskContractRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "task contracts auto fallback", exc)
             log.warning("postgres task-contract backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "task contracts auto backend without DATABASE_URL")
     return InMemoryTaskContractRepository()
 
 

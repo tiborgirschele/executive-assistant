@@ -280,6 +280,29 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "runtime_mode_fail_fast_storage")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "EA_RUNTIME_MODE=dev|test|prod" "README.md" && \
+     grep -Fq "EA_RUNTIME_MODE=prod" "RUNBOOK.md" && \
+     grep -Fq "EA_RUNTIME_MODE" "ENVIRONMENT_MATRIX.md" && \
+     grep -Fq "prod fail-fast path ok" "scripts/smoke_postgres.sh"; then
+    echo "ok: runtime mode fail-fast docs"
+  else
+    echo "missing: runtime mode fail-fast docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: runtime mode fail-fast milestone status" >&2
+  missing=1
+fi
+
 if grep -Fq 'Gate-bundle hardening flags are tracked in `MILESTONE.json` release tags' "README.md"; then
   echo "ok: README milestone gate-tag pointer"
 else

@@ -7,7 +7,7 @@ from app.repositories.connector_bindings import ConnectorBindingRepository, InMe
 from app.repositories.connector_bindings_postgres import PostgresConnectorBindingRepository
 from app.repositories.tool_registry import InMemoryToolRegistryRepository, ToolRegistryRepository
 from app.repositories.tool_registry_postgres import PostgresToolRegistryRepository
-from app.settings import Settings, get_settings
+from app.settings import Settings, ensure_storage_fallback_allowed, get_settings
 
 
 class ToolRuntimeService:
@@ -84,6 +84,7 @@ def _build_tool_registry(settings: Settings) -> ToolRegistryRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.tools")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "tool registry configured for memory")
         return InMemoryToolRegistryRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -93,7 +94,9 @@ def _build_tool_registry(settings: Settings) -> ToolRegistryRepository:
         try:
             return PostgresToolRegistryRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "tool registry auto fallback", exc)
             log.warning("postgres tool registry unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "tool registry auto backend without DATABASE_URL")
     return InMemoryToolRegistryRepository()
 
 
@@ -101,6 +104,7 @@ def _build_connector_bindings(settings: Settings) -> ConnectorBindingRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.connectors")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "connector bindings configured for memory")
         return InMemoryConnectorBindingRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -110,7 +114,9 @@ def _build_connector_bindings(settings: Settings) -> ConnectorBindingRepository:
         try:
             return PostgresConnectorBindingRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "connector bindings auto fallback", exc)
             log.warning("postgres connector bindings unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "connector bindings auto backend without DATABASE_URL")
     return InMemoryConnectorBindingRepository()
 
 

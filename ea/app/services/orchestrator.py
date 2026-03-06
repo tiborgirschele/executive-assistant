@@ -28,7 +28,7 @@ from app.repositories.ledger import ExecutionLedgerRepository, InMemoryExecution
 from app.repositories.ledger_postgres import PostgresExecutionLedgerRepository
 from app.repositories.policy_decisions import InMemoryPolicyDecisionRepository, PolicyDecisionRepository
 from app.repositories.policy_decisions_postgres import PostgresPolicyDecisionRepository
-from app.settings import Settings, get_settings
+from app.settings import Settings, ensure_storage_fallback_allowed, get_settings
 from app.services.planner import PlannerService
 from app.services.policy import PolicyDecisionService, PolicyDeniedError
 from app.services.task_contracts import TaskContractService, build_task_contract_service
@@ -483,6 +483,7 @@ def build_execution_ledger(settings: Settings) -> ExecutionLedgerRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.ledger")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "execution ledger configured for memory")
         return InMemoryExecutionLedgerRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -493,7 +494,9 @@ def build_execution_ledger(settings: Settings) -> ExecutionLedgerRepository:
         try:
             return PostgresExecutionLedgerRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "execution ledger auto fallback", exc)
             log.warning("postgres ledger unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "execution ledger auto backend without DATABASE_URL")
     return InMemoryExecutionLedgerRepository()
 
 
@@ -501,6 +504,7 @@ def build_policy_repo(settings: Settings) -> PolicyDecisionRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.policy_repo")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "policy repo configured for memory")
         return InMemoryPolicyDecisionRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -510,7 +514,9 @@ def build_policy_repo(settings: Settings) -> PolicyDecisionRepository:
         try:
             return PostgresPolicyDecisionRepository(settings.database_url)
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "policy repo auto fallback", exc)
             log.warning("postgres policy backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "policy repo auto backend without DATABASE_URL")
     return InMemoryPolicyDecisionRepository()
 
 
@@ -518,6 +524,7 @@ def build_approval_repo(settings: Settings) -> ApprovalRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.approvals")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "approvals configured for memory")
         return InMemoryApprovalRepository(default_ttl_minutes=settings.policy.approval_ttl_minutes)
     if backend == "postgres":
         if not settings.database_url:
@@ -533,7 +540,9 @@ def build_approval_repo(settings: Settings) -> ApprovalRepository:
                 default_ttl_minutes=settings.policy.approval_ttl_minutes,
             )
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "approvals auto fallback", exc)
             log.warning("postgres approval backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "approvals auto backend without DATABASE_URL")
     return InMemoryApprovalRepository(default_ttl_minutes=settings.policy.approval_ttl_minutes)
 
 
@@ -541,6 +550,7 @@ def build_artifact_repo(settings: Settings) -> ArtifactRepository:
     backend = _backend_mode(settings)
     log = logging.getLogger("ea.artifacts")
     if backend == "memory":
+        ensure_storage_fallback_allowed(settings, "artifacts configured for memory")
         return InMemoryArtifactRepository()
     if backend == "postgres":
         if not settings.database_url:
@@ -558,7 +568,9 @@ def build_artifact_repo(settings: Settings) -> ArtifactRepository:
                 tenant_id=settings.tenant_id,
             )
         except Exception as exc:
+            ensure_storage_fallback_allowed(settings, "artifacts auto fallback", exc)
             log.warning("postgres artifact backend unavailable in auto mode; falling back to memory: %s", exc)
+    ensure_storage_fallback_allowed(settings, "artifacts auto backend without DATABASE_URL")
     return InMemoryArtifactRepository()
 
 
