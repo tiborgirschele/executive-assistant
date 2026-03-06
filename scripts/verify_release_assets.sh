@@ -1026,6 +1026,34 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "async_queue_projection_task_identity")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq 'approval projections now carry the originating task identity' "README.md" && \
+     grep -Fq 'queue/detail payloads now also carry the originating task identity' "README.md" && \
+     grep -Fq 'Approval and human-task queue/detail payloads now stay self-describing' "RUNBOOK.md" && \
+     grep -Fq 'Approvals -> pending (includes originating task_key and deliverable_type)' "HTTP_EXAMPLES.http" && \
+     grep -Fq 'Human tasks -> direct detail (includes originating task_key and deliverable_type)' "HTTP_EXAMPLES.http" && \
+     grep -Fq 'GENERIC_APPROVAL_PENDING_FIELDS' "scripts/smoke_api.sh" && \
+     grep -Fq 'GENERIC_APPROVAL_HISTORY_FIELDS' "scripts/smoke_api.sh" && \
+     grep -Fq 'GENERIC_HUMAN_LIST_FIELDS' "scripts/smoke_api.sh" && \
+     grep -Fq 'pending_row["task_key"] == "decision_brief_approval"' "tests/smoke_runtime_api.py"; then
+    echo "ok: async queue projection task identity docs"
+  else
+    echo "missing: async queue projection task identity docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: async queue projection task identity milestone status" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "session_principal_scoped_human_task_routes")
 assert capability["status"] == "tested"
 PY

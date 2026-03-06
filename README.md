@@ -69,7 +69,8 @@ Removed:
 - `/v1/channels/telegram/ingest` maps raw Telegram updates into normalized observation events
 - `/v1/policy/decisions/recent` exposes persisted policy decision audit records
 - `/v1/policy/evaluate` exposes direct policy checks for tool/action/channel combinations, including external-send approval branches
-- `/v1/policy/approvals/*` exposes pending/history plus approve/deny/expire decision endpoints
+- `/v1/policy/approvals/*` exposes pending/history plus approve/deny/expire decision endpoints, and those approval projections now carry the originating task identity for non-rewrite async work
+- `/v1/human/tasks*` queue/detail payloads now also carry the originating task identity, so paused non-rewrite async work stays self-describing before completion
 - human task packets append `human_task_created`, `human_task_claimed`, and `human_task_returned` events into the linked session ledger so returned-from-human work is auditable
 - human task packets can optionally reopen a linked step into `waiting_human`, move the session to `awaiting_human`, and resume that step to completion when the operator returns the packet
 - human task queue listings now support operator-facing `role_required`, `assigned_operator_id`, and `overdue_only` filters for targeted reviewer backlogs

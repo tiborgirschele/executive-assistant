@@ -13,11 +13,12 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-251 | P1 | Project task identity onto generic approval and human-task list/detail projections so non-rewrite async work stays self-describing before completion | codex | queued | Sessions and direct proof lookups now carry task identity, but pending approval and human-task queue/detail payloads still rely on clients to join back through the session if they need the originating non-rewrite task context |
+| Q-252 | P1 | Project task identity onto direct human-task assignment-history projections so paused non-rewrite work stays self-describing even when operators open the transition log directly | codex | queued | Approval and human-task queue/detail payloads now carry task identity, but direct assignment-history responses still require a separate session or task fetch to recover the originating non-rewrite task context |
 
 ## In Progress
 
 | ID | Priority | Task | Owner | Status | Notes |
+| D-251 | P1 | Project task identity onto generic approval and human-task list/detail projections so non-rewrite async work stays self-describing before completion | codex | done | Pending/history approval rows, approval decision responses, and human-task list/detail payloads now return the originating `task_key` and `deliverable_type`, and the approved smoke path proves paused generic task executions stay self-describing before completion |
 |---|---|---|---|---|---|
 | - | - | - | - | - | - |
 

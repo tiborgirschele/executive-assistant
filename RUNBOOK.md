@@ -34,11 +34,11 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | POST | `/v1/human/tasks/{human_task_id}/return` | `200` | `404 human_task_not_found`, `409 human_task_not_returnable` |
 | GET | `/v1/policy/decisions/recent` | `200` | n/a |
 | POST | `/v1/policy/evaluate` | `200` | validation `422` |
-| GET | `/v1/policy/approvals/pending` | `200` | n/a |
-| GET | `/v1/policy/approvals/history` | `200` | n/a |
-| POST | `/v1/policy/approvals/{approval_id}/approve` | `200` | `404 approval_not_found` |
-| POST | `/v1/policy/approvals/{approval_id}/deny` | `200` | `404 approval_not_found` |
-| POST | `/v1/policy/approvals/{approval_id}/expire` | `200` | `404 approval_not_found` |
+| GET | `/v1/policy/approvals/pending` | `200` | n/a (pending rows include originating `task_key`/`deliverable_type`) |
+| GET | `/v1/policy/approvals/history` | `200` | n/a (history rows include originating `task_key`/`deliverable_type`) |
+| POST | `/v1/policy/approvals/{approval_id}/approve` | `200` | `404 approval_not_found` (decision row includes originating `task_key`/`deliverable_type`) |
+| POST | `/v1/policy/approvals/{approval_id}/deny` | `200` | `404 approval_not_found` (decision row includes originating `task_key`/`deliverable_type`) |
+| POST | `/v1/policy/approvals/{approval_id}/expire` | `200` | `404 approval_not_found` (decision row includes originating `task_key`/`deliverable_type`) |
 | POST | `/v1/observations/ingest` | `200` | validation `422` (supports source/external/dedupe/auth/raw payload pointers) |
 | GET | `/v1/observations/recent` | `200` | validation `422` |
 | POST | `/v1/delivery/outbox` | `200` | validation `422` (supports idempotency keys) |
@@ -125,6 +125,7 @@ Policy notes:
 - `POST /v1/plans/compile` exposes `depends_on`, `input_keys`, and `output_keys`, and queue advancement now chooses the next ready step from satisfied dependency edges instead of parent-linked step order.
 - `POST /v1/plans/execute` now reuses that same compiled task-contract runtime for non-`rewrite_text` artifact flows, so stakeholder briefings and similar executive contracts can run through the queue-backed graph without a rewrite-only entrypoint.
 - `POST /v1/plans/execute` now also returns the same first-class `202 awaiting_approval` and `202 awaiting_human` workflow contract as rewrite execution, and those generic task sessions resume through the shared approval and human-task endpoints.
+- Approval and human-task queue/detail payloads now stay self-describing for non-rewrite async work by returning the originating `task_key` and `deliverable_type` before the workflow completes.
 - Rewrite creation and session/artifact/receipt/run-cost fetches now enforce the same request principal contract as the rest of the scoped surface, so foreign-principal fetch attempts fail with `403 principal_scope_mismatch` instead of exposing another execution thread.
 - Session-bound `POST /v1/human/tasks` and `GET /v1/human/tasks?session_id=...` now enforce that the request principal matches the linked execution session principal too, so one principal cannot stitch packets onto or enumerate another principal's session thread via `session_id`.
 - Task-contract metadata can now add a projected `step_human_review` branch by setting `budget_policy_json.human_review_role`, `human_review_priority`, `human_review_sla_minutes`, `human_review_auto_assign_if_unique`, `human_review_desired_output_json`, `human_review_authority_required`, `human_review_why_human`, and `human_review_quality_rubric_json`; the rewrite runtime auto-creates the linked human task packet with those routing and review-contract fields when that step executes, auto-assigns a unique exact reviewer when the flag is enabled, and a returned `final_text` payload now overrides the downstream artifact-save input.

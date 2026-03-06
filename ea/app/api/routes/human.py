@@ -46,6 +46,8 @@ class HumanTaskOut(BaseModel):
     session_id: str
     step_id: str | None
     principal_id: str
+    task_key: str = ""
+    deliverable_type: str = ""
     task_type: str
     role_required: str
     brief: str
@@ -129,12 +131,39 @@ class HumanTaskPrioritySummaryOut(BaseModel):
     highest_priority: str
 
 
-def _to_out(row) -> HumanTaskOut:  # type: ignore[no-untyped-def]
+def _session_task_identity(
+    container: AppContainer,
+    session_id: str,
+    cache: dict[str, tuple[str, str]] | None = None,
+) -> tuple[str, str]:
+    if cache is not None and session_id in cache:
+        return cache[session_id]
+    snapshot = container.orchestrator.fetch_session(session_id)
+    if snapshot is None:
+        identity = ("", "")
+    else:
+        identity = (
+            snapshot.session.intent.task_type,
+            snapshot.session.intent.deliverable_type,
+        )
+    if cache is not None:
+        cache[session_id] = identity
+    return identity
+
+
+def _to_out(
+    row,
+    *,
+    task_key: str = "",
+    deliverable_type: str = "",
+) -> HumanTaskOut:  # type: ignore[no-untyped-def]
     return HumanTaskOut(
         human_task_id=row.human_task_id,
         session_id=row.session_id,
         step_id=row.step_id,
         principal_id=row.principal_id,
+        task_key=task_key,
+        deliverable_type=deliverable_type,
         task_type=row.task_type,
         role_required=row.role_required,
         brief=row.brief,
@@ -230,7 +259,8 @@ def create_human_task(
         code = str(exc.args[0] or "session_not_found")
         status_code = 400 if code == "step_id_required" else 404
         raise HTTPException(status_code=status_code, detail=code) from exc
-    return _to_out(row)
+    task_key, deliverable_type = _session_task_identity(container, row.session_id)
+    return _to_out(row, task_key=task_key, deliverable_type=deliverable_type)
 
 
 @router.get("")
@@ -269,7 +299,15 @@ def list_human_tasks(
         )
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc) or "principal_scope_mismatch") from exc
-    return [_to_out(row) for row in rows]
+    cache: dict[str, tuple[str, str]] = {}
+    return [
+        _to_out(
+            row,
+            task_key=_session_task_identity(container, row.session_id, cache)[0],
+            deliverable_type=_session_task_identity(container, row.session_id, cache)[1],
+        )
+        for row in rows
+    ]
 
 
 @router.get("/priority-summary")
@@ -328,7 +366,15 @@ def list_human_task_backlog(
         limit=limit,
         sort=sort,
     )
-    return [_to_out(row) for row in rows]
+    cache: dict[str, tuple[str, str]] = {}
+    return [
+        _to_out(
+            row,
+            task_key=_session_task_identity(container, row.session_id, cache)[0],
+            deliverable_type=_session_task_identity(container, row.session_id, cache)[1],
+        )
+        for row in rows
+    ]
 
 
 @router.get("/unassigned")
@@ -356,7 +402,15 @@ def list_unassigned_human_tasks(
         limit=limit,
         sort=sort,
     )
-    return [_to_out(row) for row in rows]
+    cache: dict[str, tuple[str, str]] = {}
+    return [
+        _to_out(
+            row,
+            task_key=_session_task_identity(container, row.session_id, cache)[0],
+            deliverable_type=_session_task_identity(container, row.session_id, cache)[1],
+        )
+        for row in rows
+    ]
 
 
 @router.get("/mine")
@@ -382,7 +436,15 @@ def list_my_human_tasks(
         limit=limit,
         sort=sort,
     )
-    return [_to_out(row) for row in rows]
+    cache: dict[str, tuple[str, str]] = {}
+    return [
+        _to_out(
+            row,
+            task_key=_session_task_identity(container, row.session_id, cache)[0],
+            deliverable_type=_session_task_identity(container, row.session_id, cache)[1],
+        )
+        for row in rows
+    ]
 
 
 @router.post("/operators")
@@ -460,7 +522,8 @@ def assign_human_task(
     )
     if row is None:
         raise HTTPException(status_code=409, detail="human_task_not_assignable")
-    return _to_out(row)
+    task_key, deliverable_type = _session_task_identity(container, row.session_id)
+    return _to_out(row, task_key=task_key, deliverable_type=deliverable_type)
 
 
 @router.get("/{human_task_id}/assignment-history")
@@ -498,7 +561,8 @@ def get_human_task(
     row = container.orchestrator.fetch_human_task(human_task_id, principal_id=context.principal_id)
     if row is None:
         raise HTTPException(status_code=404, detail="human_task_not_found")
-    return _to_out(row)
+    task_key, deliverable_type = _session_task_identity(container, row.session_id)
+    return _to_out(row, task_key=task_key, deliverable_type=deliverable_type)
 
 
 @router.post("/{human_task_id}/claim")
@@ -519,7 +583,8 @@ def claim_human_task(
     )
     if row is None:
         raise HTTPException(status_code=409, detail="human_task_not_claimable")
-    return _to_out(row)
+    task_key, deliverable_type = _session_task_identity(container, row.session_id)
+    return _to_out(row, task_key=task_key, deliverable_type=deliverable_type)
 
 
 @router.post("/{human_task_id}/return")
@@ -542,4 +607,5 @@ def return_human_task(
     )
     if row is None:
         raise HTTPException(status_code=409, detail="human_task_not_returnable")
-    return _to_out(row)
+    task_key, deliverable_type = _session_task_identity(container, row.session_id)
+    return _to_out(row, task_key=task_key, deliverable_type=deliverable_type)

@@ -2707,17 +2707,39 @@ def test_generic_task_execution_supports_async_approval_and_human_contracts() ->
     assert approval_session.json()["intent_task_type"] == "decision_brief_approval"
     assert approval_session.json()["status"] == "awaiting_approval"
 
+    pending_approvals = client.get("/v1/policy/approvals/pending", params={"limit": 10})
+    assert pending_approvals.status_code == 200
+    pending_row = next(
+        row
+        for row in pending_approvals.json()
+        if row["approval_id"] == approval_body["approval_id"] and row["session_id"] == approval_session_id
+    )
+    assert pending_row["task_key"] == "decision_brief_approval"
+    assert pending_row["deliverable_type"] == "decision_brief"
+
     approved = client.post(
         f"/v1/policy/approvals/{approval_body['approval_id']}/approve",
         json={"decided_by": "operator", "reason": "approved generic task execution"},
     )
     assert approved.status_code == 200
+    assert approved.json()["task_key"] == "decision_brief_approval"
+    assert approved.json()["deliverable_type"] == "decision_brief"
 
     approval_done = client.get(f"/v1/rewrite/sessions/{approval_session_id}")
     assert approval_done.status_code == 200
     approval_done_body = approval_done.json()
     assert approval_done_body["status"] == "completed"
     assert approval_done_body["artifacts"][0]["kind"] == "decision_brief"
+
+    approval_history = client.get("/v1/policy/approvals/history", params={"session_id": approval_session_id, "limit": 10})
+    assert approval_history.status_code == 200
+    approval_history_row = next(
+        row
+        for row in approval_history.json()
+        if row["approval_id"] == approval_body["approval_id"] and row["decision"] == "approved"
+    )
+    assert approval_history_row["task_key"] == "decision_brief_approval"
+    assert approval_history_row["deliverable_type"] == "decision_brief"
 
     review_contract = client.post(
         "/v1/tasks/contracts",
@@ -2762,6 +2784,17 @@ def test_generic_task_execution_supports_async_approval_and_human_contracts() ->
     assert review_session_body["intent_task_type"] == "stakeholder_briefing_review"
     assert review_session_body["status"] == "awaiting_human"
 
+    review_list = client.get("/v1/human/tasks", params={"session_id": review_session_id, "limit": 10})
+    assert review_list.status_code == 200
+    review_list_row = next(row for row in review_list.json() if row["human_task_id"] == review_body["human_task_id"])
+    assert review_list_row["task_key"] == "stakeholder_briefing_review"
+    assert review_list_row["deliverable_type"] == "stakeholder_briefing"
+
+    review_detail = client.get(f"/v1/human/tasks/{review_body['human_task_id']}")
+    assert review_detail.status_code == 200
+    assert review_detail.json()["task_key"] == "stakeholder_briefing_review"
+    assert review_detail.json()["deliverable_type"] == "stakeholder_briefing"
+
     returned = client.post(
         f"/v1/human/tasks/{review_body['human_task_id']}/return",
         json={
@@ -2774,6 +2807,8 @@ def test_generic_task_execution_supports_async_approval_and_human_contracts() ->
         },
     )
     assert returned.status_code == 200
+    assert returned.json()["task_key"] == "stakeholder_briefing_review"
+    assert returned.json()["deliverable_type"] == "stakeholder_briefing"
 
     review_done = client.get(f"/v1/rewrite/sessions/{review_session_id}")
     assert review_done.status_code == 200

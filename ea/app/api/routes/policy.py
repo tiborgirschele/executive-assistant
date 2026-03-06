@@ -32,6 +32,8 @@ class ApprovalRequestOut(BaseModel):
     expires_at: str | None
     created_at: str
     updated_at: str
+    task_key: str = ""
+    deliverable_type: str = ""
 
 
 class ApprovalDecisionOut(BaseModel):
@@ -43,6 +45,8 @@ class ApprovalDecisionOut(BaseModel):
     decided_by: str
     reason: str
     created_at: str
+    task_key: str = ""
+    deliverable_type: str = ""
 
 
 class ApprovalDecisionIn(BaseModel):
@@ -84,6 +88,26 @@ def _policy_service(container: AppContainer) -> PolicyDecisionService:
         max_rewrite_chars=container.settings.policy.max_rewrite_chars,
         approval_required_chars=container.settings.policy.approval_required_chars,
     )
+
+
+def _session_task_identity(
+    container: AppContainer,
+    session_id: str,
+    cache: dict[str, tuple[str, str]] | None = None,
+) -> tuple[str, str]:
+    if cache is not None and session_id in cache:
+        return cache[session_id]
+    snapshot = container.orchestrator.fetch_session(session_id)
+    if snapshot is None:
+        identity = ("", "")
+    else:
+        identity = (
+            snapshot.session.intent.task_type,
+            snapshot.session.intent.deliverable_type,
+        )
+    if cache is not None:
+        cache[session_id] = identity
+    return identity
 
 
 @router.get("/decisions/recent")
@@ -157,6 +181,7 @@ def list_pending_approvals(
     container: AppContainer = Depends(get_container),
 ) -> list[ApprovalRequestOut]:
     rows = container.orchestrator.list_pending_approvals(limit=limit)
+    cache: dict[str, tuple[str, str]] = {}
     return [
         ApprovalRequestOut(
             approval_id=r.approval_id,
@@ -168,6 +193,8 @@ def list_pending_approvals(
             expires_at=r.expires_at,
             created_at=r.created_at,
             updated_at=r.updated_at,
+            task_key=_session_task_identity(container, r.session_id, cache)[0],
+            deliverable_type=_session_task_identity(container, r.session_id, cache)[1],
         )
         for r in rows
     ]
@@ -180,6 +207,7 @@ def list_approval_history(
     container: AppContainer = Depends(get_container),
 ) -> list[ApprovalDecisionOut]:
     rows = container.orchestrator.list_approval_history(limit=limit, session_id=session_id)
+    cache: dict[str, tuple[str, str]] = {}
     return [
         ApprovalDecisionOut(
             decision_id=r.decision_id,
@@ -190,6 +218,8 @@ def list_approval_history(
             decided_by=r.decided_by,
             reason=r.reason,
             created_at=r.created_at,
+            task_key=_session_task_identity(container, r.session_id, cache)[0],
+            deliverable_type=_session_task_identity(container, r.session_id, cache)[1],
         )
         for r in rows
     ]
@@ -210,6 +240,7 @@ def approve_request(
     if not found:
         raise HTTPException(status_code=404, detail="approval_not_found")
     _request, decision = found
+    task_key, deliverable_type = _session_task_identity(container, decision.session_id)
     return ApprovalDecisionOut(
         decision_id=decision.decision_id,
         approval_id=decision.approval_id,
@@ -219,6 +250,8 @@ def approve_request(
         decided_by=decision.decided_by,
         reason=decision.reason,
         created_at=decision.created_at,
+        task_key=task_key,
+        deliverable_type=deliverable_type,
     )
 
 
@@ -237,6 +270,7 @@ def deny_request(
     if not found:
         raise HTTPException(status_code=404, detail="approval_not_found")
     _request, decision = found
+    task_key, deliverable_type = _session_task_identity(container, decision.session_id)
     return ApprovalDecisionOut(
         decision_id=decision.decision_id,
         approval_id=decision.approval_id,
@@ -246,6 +280,8 @@ def deny_request(
         decided_by=decision.decided_by,
         reason=decision.reason,
         created_at=decision.created_at,
+        task_key=task_key,
+        deliverable_type=deliverable_type,
     )
 
 
@@ -263,6 +299,7 @@ def expire_request(
     if not found:
         raise HTTPException(status_code=404, detail="approval_not_found")
     _request, decision = found
+    task_key, deliverable_type = _session_task_identity(container, decision.session_id)
     return ApprovalDecisionOut(
         decision_id=decision.decision_id,
         approval_id=decision.approval_id,
@@ -272,4 +309,6 @@ def expire_request(
         decided_by=decision.decided_by,
         reason=decision.reason,
         created_at=decision.created_at,
+        task_key=task_key,
+        deliverable_type=deliverable_type,
     )
