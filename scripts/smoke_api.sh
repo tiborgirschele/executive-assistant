@@ -220,6 +220,13 @@ if [[ "${HUMAN_UNASSIGNED_NONE_FIELDS}" != "True|True" ]]; then
   echo "${HUMAN_UNASSIGNED_NONE_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+SESSION_HUMAN_NONE_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${SESSION_ID}?human_task_assignment_source=none" "${AUTH_ARGS[@]}")"
+SESSION_HUMAN_NONE_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); tasks=body.get('human_tasks') or []; history=body.get('human_task_assignment_history') or []; wanted='${HUMAN_OWNERLESS_ID}'; print('{}|{}|{}|{}|{}'.format(len(tasks), (tasks[0].get('human_task_id','') if tasks else ''), all((row or {}).get('assignment_source','') == '' for row in history), all((row or {}).get('event_name','') == 'human_task_created' for row in history), any((row or {}).get('human_task_id','') == wanted for row in history)))" <<<"${SESSION_HUMAN_NONE_JSON}")"
+if [[ "${SESSION_HUMAN_NONE_FIELDS}" != "1|${HUMAN_OWNERLESS_ID}|True|True|True" ]]; then
+  echo "expected session assignment_source=none filter to isolate current ownerless rows and created-only history; got ${SESSION_HUMAN_NONE_FIELDS}" >&2
+  echo "${SESSION_HUMAN_NONE_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 HUMAN_ASSIGNED_BACKLOG_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?role_required=communications_reviewer&overdue_only=true&assignment_state=assigned&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
 HUMAN_ASSIGNED_BACKLOG_MATCH="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); task_id='${HUMAN_TASK_ID}'; print(any((row or {}).get('human_task_id') == task_id for row in rows))" <<<"${HUMAN_ASSIGNED_BACKLOG_JSON}")"
 if [[ "${HUMAN_ASSIGNED_BACKLOG_MATCH}" != "True" ]]; then
@@ -335,6 +342,13 @@ HUMAN_HISTORY_RECOMMENDED_FIELDS="$(python3 -c "import json,sys; rows=json.loads
 if [[ "${HUMAN_HISTORY_RECOMMENDED_FIELDS}" != "1|human_task_assigned|operator-specialist" ]]; then
   echo "expected filtered assignment-history route to isolate recommended assignment transitions by assignment_source; got ${HUMAN_HISTORY_RECOMMENDED_FIELDS}" >&2
   echo "${HUMAN_HISTORY_RECOMMENDED_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HUMAN_HISTORY_NONE_JSON="$(curl -fsS "${BASE}/v1/human/tasks/${HUMAN_TASK_ID}/assignment-history?limit=10&assignment_source=none" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+HUMAN_HISTORY_NONE_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); first=(rows[0] if rows else {}); print('{}|{}|{}'.format(len(rows), (first or {}).get('event_name',''), (first or {}).get('assignment_source','')))" <<<"${HUMAN_HISTORY_NONE_JSON}")"
+if [[ "${HUMAN_HISTORY_NONE_FIELDS}" != "1|human_task_created|" ]]; then
+  echo "expected filtered assignment-history route to isolate ownerless creation transitions by assignment_source=none; got ${HUMAN_HISTORY_NONE_FIELDS}" >&2
+  echo "${HUMAN_HISTORY_NONE_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
 SESSION_HUMAN_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${SESSION_ID}" "${AUTH_ARGS[@]}")"

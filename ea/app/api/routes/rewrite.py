@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from app.api.dependencies import get_container
 from app.container import AppContainer
 from app.domain.models import RewriteRequest
+from app.repositories.human_tasks import _parse_assignment_source_filter
 from app.services.orchestrator import HumanTaskRequiredError
 from app.services.policy import ApprovalRequiredError, PolicyDeniedError
 
@@ -232,9 +233,9 @@ def get_session(
         raise HTTPException(status_code=404, detail="session not found")
     session = found.session
     events = found.events
-    source_filter = str(human_task_assignment_source or "").strip()
+    has_source_filter, source_filter = _parse_assignment_source_filter(human_task_assignment_source)
     human_tasks = found.human_tasks
-    if source_filter:
+    if has_source_filter:
         human_tasks = [task for task in human_tasks if str(task.assignment_source or "") == source_filter]
     human_task_assignment_history = [
         _to_assignment_history_out(event)
@@ -242,7 +243,7 @@ def get_session(
         if event.name in {"human_task_created", "human_task_assigned", "human_task_claimed", "human_task_returned"}
         and str((event.payload or {}).get("human_task_id") or "").strip()
     ]
-    if source_filter:
+    if has_source_filter:
         human_task_assignment_history = [
             row for row in human_task_assignment_history if str(row.assignment_source or "") == source_filter
         ]

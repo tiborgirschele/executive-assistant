@@ -51,6 +51,9 @@ GET {{host}}/v1/rewrite/sessions/{{session_id}}
 ### Rewrite -> fetch session filtered to one human-task assignment source
 GET {{host}}/v1/rewrite/sessions/{{session_id}}?human_task_assignment_source=manual
 
+### Rewrite -> fetch session filtered to current ownerless human-task rows
+GET {{host}}/v1/rewrite/sessions/{{session_id}}?human_task_assignment_source=none
+
 ### Rewrite -> fetch artifact
 GET {{host}}/v1/rewrite/artifacts/{{artifact_id}}
 
@@ -242,6 +245,10 @@ X-EA-Principal-ID: {{principal_id}}
 
 ### Human tasks -> assignment history filtered by assignment source
 GET {{host}}/v1/human/tasks/{{human_task_id}}/assignment-history?limit=20&assignment_source=recommended
+X-EA-Principal-ID: {{principal_id}}
+
+### Human tasks -> assignment history filtered to ownerless creation transitions
+GET {{host}}/v1/human/tasks/{{human_task_id}}/assignment-history?limit=20&assignment_source=none
 X-EA-Principal-ID: {{principal_id}}
 
 ### Human tasks -> assigned-only pending backlog

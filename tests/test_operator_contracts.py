@@ -890,6 +890,30 @@ def test_human_task_ownerless_assignment_source_alias_is_documented_and_smoked()
     assert "human_task_unassigned_ownerless_source_alias" in capability["scope"]
 
 
+def test_human_task_ownerless_session_history_alias_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "human_task_assignment_source=none" in readme
+    assert "human_task_assignment_source=none" in runbook
+    assert "SESSION_HUMAN_NONE_JSON" in smoke_api
+    assert "HUMAN_HISTORY_NONE_JSON" in smoke_api
+    assert 'params={"limit": 10, "assignment_source": "none"}' in smoke_runtime
+    assert 'params={"human_task_assignment_source": "none"}' in smoke_runtime
+    assert "/v1/rewrite/sessions/{{session_id}}?human_task_assignment_source=none" in http_examples
+    assert "/v1/human/tasks/{{human_task_id}}/assignment-history?limit=20&assignment_source=none" in http_examples
+
+    capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "human_task_ownerless_session_history_alias"
+    )
+    assert capability["status"] == "tested"
+    assert "session_human_task_ownerless_source_alias" in capability["scope"]
+
+
 def test_human_task_assignment_history_source_filter_is_documented_and_smoked() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")

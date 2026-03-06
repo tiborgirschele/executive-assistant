@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-222 | P1 | Normalize the ownerless `assignment_source=none` alias across session detail and task assignment-history filters so every human-task source-filtered surface uses the same contract | codex | queued | List/backlog/unassigned and priority-summary now accept the ownerless alias, but session detail and task assignment-history still require raw empty-string ownership filters |
+| Q-223 | P1 | Add explicit ownerless alias smoke/docs coverage on `backlog?assignment_state=unassigned&assignment_source=none` so operator backlog and direct unassigned views share the same contract | codex | queued | Ownerless alias now works on list/unassigned/priority-summary/session/history filters, but the backlog endpoint still lacks direct ownerless alias smoke/docs proving it matches the unassigned view |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-222 | P1 | Normalize the ownerless `assignment_source=none` alias across session detail and task assignment-history filters so every human-task source-filtered surface uses the same contract | codex | done | Session detail and task assignment-history now accept the ownerless alias, and approved smoke/docs coverage proves `assignment_source=none` isolates current ownerless packets plus creation-only transition slices without raw empty-string filters |
 | D-221 | P1 | Add assignment-source filters on direct unassigned human task queue views so ownerless session work can be isolated without client-side filtering | codex | done | Added the ownerless `assignment_source=none` alias on human task list/unassigned/priority-summary filters, and approved smoke/docs coverage now proves ownerless pending packets stay isolated without client-side empty-string handling |
 | D-220 | P1 | Add assignment-source filters on session-scoped human task list APIs so one session can open only recommended/manual/auto-preselected queue rows without client-side filtering | codex | done | Approved smoke coverage now proves `GET /v1/human/tasks?session_id=...&assignment_source=...` can isolate manual or planner auto-preselected packets inside a single session-scoped queue fetch |
 | D-219 | P1 | Add assignment-source filters on human task session-linked projections so session detail can surface just recommended/manual/auto-preselected packet subsets without client-side filtering | codex | done | `GET /v1/rewrite/sessions/{session_id}` now accepts `human_task_assignment_source`, and approved smoke coverage proves session detail can isolate manual or planner auto-preselected human-task slices without client-side filtering |

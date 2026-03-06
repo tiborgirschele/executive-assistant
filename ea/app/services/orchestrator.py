@@ -1269,7 +1269,7 @@ class RewriteOrchestrator:
         event_filter = str(event_name or "").strip()
         operator_filter = str(assigned_operator_id or "").strip()
         actor_filter = str(assigned_by_actor_id or "").strip()
-        source_filter = str(assignment_source or "").strip()
+        has_source_filter, source_filter = _parse_assignment_source_filter(assignment_source)
         rows = self._human_task_assignment_events(found)
         if event_filter:
             rows = [event for event in rows if event.name == event_filter]
@@ -1286,7 +1286,7 @@ class RewriteOrchestrator:
                 for event in rows
                 if str((event.payload or {}).get("assigned_by_actor_id") or "") == actor_filter
             ]
-        if source_filter:
+        if has_source_filter:
             rows = [
                 event
                 for event in rows

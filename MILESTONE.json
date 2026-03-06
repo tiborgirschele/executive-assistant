@@ -667,6 +667,15 @@
       "notes": "Human task source-filtered queue views now accept `assignment_source=none` for ownerless pending packets, so unassigned backlogs and ownerless summary slices no longer require empty-string request handling."
     },
     {
+      "name": "human_task_ownerless_session_history_alias",
+      "status": "tested",
+      "scope": [
+        "human_task_assignment_history_ownerless_source_alias",
+        "session_human_task_ownerless_source_alias"
+      ],
+      "notes": "Task assignment-history and session detail filters now accept `assignment_source=none`, so ownerless creation-only transitions and current ownerless packets use the same alias contract as the direct queue views."
+    },
+    {
       "name": "human_task_assignment_history_source_filter",
       "status": "tested",
       "scope": [

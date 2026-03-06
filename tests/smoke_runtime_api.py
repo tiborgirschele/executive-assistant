@@ -536,6 +536,16 @@ def test_human_task_flow_and_session_projection() -> None:
     assert recommended_rows[0]["assignment_source"] == "recommended"
     assert recommended_rows[0]["assigned_operator_id"] == "operator-specialist"
 
+    ownerless_history = client.get(
+        f"/v1/human/tasks/{task_id}/assignment-history",
+        params={"limit": 10, "assignment_source": "none"},
+    )
+    assert ownerless_history.status_code == 200
+    ownerless_history_rows = ownerless_history.json()
+    assert len(ownerless_history_rows) == 1
+    assert ownerless_history_rows[0]["event_name"] == "human_task_created"
+    assert ownerless_history_rows[0]["assignment_source"] == ""
+
     session_after = client.get(f"/v1/rewrite/sessions/{session_id}")
     assert session_after.status_code == 200
     session_body = session_after.json()
@@ -1592,6 +1602,20 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
     assert ownerless_task_id in ownerless_unassigned_ids
     assert manual_task_id not in ownerless_unassigned_ids
     assert auto_task_id not in ownerless_unassigned_ids
+
+    ownerless_session = client.get(
+        f"/v1/rewrite/sessions/{session_id}",
+        params={"human_task_assignment_source": "none"},
+    )
+    assert ownerless_session.status_code == 200
+    ownerless_session_body = ownerless_session.json()
+    assert len(ownerless_session_body["human_tasks"]) == 1
+    assert ownerless_session_body["human_tasks"][0]["human_task_id"] == ownerless_task_id
+    assert all(row["assignment_source"] == "" for row in ownerless_session_body["human_task_assignment_history"])
+    assert all(row["event_name"] == "human_task_created" for row in ownerless_session_body["human_task_assignment_history"])
+    assert any(
+        row["human_task_id"] == ownerless_task_id for row in ownerless_session_body["human_task_assignment_history"]
+    )
 
     auto_summary = client.get(
         "/v1/human/tasks/priority-summary",

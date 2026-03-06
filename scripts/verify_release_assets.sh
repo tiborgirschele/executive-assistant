@@ -1923,6 +1923,35 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(
+    entry for entry in milestone["capabilities"] if entry["name"] == "human_task_ownerless_session_history_alias"
+)
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "human_task_assignment_source=none" "README.md" && \
+     grep -Fq "human_task_assignment_source=none" "RUNBOOK.md" && \
+     grep -Fq "SESSION_HUMAN_NONE_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq "HUMAN_HISTORY_NONE_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq 'params={"limit": 10, "assignment_source": "none"}' "tests/smoke_runtime_api.py" && \
+     grep -Fq 'params={"human_task_assignment_source": "none"}' "tests/smoke_runtime_api.py" && \
+     grep -Fq "/v1/rewrite/sessions/{{session_id}}?human_task_assignment_source=none" "HTTP_EXAMPLES.http" && \
+     grep -Fq "/v1/human/tasks/{{human_task_id}}/assignment-history?limit=20&assignment_source=none" "HTTP_EXAMPLES.http"; then
+    echo "ok: human task ownerless session/history alias docs"
+  else
+    echo "missing: human task ownerless session/history alias docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task ownerless session/history alias milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assignment_history_source_filter")
 assert capability["status"] == "tested"
 PY
