@@ -39,6 +39,9 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Added `GET /v1/human/tasks/unassigned` plus `assignment_state=assigned|unassigned` backlog filters so ownerless pending work is distinct from pre-assigned pending work.
 - Human task payloads now expose explicit `assignment_state` values (`unassigned`, `assigned`, `claimed`, `returned`) instead of requiring callers to infer pre-assigned pending work from generic `pending` status plus owner fields.
 - `GET /v1/human/tasks/priority-summary` now also accepts `operator_id`, so pre-claim reviewer-routing summaries can count only the pending packets that exactly match one operator profile’s role, rubric-derived skill tags, and trust tier.
+- `GET /v1/human/tasks/priority-summary` now also accepts `assignment_source`, so routing dashboards can separate manual, recommended, and planner `auto_preselected` pending work without opening the full queue.
+- Human task list, backlog, unassigned, and mine queue views now also accept `assignment_source`, so the exact pending slice surfaced by the summary endpoint can be opened directly without client-side filtering.
+- `GET /v1/human/tasks/{human_task_id}/assignment-history` now also accepts `assignment_source`, so operator tooling can isolate recommended, manual, or planner `auto_preselected` ownership transitions directly at the event-history layer.
 
 ## 2026-03-05
 

@@ -817,6 +817,75 @@ def test_human_task_operator_matched_priority_summary_is_documented_and_smoked()
     assert "role_skill_trust_filtered_backlog_counts" in capability["scope"]
 
 
+def test_human_task_assignment_source_priority_summary_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    human_route = (ROOT / "ea/app/api/routes/human.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "also accepts `assignment_source`" in readme
+    assert "assignment_source" in runbook
+    assert "PRIORITY_SUMMARY_MANUAL_JSON" in smoke_api
+    assert "HUMAN_REWRITE_AUTO_SUMMARY_JSON" in smoke_api
+    assert '"assignment_source": "auto_preselected"' in smoke_runtime
+    assert "/v1/human/tasks/priority-summary?status=pending&assignment_source=manual" in http_examples
+    assert "assignment_source: str" in human_route
+
+    capability = next(
+        entry for entry in milestone["capabilities"]
+        if entry["name"] == "human_task_priority_summary_assignment_source_filter"
+    )
+    assert capability["status"] == "tested"
+    assert "manual_vs_auto_preselected_pending_projection" in capability["scope"]
+
+
+def test_human_task_assignment_source_queue_filters_are_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "queue views now also accept `assignment_source=<source>`" in readme
+    assert "assignment_source=manual|recommended|auto_preselected" in runbook
+    assert "PRIORITY_SUMMARY_MANUAL_LIST_JSON" in smoke_api
+    assert "HUMAN_REWRITE_AUTO_BACKLOG_JSON" in smoke_api
+    assert 'params={"status": "pending", "assignment_source": "manual"}' in smoke_runtime
+    assert 'params={"operator_id": "operator-auto-summary", "assignment_source": "auto_preselected"}' in smoke_runtime
+    assert "/v1/human/tasks/backlog?assignment_source=auto_preselected&limit=20" in http_examples
+
+    capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assignment_source_queue_filters"
+    )
+    assert capability["status"] == "tested"
+    assert "human_task_backlog_assignment_source_filter" in capability["scope"]
+
+
+def test_human_task_assignment_history_source_filter_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "assignment-history` also accepts `event_name`, `assigned_operator_id`, `assigned_by_actor_id`, and `assignment_source`" in readme
+    assert "assignment_source" in runbook
+    assert "HUMAN_HISTORY_RECOMMENDED_JSON" in smoke_api
+    assert 'params={"limit": 10, "assignment_source": "recommended"}' in smoke_runtime
+    assert "/v1/human/tasks/{{human_task_id}}/assignment-history?limit=20&assignment_source=recommended" in http_examples
+
+    capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assignment_history_source_filter"
+    )
+    assert capability["status"] == "tested"
+    assert "recommended_transition_isolation" in capability["scope"]
+
+
 def test_milestone_marks_postgres_contract_matrix_tested() -> None:
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "postgres_contract_matrix")

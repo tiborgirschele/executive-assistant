@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-216 | P1 | Add assignment-source filters on human task priority summaries so operator dashboards can separate auto-preselected, manual-assigned, and ownerless load before claim | codex | queued | Operator-matched summaries now exist, but routing dashboards still cannot isolate recommended/auto-preselected pending packets from manual or ownerless backlog in one summary projection |
+| Q-219 | P1 | Add assignment-source filters on human task session-linked projections so session detail can surface just recommended/manual/auto-preselected packet subsets without client-side filtering | codex | queued | Task-scoped history can now isolate ownership sources and queue views can open those slices directly, but session detail still returns one combined `human_tasks` array without a source-filtered companion view |
 
 ## In Progress
 
@@ -31,6 +31,9 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-218 | P1 | Add assignment-source filters on human task assignment-history and session projections so operator tooling can isolate recommended/manual/auto-preselected transitions without manual event scans | codex | done | `GET /v1/human/tasks/{human_task_id}/assignment-history` now accepts `assignment_source`, and approved smoke coverage proves recommended ownership transitions can be isolated directly from the task-scoped event chain |
+| D-217 | P1 | Add assignment-source filters on human task queue list/backlog views so operators can open the same pending slice exposed by the summary endpoint without client-side filtering | codex | done | Human task list, backlog, and mine queue endpoints now accept `assignment_source`, and approved smoke coverage proves manual and planner `auto_preselected` pending slices can be opened directly after the summary reveals them |
+| D-216 | P1 | Add assignment-source filters on human task priority summaries so operator dashboards can separate auto-preselected, manual-assigned, and ownerless load before claim | codex | done | `GET /v1/human/tasks/priority-summary` now accepts `assignment_source`, and approved smoke coverage proves pending manual and planner `auto_preselected` queues can be counted separately before reviewers open the backlog |
 | D-215 | P1 | Add role-match-aware priority summaries for operator backlog routing so reviewers can see candidate urgent/high load before claiming work | codex | done | `GET /v1/human/tasks/priority-summary` now accepts `operator_id`, and approved smoke coverage proves pre-claim reviewer-routing summaries can count only packets that exactly match one operator profile’s role, rubric-derived skill tags, and trust tier |
 | D-214 | P1 | Add operator-specific priority summaries so `mine` queues can expose urgent/high/normal load after reviewer-assignment filters | codex | done | `GET /v1/human/tasks/priority-summary` now accepts `assigned_operator_id`, and approved smoke coverage proves assigned reviewer queues can inspect their own priority-band totals without fetching the full packet list |
 | D-213 | P1 | Add priority summary counts on operator human-task queues so reviewers can see urgent/high/normal load before applying queue filters | codex | done | Added `GET /v1/human/tasks/priority-summary`, backed by repository priority counts and approved smoke coverage, so operators can inspect band totals before choosing `urgent`, `urgent,high`, or full-queue views |

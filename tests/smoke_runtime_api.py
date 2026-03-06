@@ -525,6 +525,17 @@ def test_human_task_flow_and_session_projection() -> None:
     assert len(returned_history.json()) == 1
     assert returned_history.json()[0]["assigned_by_actor_id"] == "operator-junior"
 
+    recommended_history = client.get(
+        f"/v1/human/tasks/{task_id}/assignment-history",
+        params={"limit": 10, "assignment_source": "recommended"},
+    )
+    assert recommended_history.status_code == 200
+    recommended_rows = recommended_history.json()
+    assert len(recommended_rows) == 1
+    assert recommended_rows[0]["event_name"] == "human_task_assigned"
+    assert recommended_rows[0]["assignment_source"] == "recommended"
+    assert recommended_rows[0]["assigned_operator_id"] == "operator-specialist"
+
     session_after = client.get(f"/v1/rewrite/sessions/{session_id}")
     assert session_after.status_code == 200
     session_body = session_after.json()
@@ -1441,6 +1452,141 @@ def test_human_task_priority_summary_for_matching_operator_profile() -> None:
     assert scheduler_body["counts_json"]["urgent"] == 0
     assert scheduler_body["counts_json"]["high"] == 0
     assert scheduler_body["counts_json"]["normal"] == 1
+
+
+def test_human_task_priority_summary_for_assignment_source() -> None:
+    client = _client(storage_backend="memory")
+
+    contract = client.post(
+        "/v1/task-contracts",
+        json={
+            "task_type": "rewrite_text",
+            "description": "Rewrite text with human review and auto-preselection.",
+            "deliverable_type": "rewrite_note",
+            "default_approval_class": "none",
+            "allowed_tools": ["artifact_repository"],
+            "evidence_requirements": ["stakeholder_context"],
+            "memory_write_policy": "reviewed_only",
+            "budget_policy_json": {
+                "class": "low",
+                "human_review_role": "source_filter_reviewer",
+                "human_review_task_type": "communications_review",
+                "human_review_brief": "Review the rewrite before finalizing it.",
+                "human_review_priority": "high",
+                "human_review_sla_minutes": 45,
+                "human_review_auto_assign_if_unique": True,
+                "human_review_desired_output_json": {
+                    "format": "review_packet",
+                    "escalation_policy": "manager_review",
+                },
+                "human_review_authority_required": "send_on_behalf_review",
+                "human_review_why_human": "Executive-facing rewrite needs human judgment before finalization.",
+                "human_review_quality_rubric_json": {
+                    "checks": ["tone", "accuracy", "stakeholder_sensitivity"],
+                },
+            },
+        },
+    )
+    assert contract.status_code == 200
+
+    operator_profile = client.post(
+        "/v1/human/tasks/operators",
+        json={
+            "operator_id": "operator-auto-summary",
+            "display_name": "Senior Comms Reviewer",
+            "roles": ["source_filter_reviewer"],
+            "skill_tags": ["tone", "accuracy", "stakeholder_sensitivity"],
+            "trust_tier": "senior",
+            "status": "active",
+        },
+    )
+    assert operator_profile.status_code == 200
+
+    create = client.post("/v1/rewrite/artifact", json={"text": "rewrite with pending auto-preselected review"})
+    assert create.status_code == 202
+    auto_task_id = create.json()["human_task_id"]
+    session_id = create.json()["session_id"]
+
+    session = client.get(f"/v1/rewrite/sessions/{session_id}")
+    assert session.status_code == 200
+    step_id = session.json()["steps"][-1]["step_id"]
+
+    manual_task = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": "manual_source_filter_reviewer",
+            "brief": "Manual assigned task.",
+            "priority": "normal",
+            "resume_session_on_return": False,
+        },
+    )
+    assert manual_task.status_code == 200
+    manual_task_id = manual_task.json()["human_task_id"]
+    assign_manual = client.post(
+        f"/v1/human/tasks/{manual_task_id}/assign",
+        json={"operator_id": "operator-manual-summary"},
+    )
+    assert assign_manual.status_code == 200
+
+    auto_summary = client.get(
+        "/v1/human/tasks/priority-summary",
+        params={"status": "pending", "assignment_source": "auto_preselected"},
+    )
+    assert auto_summary.status_code == 200
+    auto_body = auto_summary.json()
+    assert auto_body["assignment_source"] == "auto_preselected"
+    assert auto_body["total"] == 1
+    assert auto_body["highest_priority"] == "high"
+    assert auto_body["counts_json"]["urgent"] == 0
+    assert auto_body["counts_json"]["high"] == 1
+    assert auto_body["counts_json"]["normal"] == 0
+
+    manual_summary = client.get(
+        "/v1/human/tasks/priority-summary",
+        params={"status": "pending", "assignment_source": "manual"},
+    )
+    assert manual_summary.status_code == 200
+    manual_body = manual_summary.json()
+    assert manual_body["assignment_source"] == "manual"
+    assert manual_body["total"] == 1
+    assert manual_body["highest_priority"] == "normal"
+    assert manual_body["counts_json"]["urgent"] == 0
+    assert manual_body["counts_json"]["high"] == 0
+    assert manual_body["counts_json"]["normal"] == 1
+
+    manual_list = client.get(
+        "/v1/human/tasks",
+        params={"status": "pending", "assignment_source": "manual"},
+    )
+    assert manual_list.status_code == 200
+    manual_ids = {row["human_task_id"] for row in manual_list.json()}
+    assert manual_task_id in manual_ids
+    assert auto_task_id not in manual_ids
+
+    manual_mine = client.get(
+        "/v1/human/tasks/mine",
+        params={"operator_id": "operator-manual-summary", "assignment_source": "manual"},
+    )
+    assert manual_mine.status_code == 200
+    manual_mine_ids = {row["human_task_id"] for row in manual_mine.json()}
+    assert manual_task_id in manual_mine_ids
+
+    auto_backlog = client.get(
+        "/v1/human/tasks/backlog",
+        params={"operator_id": "operator-auto-summary", "assignment_source": "auto_preselected"},
+    )
+    assert auto_backlog.status_code == 200
+    auto_backlog_ids = {row["human_task_id"] for row in auto_backlog.json()}
+    assert auto_task_id in auto_backlog_ids
+    assert manual_task_id not in auto_backlog_ids
+
+    session_after = client.get(f"/v1/rewrite/sessions/{session_id}")
+    assert session_after.status_code == 200
+    auto_task = next(row for row in session_after.json()["human_tasks"] if row["human_task_id"] == auto_task_id)
+    assert auto_task["assignment_source"] == "auto_preselected"
 
 
 def test_human_task_sort_by_sla_due_at_asc() -> None:

@@ -122,6 +122,7 @@ class HumanTaskPrioritySummaryOut(BaseModel):
     operator_id: str
     assigned_operator_id: str
     assignment_state: str
+    assignment_source: str
     overdue_only: bool
     counts_json: dict[str, int]
     total: int
@@ -239,6 +240,7 @@ def list_human_tasks(
     priority: str | None = None,
     assigned_operator_id: str | None = None,
     assignment_state: str | None = None,
+    assignment_source: str | None = None,
     overdue_only: bool = False,
     sort: str | None = Query(
         default=None,
@@ -257,6 +259,7 @@ def list_human_tasks(
         priority=priority,
         assigned_operator_id=assigned_operator_id,
         assignment_state=assignment_state,
+        assignment_source=assignment_source,
         overdue_only=overdue_only,
         limit=limit,
         sort=sort,
@@ -272,6 +275,7 @@ def get_human_task_priority_summary(
     operator_id: str | None = None,
     assigned_operator_id: str | None = None,
     assignment_state: str | None = None,
+    assignment_source: str | None = None,
     overdue_only: bool = False,
     container: AppContainer = Depends(get_container),
     context: RequestContext = Depends(get_request_context),
@@ -285,6 +289,7 @@ def get_human_task_priority_summary(
             operator_id=operator_id,
             assigned_operator_id=assigned_operator_id,
             assignment_state=assignment_state,
+            assignment_source=assignment_source,
             overdue_only=overdue_only,
         )
     )
@@ -296,6 +301,7 @@ def list_human_task_backlog(
     priority: str | None = None,
     operator_id: str | None = None,
     assignment_state: str | None = None,
+    assignment_source: str | None = None,
     overdue_only: bool = False,
     sort: str | None = Query(
         default=None,
@@ -311,6 +317,7 @@ def list_human_task_backlog(
         role_required=role_required,
         priority=priority,
         assignment_state=assignment_state,
+        assignment_source=assignment_source,
         operator_id=operator_id,
         overdue_only=overdue_only,
         limit=limit,
@@ -323,6 +330,7 @@ def list_human_task_backlog(
 def list_unassigned_human_tasks(
     role_required: str | None = None,
     priority: str | None = None,
+    assignment_source: str | None = None,
     overdue_only: bool = False,
     sort: str | None = Query(
         default=None,
@@ -338,6 +346,7 @@ def list_unassigned_human_tasks(
         role_required=role_required,
         priority=priority,
         assignment_state="unassigned",
+        assignment_source=assignment_source,
         overdue_only=overdue_only,
         limit=limit,
         sort=sort,
@@ -350,6 +359,7 @@ def list_my_human_tasks(
     operator_id: str,
     status: str = "",
     priority: str | None = None,
+    assignment_source: str | None = None,
     sort: str | None = Query(
         default=None,
         pattern="^(created_asc|created_desc|last_transition_desc|priority_desc_created_asc|sla_due_at_asc|sla_due_at_asc_last_transition_desc)$",
@@ -363,6 +373,7 @@ def list_my_human_tasks(
         status=status,
         priority=priority,
         assigned_operator_id=operator_id,
+        assignment_source=assignment_source,
         limit=limit,
         sort=sort,
     )
@@ -453,6 +464,7 @@ def get_human_task_assignment_history(
     event_name: str | None = None,
     assigned_operator_id: str | None = None,
     assigned_by_actor_id: str | None = None,
+    assignment_source: str | None = None,
     limit: int = Query(default=100, ge=1, le=500),
     container: AppContainer = Depends(get_container),
     context: RequestContext = Depends(get_request_context),
@@ -466,6 +478,7 @@ def get_human_task_assignment_history(
         event_name=event_name,
         assigned_operator_id=assigned_operator_id,
         assigned_by_actor_id=assigned_by_actor_id,
+        assignment_source=assignment_source,
         limit=limit,
     )
     return [_to_assignment_history_out(row) for row in rows]

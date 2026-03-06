@@ -1836,6 +1836,83 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(
+    entry for entry in milestone["capabilities"] if entry["name"] == "human_task_priority_summary_assignment_source_filter"
+)
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "also accepts \`assignment_source\`" "README.md" && \
+     grep -Fq "assignment_source" "RUNBOOK.md" && \
+     grep -Fq "PRIORITY_SUMMARY_MANUAL_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq "HUMAN_REWRITE_AUTO_SUMMARY_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq '"assignment_source": "auto_preselected"' "tests/smoke_runtime_api.py" && \
+     grep -Fq "/v1/human/tasks/priority-summary?status=pending&assignment_source=manual" "HTTP_EXAMPLES.http" && \
+     grep -Fq "assignment_source: str" "ea/app/api/routes/human.py"; then
+    echo "ok: human task assignment-source priority summary docs"
+  else
+    echo "missing: human task assignment-source priority summary docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task assignment-source priority summary milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assignment_source_queue_filters")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "queue views now also accept \`assignment_source=<source>\`" "README.md" && \
+     grep -Fq "assignment_source=manual|recommended|auto_preselected" "RUNBOOK.md" && \
+     grep -Fq "PRIORITY_SUMMARY_MANUAL_LIST_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq "HUMAN_REWRITE_AUTO_BACKLOG_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq '"assignment_source": "manual"' "tests/smoke_runtime_api.py" && \
+     grep -Fq "/v1/human/tasks/backlog?assignment_source=auto_preselected&limit=20" "HTTP_EXAMPLES.http"; then
+    echo "ok: human task assignment-source queue filters docs"
+  else
+    echo "missing: human task assignment-source queue filters docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task assignment-source queue filters milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_assignment_history_source_filter")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq 'assignment-history` also accepts `event_name`, `assigned_operator_id`, `assigned_by_actor_id`, and `assignment_source`' "README.md" && \
+     grep -Fq "assignment_source" "RUNBOOK.md" && \
+     grep -Fq "HUMAN_HISTORY_RECOMMENDED_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq 'params={"limit": 10, "assignment_source": "recommended"}' "tests/smoke_runtime_api.py" && \
+     grep -Fq "/v1/human/tasks/{{human_task_id}}/assignment-history?limit=20&assignment_source=recommended" "HTTP_EXAMPLES.http"; then
+    echo "ok: human task assignment-history source filter docs"
+  else
+    echo "missing: human task assignment-history source filter docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task assignment-history source filter milestone" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1

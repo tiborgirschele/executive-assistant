@@ -303,6 +303,13 @@ if [[ "${HUMAN_HISTORY_RETURN_FIELDS}" != "1|operator-junior" ]]; then
   echo "${HUMAN_HISTORY_RETURN_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+HUMAN_HISTORY_RECOMMENDED_JSON="$(curl -fsS "${BASE}/v1/human/tasks/${HUMAN_TASK_ID}/assignment-history?limit=10&assignment_source=recommended" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+HUMAN_HISTORY_RECOMMENDED_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); first=(rows[0] if rows else {}); print('{}|{}|{}'.format(len(rows), (first or {}).get('event_name',''), (first or {}).get('assigned_operator_id','')))" <<<"${HUMAN_HISTORY_RECOMMENDED_JSON}")"
+if [[ "${HUMAN_HISTORY_RECOMMENDED_FIELDS}" != "1|human_task_assigned|operator-specialist" ]]; then
+  echo "expected filtered assignment-history route to isolate recommended assignment transitions by assignment_source; got ${HUMAN_HISTORY_RECOMMENDED_FIELDS}" >&2
+  echo "${HUMAN_HISTORY_RECOMMENDED_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 SESSION_HUMAN_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${SESSION_ID}" "${AUTH_ARGS[@]}")"
 SESSION_HUMAN_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); events={e.get('name','') for e in (body.get('events') or [])}; tasks=body.get('human_tasks') or []; steps=body.get('steps') or []; history=body.get('human_task_assignment_history') or []; task_id='${HUMAN_TASK_ID}'; step_id='${SESSION_STEP_ID}'; names=[(row or {}).get('event_name','') for row in history if (row or {}).get('human_task_id') == task_id]; operators=[(row or {}).get('assigned_operator_id','') for row in history if (row or {}).get('human_task_id') == task_id]; print('{}|{}|{}|{}|{}|{}|{}|{}|{}|{}'.format(body.get('status',''), 'human_task_created' in events and 'human_task_assigned' in events, 'human_task_claimed' in events, 'human_task_returned' in events and 'session_resumed_from_human_task' in events, any((row or {}).get('human_task_id') == task_id and (row or {}).get('status') == 'returned' and (row or {}).get('assignment_state') == 'returned' and (row or {}).get('assignment_source') == 'manual' and bool((row or {}).get('assigned_at','')) and (row or {}).get('assigned_by_actor_id') == 'operator-junior' for row in tasks), any((row or {}).get('step_id') == step_id and (row or {}).get('state') == 'completed' and ((row or {}).get('output_json') or {}).get('human_task_id') == task_id for row in steps), any((row or {}).get('assignment_source') == 'manual' for row in tasks if (row or {}).get('human_task_id') == task_id), any((row or {}).get('assigned_by_actor_id') == 'operator-junior' for row in tasks if (row or {}).get('human_task_id') == task_id), ','.join(names), ','.join(operators)))" <<<"${SESSION_HUMAN_JSON}")"
 if [[ "${SESSION_HUMAN_FIELDS}" != "completed|True|True|True|True|True|True|True|human_task_created,human_task_assigned,human_task_assigned,human_task_claimed,human_task_returned|,operator-specialist,operator-junior,operator-junior,operator-junior" ]]; then
@@ -612,6 +619,27 @@ PRIORITY_SUMMARY_ASSIGNED_FIELDS="$(python3 -c "import json,sys; body=json.loads
 if [[ "${PRIORITY_SUMMARY_ASSIGNED_FIELDS}" != "${PRIORITY_SUMMARY_OPERATOR}|1|high|0|1|0|0" ]]; then
   echo "expected assigned-operator priority summary to isolate only the assigned reviewer queue; got ${PRIORITY_SUMMARY_ASSIGNED_FIELDS}" >&2
   echo "${PRIORITY_SUMMARY_ASSIGNED_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+PRIORITY_SUMMARY_MANUAL_JSON="$(curl -fsS "${BASE}/v1/human/tasks/priority-summary?status=pending&role_required=${PRIORITY_SUMMARY_ROLE}&assignment_source=manual" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+PRIORITY_SUMMARY_MANUAL_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); counts=body.get('counts_json') or {}; print('{}|{}|{}|{}|{}|{}|{}'.format(body.get('assignment_source',''), body.get('total',''), body.get('highest_priority',''), counts.get('urgent',''), counts.get('high',''), counts.get('normal',''), counts.get('low','')))" <<<"${PRIORITY_SUMMARY_MANUAL_JSON}")"
+if [[ "${PRIORITY_SUMMARY_MANUAL_FIELDS}" != "manual|1|high|0|1|0|0" ]]; then
+  echo "expected assignment-source priority summary to isolate manually assigned pending work; got ${PRIORITY_SUMMARY_MANUAL_FIELDS}" >&2
+  echo "${PRIORITY_SUMMARY_MANUAL_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+PRIORITY_SUMMARY_MANUAL_LIST_JSON="$(curl -fsS "${BASE}/v1/human/tasks?status=pending&role_required=${PRIORITY_SUMMARY_ROLE}&assignment_source=manual&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+PRIORITY_SUMMARY_MANUAL_LIST_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted='${PRIORITY_SUMMARY_HIGH_ASSIGNED_ID}'; print(any((row or {}).get('human_task_id') == wanted for row in rows))" <<<"${PRIORITY_SUMMARY_MANUAL_LIST_JSON}")"
+if [[ "${PRIORITY_SUMMARY_MANUAL_LIST_FIELDS}" != "True" ]]; then
+  echo "expected assignment-source list filter to expose manually assigned pending work" >&2
+  echo "${PRIORITY_SUMMARY_MANUAL_LIST_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+PRIORITY_SUMMARY_MANUAL_MINE_JSON="$(curl -fsS "${BASE}/v1/human/tasks/mine?operator_id=${PRIORITY_SUMMARY_OPERATOR}&assignment_source=manual&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+PRIORITY_SUMMARY_MANUAL_MINE_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted='${PRIORITY_SUMMARY_HIGH_ASSIGNED_ID}'; print(any((row or {}).get('human_task_id') == wanted for row in rows))" <<<"${PRIORITY_SUMMARY_MANUAL_MINE_JSON}")"
+if [[ "${PRIORITY_SUMMARY_MANUAL_MINE_FIELDS}" != "True" ]]; then
+  echo "expected assignment-source mine filter to expose manually assigned pending reviewer work" >&2
+  echo "${PRIORITY_SUMMARY_MANUAL_MINE_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
 PRIORITY_SUMMARY_MATCH_ROLE="matched_priority_summary_reviewer"
@@ -1099,6 +1127,20 @@ HUMAN_REWRITE_SUMMARY_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys
 if [[ "${HUMAN_REWRITE_SUMMARY_FIELDS}" != "human_task_assigned|True|assigned|operator-specialist|auto_preselected|orchestrator:auto_preselected" ]]; then
   echo "expected planner-native human review row to expose compact auto-preselected transition summary; got ${HUMAN_REWRITE_SUMMARY_FIELDS}" >&2
   echo "${HUMAN_REWRITE_SESSION_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HUMAN_REWRITE_AUTO_SUMMARY_JSON="$(curl -fsS "${BASE}/v1/human/tasks/priority-summary?status=pending&role_required=communications_reviewer&assigned_operator_id=operator-specialist&assignment_source=auto_preselected" "${AUTH_ARGS[@]}")"
+HUMAN_REWRITE_AUTO_SUMMARY_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); counts=body.get('counts_json') or {}; print('{}|{}|{}|{}|{}|{}|{}'.format(body.get('assignment_source',''), body.get('total',''), body.get('highest_priority',''), counts.get('urgent',''), counts.get('high',''), counts.get('normal',''), counts.get('low','')))" <<<"${HUMAN_REWRITE_AUTO_SUMMARY_JSON}")"
+if [[ "${HUMAN_REWRITE_AUTO_SUMMARY_FIELDS}" != "auto_preselected|1|high|0|1|0|0" ]]; then
+  echo "expected assignment-source priority summary to isolate planner auto-preselected pending work; got ${HUMAN_REWRITE_AUTO_SUMMARY_FIELDS}" >&2
+  echo "${HUMAN_REWRITE_AUTO_SUMMARY_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HUMAN_REWRITE_AUTO_BACKLOG_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?operator_id=operator-specialist&assignment_source=auto_preselected&limit=10" "${AUTH_ARGS[@]}")"
+HUMAN_REWRITE_AUTO_BACKLOG_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted='${HUMAN_REWRITE_TASK_ID}'; print(any((row or {}).get('human_task_id') == wanted for row in rows))" <<<"${HUMAN_REWRITE_AUTO_BACKLOG_JSON}")"
+if [[ "${HUMAN_REWRITE_AUTO_BACKLOG_FIELDS}" != "True" ]]; then
+  echo "expected assignment-source backlog filter to expose planner auto-preselected pending work" >&2
+  echo "${HUMAN_REWRITE_AUTO_BACKLOG_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
 HUMAN_REWRITE_RETURN_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks/${HUMAN_REWRITE_TASK_ID}/return" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \

@@ -635,6 +635,36 @@
         "preclaim_reviewer_routing_band_projection"
       ],
       "notes": "Human task priority summaries now accept `operator_id`, so pre-claim reviewer-routing dashboards can count only the pending packets that exactly match one operator profile's role, rubric-derived skill tags, and trust tier."
+    },
+    {
+      "name": "human_task_priority_summary_assignment_source_filter",
+      "status": "tested",
+      "scope": [
+        "priority_summary_assignment_source_filter",
+        "manual_vs_auto_preselected_pending_projection",
+        "pending_assignment_source_load_split"
+      ],
+      "notes": "Human task priority summaries now accept `assignment_source`, so dashboards can separate manual, recommended, and planner auto-preselected pending work without fetching the full queue."
+    },
+    {
+      "name": "human_task_assignment_source_queue_filters",
+      "status": "tested",
+      "scope": [
+        "human_task_list_assignment_source_filter",
+        "human_task_backlog_assignment_source_filter",
+        "human_task_mine_assignment_source_filter"
+      ],
+      "notes": "Human task list, backlog, and mine queue views now accept `assignment_source`, so operators can open the same manual, recommended, or planner auto-preselected pending slice surfaced by the summary endpoint."
+    },
+    {
+      "name": "human_task_assignment_history_source_filter",
+      "status": "tested",
+      "scope": [
+        "human_task_assignment_history_assignment_source_filter",
+        "recommended_transition_isolation",
+        "manual_vs_auto_preselected_history_views"
+      ],
+      "notes": "Human task assignment history now accepts `assignment_source`, so operator tooling can isolate recommended, manual, or planner auto-preselected ownership transitions without scanning the full event chain."
     }
   ],
   "migrations": [

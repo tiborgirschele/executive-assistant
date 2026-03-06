@@ -339,6 +339,7 @@ class RewriteOrchestrator:
         priority: str | None = None,
         assigned_operator_id: str | None = None,
         assignment_state: str | None = None,
+        assignment_source: str | None = None,
         overdue_only: bool = False,
     ) -> list[HumanTask]:
         principal = str(principal_id or "").strip()
@@ -351,6 +352,7 @@ class RewriteOrchestrator:
         }
         operator_filter = str(assigned_operator_id or "").strip()
         assignment_filter = str(assignment_state or "").strip().lower()
+        source_filter = str(assignment_source or "").strip()
         filtered = [row for row in rows if row.principal_id == principal]
         if status_filter:
             filtered = [row for row in filtered if row.status == status_filter]
@@ -362,6 +364,8 @@ class RewriteOrchestrator:
             filtered = [row for row in filtered if row.assigned_operator_id == operator_filter]
         if assignment_filter:
             filtered = [row for row in filtered if row.assignment_state == assignment_filter]
+        if source_filter:
+            filtered = [row for row in filtered if row.assignment_source == source_filter]
         if overdue_only:
             now = datetime.now(timezone.utc)
             overdue_rows: list[HumanTask] = []
@@ -1116,6 +1120,7 @@ class RewriteOrchestrator:
         priority: str | None = None,
         assigned_operator_id: str | None = None,
         assignment_state: str | None = None,
+        assignment_source: str | None = None,
         operator_id: str | None = None,
         overdue_only: bool = False,
         limit: int = 50,
@@ -1135,6 +1140,7 @@ class RewriteOrchestrator:
                 priority=priority,
                 assigned_operator_id=assigned_operator_id,
                 assignment_state=assignment_state,
+                assignment_source=assignment_source,
                 overdue_only=overdue_only,
             )
             decorated = [self._decorate_human_task(row) for row in rows]
@@ -1155,6 +1161,7 @@ class RewriteOrchestrator:
             priority=priority,
             assigned_operator_id=assigned_operator_id,
             assignment_state=assignment_state,
+            assignment_source=assignment_source,
             overdue_only=overdue_only,
             limit=limit,
         )
@@ -1178,9 +1185,11 @@ class RewriteOrchestrator:
         operator_id: str | None = None,
         assigned_operator_id: str | None = None,
         assignment_state: str | None = None,
+        assignment_source: str | None = None,
         overdue_only: bool = False,
     ) -> dict[str, object]:
         resolved_operator_id = str(operator_id or "").strip()
+        resolved_assignment_source = str(assignment_source or "").strip()
         if resolved_operator_id:
             profile = self.fetch_operator_profile(resolved_operator_id, principal_id=principal_id)
             if profile is None:
@@ -1192,6 +1201,7 @@ class RewriteOrchestrator:
                     role_required=role_required,
                     assigned_operator_id=assigned_operator_id,
                     assignment_state=assignment_state,
+                    assignment_source=resolved_assignment_source,
                     overdue_only=overdue_only,
                     limit=0,
                 )
@@ -1208,6 +1218,7 @@ class RewriteOrchestrator:
                 role_required=role_required,
                 assigned_operator_id=assigned_operator_id,
                 assignment_state=assignment_state,
+                assignment_source=resolved_assignment_source,
                 overdue_only=overdue_only,
             )
         normalized = {
@@ -1229,6 +1240,7 @@ class RewriteOrchestrator:
             "operator_id": resolved_operator_id,
             "assigned_operator_id": str(assigned_operator_id or ""),
             "assignment_state": str(assignment_state or ""),
+            "assignment_source": resolved_assignment_source,
             "overdue_only": bool(overdue_only),
             "counts_json": ordered,
             "total": sum(ordered.values()),
@@ -1243,6 +1255,7 @@ class RewriteOrchestrator:
         event_name: str | None = None,
         assigned_operator_id: str | None = None,
         assigned_by_actor_id: str | None = None,
+        assignment_source: str | None = None,
         limit: int = 100,
     ) -> list[ExecutionEvent]:
         found = self.fetch_human_task(human_task_id, principal_id=principal_id)
@@ -1252,6 +1265,7 @@ class RewriteOrchestrator:
         event_filter = str(event_name or "").strip()
         operator_filter = str(assigned_operator_id or "").strip()
         actor_filter = str(assigned_by_actor_id or "").strip()
+        source_filter = str(assignment_source or "").strip()
         rows = self._human_task_assignment_events(found)
         if event_filter:
             rows = [event for event in rows if event.name == event_filter]
@@ -1267,6 +1281,12 @@ class RewriteOrchestrator:
                 event
                 for event in rows
                 if str((event.payload or {}).get("assigned_by_actor_id") or "") == actor_filter
+            ]
+        if source_filter:
+            rows = [
+                event
+                for event in rows
+                if str((event.payload or {}).get("assignment_source") or "") == source_filter
             ]
         if len(rows) <= n:
             return rows

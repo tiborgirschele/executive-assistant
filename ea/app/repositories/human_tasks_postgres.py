@@ -306,6 +306,7 @@ class PostgresHumanTaskRepository:
         priority: str | None = None,
         assigned_operator_id: str | None = None,
         assignment_state: str | None = None,
+        assignment_source: str | None = None,
         overdue_only: bool = False,
         limit: int = 50,
     ) -> list[HumanTask]:
@@ -319,6 +320,7 @@ class PostgresHumanTaskRepository:
         )
         operator_filter = str(assigned_operator_id or "").strip()
         assignment_filter = str(assignment_state or "").strip().lower()
+        source_filter = str(assignment_source or "").strip()
         raw_limit = int(limit or 0)
         n = max(1, min(500, raw_limit)) if raw_limit > 0 else 0
         clauses = ["principal_id = %s"]
@@ -338,6 +340,9 @@ class PostgresHumanTaskRepository:
         if assignment_filter:
             clauses.append("assignment_state = %s")
             params.append(assignment_filter)
+        if source_filter:
+            clauses.append("assignment_source = %s")
+            params.append(source_filter)
         if overdue_only:
             clauses.append("sla_due_at IS NOT NULL")
             clauses.append("sla_due_at <= NOW()")
@@ -392,6 +397,7 @@ class PostgresHumanTaskRepository:
         role_required: str | None = None,
         assigned_operator_id: str | None = None,
         assignment_state: str | None = None,
+        assignment_source: str | None = None,
         overdue_only: bool = False,
     ) -> dict[str, int]:
         principal = str(principal_id or "")
@@ -399,6 +405,7 @@ class PostgresHumanTaskRepository:
         role_filter = str(role_required or "").strip()
         operator_filter = str(assigned_operator_id or "").strip()
         assignment_filter = str(assignment_state or "").strip().lower()
+        source_filter = str(assignment_source or "").strip()
         clauses = ["principal_id = %s"]
         params: list[object] = [principal]
         if status_filter:
@@ -413,6 +420,9 @@ class PostgresHumanTaskRepository:
         if assignment_filter:
             clauses.append("assignment_state = %s")
             params.append(assignment_filter)
+        if source_filter:
+            clauses.append("assignment_source = %s")
+            params.append(source_filter)
         if overdue_only:
             clauses.append("sla_due_at IS NOT NULL")
             clauses.append("sla_due_at <= NOW()")
