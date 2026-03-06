@@ -102,6 +102,8 @@ def test_session_step_dependency_projection_is_covered_by_contract_tests() -> No
     assert "dependencies_satisfied: bool" in rewrite_route
     assert "Current state for each declared dependency key. Paused approval-backed sessions keep completed " in rewrite_route
     assert "This can still be true for a `waiting_approval` step, " in rewrite_route
+    assert '"step_id": "step-artifact-save-waiting-approval"' in rewrite_route
+    assert '"step_id": "step-artifact-save-blocked-human"' in rewrite_route
     assert "_step_dependency_projection(" in rewrite_route
     assert "step_policy_evaluate" in contract_test
     assert '["step_input_prepare"]' in contract_test

@@ -82,6 +82,55 @@ class SessionStepOut(BaseModel):
     created_at: str
     updated_at: str
 
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "step_id": "step-artifact-save-waiting-approval",
+                    "parent_step_id": "step-policy-evaluate",
+                    "dependency_keys": ["step_policy_evaluate"],
+                    "dependency_states": {"step_policy_evaluate": "completed"},
+                    "dependency_step_ids": {"step_policy_evaluate": "step-policy-evaluate"},
+                    "blocked_dependency_keys": [],
+                    "dependencies_satisfied": True,
+                    "step_kind": "tool_call",
+                    "state": "waiting_approval",
+                    "attempt_count": 0,
+                    "input_json": {"plan_step_key": "step_artifact_save"},
+                    "output_json": {},
+                    "error_json": {},
+                    "correlation_id": "corr-approval",
+                    "causation_id": "plan-approval",
+                    "actor_type": "assistant",
+                    "actor_id": "orchestrator",
+                    "created_at": "2026-03-06T12:00:00+00:00",
+                    "updated_at": "2026-03-06T12:00:01+00:00",
+                },
+                {
+                    "step_id": "step-artifact-save-blocked-human",
+                    "parent_step_id": "step-human-review",
+                    "dependency_keys": ["step_human_review"],
+                    "dependency_states": {"step_human_review": "waiting_human"},
+                    "dependency_step_ids": {"step_human_review": "step-human-review"},
+                    "blocked_dependency_keys": ["step_human_review"],
+                    "dependencies_satisfied": False,
+                    "step_kind": "tool_call",
+                    "state": "queued",
+                    "attempt_count": 0,
+                    "input_json": {"plan_step_key": "step_artifact_save"},
+                    "output_json": {},
+                    "error_json": {},
+                    "correlation_id": "corr-human",
+                    "causation_id": "plan-human",
+                    "actor_type": "assistant",
+                    "actor_id": "orchestrator",
+                    "created_at": "2026-03-06T12:05:00+00:00",
+                    "updated_at": "2026-03-06T12:05:01+00:00",
+                },
+            ]
+        }
+    }
+
 
 class SessionReceiptOut(BaseModel):
     receipt_id: str
