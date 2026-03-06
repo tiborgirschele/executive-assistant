@@ -675,6 +675,16 @@
         "auto_preselected_session_task_slice"
       ],
       "notes": "Rewrite session detail now accepts `human_task_assignment_source`, narrowing `human_tasks` and inline assignment history down to one ownership source without client-side filtering."
+    },
+    {
+      "name": "session_scoped_human_task_assignment_source_filters",
+      "status": "tested",
+      "scope": [
+        "session_scoped_manual_queue_slice",
+        "session_scoped_auto_preselected_queue_slice",
+        "human_task_list_session_assignment_source_filter"
+      ],
+      "notes": "Human task list queries now have approved smoke/docs coverage for combining `session_id` and `assignment_source`, so one session-scoped queue fetch can isolate manual or planner auto-preselected packets without client-side filtering."
     }
   ],
   "migrations": [

@@ -649,6 +649,13 @@ if [[ "${PRIORITY_SUMMARY_MANUAL_MINE_FIELDS}" != "True" ]]; then
   echo "${PRIORITY_SUMMARY_MANUAL_MINE_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+PRIORITY_SUMMARY_MANUAL_SESSION_JSON="$(curl -fsS "${BASE}/v1/human/tasks?session_id=${PRIORITY_SUMMARY_SESSION_ID}&assignment_source=manual&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+PRIORITY_SUMMARY_MANUAL_SESSION_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted='${PRIORITY_SUMMARY_HIGH_ASSIGNED_ID}'; print(any((row or {}).get('human_task_id') == wanted for row in rows))" <<<"${PRIORITY_SUMMARY_MANUAL_SESSION_JSON}")"
+if [[ "${PRIORITY_SUMMARY_MANUAL_SESSION_FIELDS}" != "True" ]]; then
+  echo "expected session-scoped assignment-source list filter to expose manually assigned pending reviewer work" >&2
+  echo "${PRIORITY_SUMMARY_MANUAL_SESSION_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 PRIORITY_SUMMARY_MATCH_ROLE="matched_priority_summary_reviewer"
 PRIORITY_SUMMARY_SCHED_ROLE="matched_priority_summary_scheduler"
 curl -fsS -X POST "${BASE}/v1/human/tasks/operators" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
@@ -1141,6 +1148,13 @@ HUMAN_REWRITE_AUTO_SESSION_FIELDS="$(python3 -c "import json,sys; body=json.load
 if [[ "${HUMAN_REWRITE_AUTO_SESSION_FIELDS}" != "1|${HUMAN_REWRITE_TASK_ID}|human_task_assigned" ]]; then
   echo "expected session assignment-source filter to isolate planner auto-preselected pending rows and transitions; got ${HUMAN_REWRITE_AUTO_SESSION_FIELDS}" >&2
   echo "${HUMAN_REWRITE_AUTO_SESSION_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HUMAN_REWRITE_AUTO_LIST_JSON="$(curl -fsS "${BASE}/v1/human/tasks?session_id=${HUMAN_REWRITE_SESSION_ID}&assignment_source=auto_preselected&limit=10" "${AUTH_ARGS[@]}")"
+HUMAN_REWRITE_AUTO_LIST_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted='${HUMAN_REWRITE_TASK_ID}'; print(any((row or {}).get('human_task_id') == wanted for row in rows))" <<<"${HUMAN_REWRITE_AUTO_LIST_JSON}")"
+if [[ "${HUMAN_REWRITE_AUTO_LIST_FIELDS}" != "True" ]]; then
+  echo "expected session-scoped assignment-source list filter to expose planner auto-preselected pending work" >&2
+  echo "${HUMAN_REWRITE_AUTO_LIST_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
 HUMAN_REWRITE_AUTO_SUMMARY_JSON="$(curl -fsS "${BASE}/v1/human/tasks/priority-summary?status=pending&role_required=communications_reviewer&assigned_operator_id=operator-specialist&assignment_source=auto_preselected" "${AUTH_ARGS[@]}")"

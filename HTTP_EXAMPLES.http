@@ -147,6 +147,10 @@ X-EA-Principal-ID: {{principal_id}}
 GET {{host}}/v1/human/tasks?principal_id={{principal_id}}&assigned_operator_id=operator&status=claimed&limit=20
 X-EA-Principal-ID: {{principal_id}}
 
+### Human tasks -> list for one session and one assignment source
+GET {{host}}/v1/human/tasks?principal_id={{principal_id}}&session_id={{session_id}}&assignment_source=manual&limit=20
+X-EA-Principal-ID: {{principal_id}}
+
 ### Human tasks -> direct pending backlog sorted by latest ownership churn
 GET {{host}}/v1/human/tasks/backlog?sort=last_transition_desc&limit=20
 X-EA-Principal-ID: {{principal_id}}

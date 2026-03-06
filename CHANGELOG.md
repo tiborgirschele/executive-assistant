@@ -43,6 +43,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Human task list, backlog, unassigned, and mine queue views now also accept `assignment_source`, so the exact pending slice surfaced by the summary endpoint can be opened directly without client-side filtering.
 - `GET /v1/human/tasks/{human_task_id}/assignment-history` now also accepts `assignment_source`, so operator tooling can isolate recommended, manual, or planner `auto_preselected` ownership transitions directly at the event-history layer.
 - `GET /v1/rewrite/sessions/{session_id}` now also accepts `human_task_assignment_source`, so session detail can surface only manual, recommended, or planner auto-preselected human-task slices without client-side filtering.
+- `GET /v1/human/tasks?session_id=<id>&assignment_source=<source>` now also isolates one ownership-source slice inside a single session-scoped queue fetch, so operators can inspect manual or planner-preselected packets for one execution thread without client-side filtering.
 
 ## 2026-03-05
 

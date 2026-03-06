@@ -908,6 +908,30 @@ def test_session_human_task_assignment_source_filter_is_documented_and_smoked() 
     assert "manual_session_task_slice" in capability["scope"]
 
 
+def test_session_scoped_human_task_assignment_source_queue_filters_are_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "session_id=<id>&assignment_source=<source>" in readme
+    assert "session_id=<id>&assignment_source=<source>" in runbook
+    assert "PRIORITY_SUMMARY_MANUAL_SESSION_JSON" in smoke_api
+    assert "HUMAN_REWRITE_AUTO_LIST_JSON" in smoke_api
+    assert 'params={"session_id": session_id, "assignment_source": "manual"}' in smoke_runtime
+    assert "/v1/human/tasks?principal_id={{principal_id}}&session_id={{session_id}}&assignment_source=manual&limit=20" in http_examples
+
+    capability = next(
+        entry
+        for entry in milestone["capabilities"]
+        if entry["name"] == "session_scoped_human_task_assignment_source_filters"
+    )
+    assert capability["status"] == "tested"
+    assert "session_scoped_manual_queue_slice" in capability["scope"]
+
+
 def test_milestone_marks_postgres_contract_matrix_tested() -> None:
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "postgres_contract_matrix")

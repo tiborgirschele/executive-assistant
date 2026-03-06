@@ -1938,6 +1938,33 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(
+    entry for entry in milestone["capabilities"] if entry["name"] == "session_scoped_human_task_assignment_source_filters"
+)
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq 'session_id=<id>&assignment_source=<source>' "README.md" && \
+     grep -Fq 'session_id=<id>&assignment_source=<source>' "RUNBOOK.md" && \
+     grep -Fq "PRIORITY_SUMMARY_MANUAL_SESSION_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq "HUMAN_REWRITE_AUTO_LIST_JSON" "scripts/smoke_api.sh" && \
+     grep -Fq 'params={"session_id": session_id, "assignment_source": "manual"}' "tests/smoke_runtime_api.py" && \
+     grep -Fq "/v1/human/tasks?principal_id={{principal_id}}&session_id={{session_id}}&assignment_source=manual&limit=20" "HTTP_EXAMPLES.http"; then
+    echo "ok: session-scoped human task assignment-source queue docs"
+  else
+    echo "missing: session-scoped human task assignment-source queue docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: session-scoped human task assignment-source queue milestone" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1

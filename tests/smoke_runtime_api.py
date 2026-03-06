@@ -1587,6 +1587,15 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
     manual_mine_ids = {row["human_task_id"] for row in manual_mine.json()}
     assert manual_task_id in manual_mine_ids
 
+    manual_session_list = client.get(
+        "/v1/human/tasks",
+        params={"session_id": session_id, "assignment_source": "manual"},
+    )
+    assert manual_session_list.status_code == 200
+    manual_session_ids = {row["human_task_id"] for row in manual_session_list.json()}
+    assert manual_task_id in manual_session_ids
+    assert auto_task_id not in manual_session_ids
+
     auto_backlog = client.get(
         "/v1/human/tasks/backlog",
         params={"operator_id": "operator-auto-summary", "assignment_source": "auto_preselected"},
@@ -1595,6 +1604,15 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
     auto_backlog_ids = {row["human_task_id"] for row in auto_backlog.json()}
     assert auto_task_id in auto_backlog_ids
     assert manual_task_id not in auto_backlog_ids
+
+    auto_session_list = client.get(
+        "/v1/human/tasks",
+        params={"session_id": session_id, "assignment_source": "auto_preselected"},
+    )
+    assert auto_session_list.status_code == 200
+    auto_session_ids = {row["human_task_id"] for row in auto_session_list.json()}
+    assert auto_task_id in auto_session_ids
+    assert manual_task_id not in auto_session_ids
 
     session_after = client.get(f"/v1/rewrite/sessions/{session_id}")
     assert session_after.status_code == 200
