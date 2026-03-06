@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-245 | P1 | Propagate dependency outputs across human/system/tool execution so non-linear plans can consume merged branch context instead of leaning on parent-step assumptions | codex | queued | The scheduler now respects `depends_on`, but only policy/tool handlers merge dependency outputs; multi-branch human/system steps still need the same context-merge contract |
+| Q-246 | P1 | Carry merged dependency outputs into generic task execution so non-rewrite workflows can stop hardcoding `rewrite_text` and reuse the graph runtime for other executive contracts | codex | queued | The graph runtime now schedules by dependencies and merges context for policy/tool/human review, but `build_artifact()` still hardcodes the rewrite vertical instead of accepting a compiled task contract key |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-245 | P1 | Propagate dependency outputs across human/system/tool execution so non-linear plans can consume merged branch context instead of leaning on parent-step assumptions | codex | done | Human-review step execution now merges dependency outputs into packet input, and the shared input merge helper normalizes `source_text`, `normalized_text`, and `text_length` before policy/tool/human handlers consume dependency-produced context |
 | D-244 | P1 | Remove preflight-vs-step ambiguity by moving real policy/normalization work into queued execution or collapsing those records into explicit preflight events | codex | done | `policy_decision` is now recorded by the queued `step_policy_evaluate` handler after `input_prepared`, and approval/block transitions are derived from that runtime step instead of a pre-queue preflight check |
 | D-243 | P1 | Make queued step advancement dependency-aware so `depends_on` becomes executable scheduler behavior instead of descriptive plan metadata | codex | done | Queue advancement now resolves the next runnable step from satisfied dependency edges instead of parent-linked step order, and Postgres contract coverage proves join steps wait for every prerequisite before they are enqueued |
 | D-242 | P1 | Enforce session principal alignment when attaching or listing session-scoped human tasks so one principal cannot stitch packets onto another principal's execution thread | codex | done | Session-bound human task creation and `GET /v1/human/tasks?session_id=...` now reject foreign-principal access with `403 principal_scope_mismatch`, and the approved host smoke path proves cross-principal attach/list attempts are blocked |

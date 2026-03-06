@@ -969,6 +969,29 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_dependency_input_merge")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "compiled human-review steps now merge dependency outputs into the created packet input" "README.md" && \
+     grep -Fq "queued human-review step now also merges dependency outputs into the packet input" "RUNBOOK.md" && \
+     grep -Fq "Human-review step execution now merges dependency outputs into the created packet input" "CHANGELOG.md" && \
+     grep -Fq "test_postgres_human_task_step_merges_dependency_outputs" "tests/test_postgres_contract_matrix_integration.py"; then
+    echo "ok: human task dependency input merge docs"
+  else
+    echo "missing: human task dependency input merge docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task dependency input merge milestone status" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "typed_step_handler_gateway")
 assert capability["status"] == "tested"
 planner_capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "planner_dependency_graph_projection")

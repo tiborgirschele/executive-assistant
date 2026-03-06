@@ -279,6 +279,62 @@ def test_postgres_orchestrator_dependency_scheduler_waits_for_all_dependencies()
     assert [row.step_id for row in final_ready] == [branch_a.step_id, branch_b.step_id, join.step_id]
 
 
+def test_postgres_human_task_step_merges_dependency_outputs() -> None:
+    ledger = PostgresExecutionLedgerRepository(_db_url())
+    human_tasks = PostgresHumanTaskRepository(_db_url())
+    orchestrator = RewriteOrchestrator(ledger=ledger, human_tasks=human_tasks)
+    session = ledger.start_session(
+        IntentSpecV3(
+            principal_id="dependency-human-tester",
+            goal="merge branch output into human review packet",
+            task_type="rewrite_text",
+            deliverable_type="rewrite_note",
+            risk_class="low",
+            approval_class="none",
+            budget_class="low",
+            allowed_tools=("artifact_repository",),
+        )
+    )
+    prepare = ledger.start_step(
+        session.session_id,
+        "system_task",
+        input_json={"plan_step_key": "step_input_prepare", "depends_on": [], "step_index": 0},
+        correlation_id=f"corr-{uuid.uuid4()}",
+        causation_id=f"cause-{uuid.uuid4()}",
+        actor_type="assistant",
+        actor_id="contract-test",
+    )
+    merged_text = "merged branch review text"
+    ledger.update_step(
+        prepare.step_id,
+        state="completed",
+        output_json={"normalized_text": merged_text, "text_length": len(merged_text)},
+        error_json={},
+    )
+    human_step = ledger.start_step(
+        session.session_id,
+        "human_task",
+        parent_step_id=prepare.step_id,
+        input_json={
+            "plan_step_key": "step_human_review",
+            "depends_on": ["step_input_prepare"],
+            "task_type": "communications_review",
+            "role_required": "communications_reviewer",
+            "brief": "Review merged dependency text.",
+            "expected_artifact": "review_packet",
+        },
+        correlation_id=f"corr-{uuid.uuid4()}",
+        causation_id=f"cause-{uuid.uuid4()}",
+        actor_type="assistant",
+        actor_id="contract-test",
+    )
+
+    created = orchestrator._start_human_task_step(session.session_id, human_step)
+    assert created.input_json["source_text"] == merged_text
+    assert created.input_json["normalized_text"] == merged_text
+    assert created.input_json["text_length"] == len(merged_text)
+
+
 def test_postgres_human_tasks_create_claim_return_and_list() -> None:
     ledger = PostgresExecutionLedgerRepository(_db_url())
     repo = PostgresHumanTaskRepository(_db_url())

@@ -1537,6 +1537,22 @@ def test_queued_policy_step_audit_truthfulness_is_documented_and_smoked() -> Non
     assert capability["status"] == "tested"
 
 
+def test_human_task_dependency_input_merge_is_documented_and_tested() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    postgres_contracts = (ROOT / "tests/test_postgres_contract_matrix_integration.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "compiled human-review steps now merge dependency outputs into the created packet input" in readme
+    assert "queued human-review step now also merges dependency outputs into the packet input" in runbook
+    assert "Human-review step execution now merges dependency outputs into the created packet input" in changelog
+    assert "test_postgres_human_task_step_merges_dependency_outputs" in postgres_contracts
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_dependency_input_merge")
+    assert capability["status"] == "tested"
+
+
 def test_typed_step_handler_gateway_is_documented_and_smoked() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")

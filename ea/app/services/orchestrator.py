@@ -470,7 +470,7 @@ class RewriteOrchestrator:
         return queue_item
 
     def _complete_input_prepare_step(self, session_id: str, rewrite_step: ExecutionStep) -> None:
-        input_json = dict(rewrite_step.input_json or {})
+        input_json = self._merged_step_input_json(session_id, rewrite_step)
         source_text = str(input_json.get("source_text") or "").strip()
         plan_id = str(input_json.get("plan_id") or "")
         plan_step_key = str(input_json.get("plan_step_key") or "")
@@ -526,6 +526,14 @@ class RewriteOrchestrator:
                     input_json["source_text"] = final_text
                     input_json["normalized_text"] = final_text
                     input_json["human_task_id"] = str((dependency.output_json or {}).get("human_task_id") or "")
+        normalized_text = str(input_json.get("normalized_text") or "").strip()
+        if normalized_text and not str(input_json.get("source_text") or "").strip():
+            input_json["source_text"] = normalized_text
+        source_text = str(input_json.get("source_text") or "").strip()
+        if source_text and not str(input_json.get("normalized_text") or "").strip():
+            input_json["normalized_text"] = source_text
+        if "text_length" not in input_json and source_text:
+            input_json["text_length"] = len(source_text)
         return input_json
 
     def _approval_target_step_for_session(self, session_id: str) -> ExecutionStep | None:
@@ -652,7 +660,7 @@ class RewriteOrchestrator:
         session = self._ledger.get_session(session_id)
         if session is None:
             raise RuntimeError(f"session missing for human-task step: {session_id}")
-        input_json = dict(rewrite_step.input_json or {})
+        input_json = self._merged_step_input_json(session_id, rewrite_step)
         desired_output_json = dict(input_json.get("desired_output_json") or {})
         if not str(desired_output_json.get("format") or "").strip():
             desired_output_json["format"] = str(input_json.get("expected_artifact") or "review_packet")
@@ -677,6 +685,7 @@ class RewriteOrchestrator:
             quality_rubric_json=dict(input_json.get("quality_rubric_json") or {}),
             input_json={
                 "source_text": str(input_json.get("source_text") or ""),
+                "normalized_text": str(input_json.get("normalized_text") or input_json.get("source_text") or ""),
                 "text_length": int(input_json.get("text_length") or 0),
                 "plan_id": str(input_json.get("plan_id") or ""),
                 "plan_step_key": str(input_json.get("plan_step_key") or ""),

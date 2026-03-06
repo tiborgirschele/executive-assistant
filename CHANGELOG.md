@@ -14,6 +14,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Queue advancement now resolves the next ready step from satisfied `depends_on` edges instead of parent-linked step order, so joins wait for every prerequisite even when steps were stored out of sequence.
 - Policy decisions are now recorded from the queued `step_policy_evaluate` handler after `input_prepared`, so approval/block audit events match runtime step order instead of preflight bookkeeping.
 - Planner output can now project a first-class `human_task` review branch (`step_human_review`) from task-contract metadata via `budget_policy_json.human_review_role`.
+- Human-review step execution now merges dependency outputs into the created packet input, so queued review work receives the same normalized text and text length that upstream dependency steps produced without leaning on parent-step-only context.
 - Rewrite execution now auto-runs compiled `step_human_review` nodes into real human task packets, pauses with `202 awaiting_human`, and resumes the queue after the packet is returned.
 - Returned human-review packets can now override the downstream artifact content via `returned_payload_json.final_text`, so compiled review branches affect the final persisted artifact instead of only gating it.
 - Rewrite tool-call execution now flows through a registry-backed `ToolExecutionService`, and `artifact_repository` receipts expose a normalized `tool.v1` invocation contract.

@@ -303,6 +303,16 @@
       "notes": "Policy evaluation is now executed and recorded from the queued `step_policy_evaluate` handler after `input_prepared`, so approval/block audit trails reflect runtime step order instead of preflight bookkeeping."
     },
     {
+      "name": "human_task_dependency_input_merge",
+      "status": "tested",
+      "scope": [
+        "human_task_dependency_input_merge",
+        "normalized_text_to_human_packet",
+        "dependency_text_length_projection"
+      ],
+      "notes": "Queued human-review step execution now merges dependency outputs into the created packet input, so normalized text, source text, and text length follow the dependency graph instead of relying only on parent-step context."
+    },
+    {
       "name": "planner_human_task_branch_projection",
       "status": "tested",
       "scope": [
