@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-224 | P1 | Add ownerless alias sort coverage on backlog queues so `assignment_state=unassigned&assignment_source=none` keeps FIFO order explicit under `sort=created_asc` | codex | queued | Backlog now exposes the ownerless alias directly, but there is still no dedicated smoke/docs proving the ownerless backlog slice preserves the FIFO sort contract when operators open it oldest-first |
+| Q-225 | P1 | Add ownerless alias last-transition sort coverage on backlog queues so `assignment_state=unassigned&assignment_source=none&sort=last_transition_desc` stays stable for untouched ownerless work | codex | queued | Ownerless backlog now has explicit created-order coverage, but there is still no dedicated smoke/docs proving the ownerless slice keeps predictable ordering when operators inspect it by freshest ownership churn |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-224 | P1 | Add ownerless alias sort coverage on backlog queues so `assignment_state=unassigned&assignment_source=none` keeps FIFO order explicit under `sort=created_asc` | codex | done | Added approved smoke/docs coverage proving the ownerless backlog slice preserves oldest-created FIFO order under `sort=created_asc`, keeping operator triage predictable on untouched ownerless work |
 | D-223 | P1 | Add explicit ownerless alias smoke/docs coverage on `backlog?assignment_state=unassigned&assignment_source=none` so operator backlog and direct unassigned views share the same contract | codex | done | Added approved smoke/docs coverage for the ownerless alias on the direct backlog endpoint, proving `backlog?assignment_state=unassigned&assignment_source=none` isolates the same ownerless packets as `/v1/human/tasks/unassigned` |
 | D-222 | P1 | Normalize the ownerless `assignment_source=none` alias across session detail and task assignment-history filters so every human-task source-filtered surface uses the same contract | codex | done | Session detail and task assignment-history now accept the ownerless alias, and approved smoke/docs coverage proves `assignment_source=none` isolates current ownerless packets plus creation-only transition slices without raw empty-string filters |
 | D-221 | P1 | Add assignment-source filters on direct unassigned human task queue views so ownerless session work can be isolated without client-side filtering | codex | done | Added the ownerless `assignment_source=none` alias on human task list/unassigned/priority-summary filters, and approved smoke/docs coverage now proves ownerless pending packets stay isolated without client-side empty-string handling |

@@ -685,6 +685,15 @@
       "notes": "The direct pending backlog now has explicit smoke/docs coverage for `assignment_state=unassigned&assignment_source=none`, keeping the general backlog and unassigned-only view aligned on ownerless queue slices."
     },
     {
+      "name": "human_task_ownerless_backlog_created_sort",
+      "status": "tested",
+      "scope": [
+        "ownerless_backlog_created_asc_fifo",
+        "ownerless_backlog_sort_contract"
+      ],
+      "notes": "Ownerless backlog slices now have explicit smoke/docs coverage for `sort=created_asc`, preserving oldest-created FIFO ordering when operators triage untouched ownerless work."
+    },
+    {
       "name": "human_task_assignment_history_source_filter",
       "status": "tested",
       "scope": [

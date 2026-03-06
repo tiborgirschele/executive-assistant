@@ -234,6 +234,19 @@ if [[ "${SESSION_HUMAN_NONE_FIELDS}" != "1|${HUMAN_OWNERLESS_ID}|True|True|True"
   echo "${SESSION_HUMAN_NONE_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+HUMAN_OWNERLESS_NEWER_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d "{\"session_id\":\"${SESSION_ID}\",\"step_id\":\"${SESSION_STEP_ID}\",\"task_type\":\"communications_review\",\"role_required\":\"communications_reviewer\",\"brief\":\"Newer ownerless pending task.\",\"priority\":\"low\",\"resume_session_on_return\":false}")"
+HUMAN_OWNERLESS_NEWER_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read() or "{}").get("human_task_id",""))' <<<"${HUMAN_OWNERLESS_NEWER_JSON}")"
+if [[ -z "${HUMAN_OWNERLESS_NEWER_ID}" ]]; then
+  fail 13 "missing human_task_id from newer ownerless human task response"
+fi
+HUMAN_OWNERLESS_BACKLOG_CREATED_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?assignment_state=unassigned&assignment_source=none&sort=created_asc&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+HUMAN_OWNERLESS_BACKLOG_CREATED_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted=['${HUMAN_OWNERLESS_ID}','${HUMAN_OWNERLESS_NEWER_ID}']; filtered=[row for row in rows if (row or {}).get('human_task_id') in wanted]; print('|'.join((row or {}).get('human_task_id','') for row in filtered[:2]))" <<<"${HUMAN_OWNERLESS_BACKLOG_CREATED_JSON}")"
+if [[ "${HUMAN_OWNERLESS_BACKLOG_CREATED_FIELDS}" != "${HUMAN_OWNERLESS_ID}|${HUMAN_OWNERLESS_NEWER_ID}" ]]; then
+  echo "expected assignment_source=none backlog sort=created_asc to preserve ownerless FIFO order; got ${HUMAN_OWNERLESS_BACKLOG_CREATED_FIELDS}" >&2
+  echo "${HUMAN_OWNERLESS_BACKLOG_CREATED_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 HUMAN_ASSIGNED_BACKLOG_JSON="$(curl -fsS "${BASE}/v1/human/tasks/backlog?role_required=communications_reviewer&overdue_only=true&assignment_state=assigned&limit=10" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
 HUMAN_ASSIGNED_BACKLOG_MATCH="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); task_id='${HUMAN_TASK_ID}'; print(any((row or {}).get('human_task_id') == task_id for row in rows))" <<<"${HUMAN_ASSIGNED_BACKLOG_JSON}")"
 if [[ "${HUMAN_ASSIGNED_BACKLOG_MATCH}" != "True" ]]; then

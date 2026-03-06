@@ -1627,6 +1627,37 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
         row["human_task_id"] == ownerless_task_id for row in ownerless_session_body["human_task_assignment_history"]
     )
 
+    ownerless_newer_task = client.post(
+        "/v1/human/tasks",
+        json={
+            "session_id": session_id,
+            "step_id": step_id,
+            "task_type": "communications_review",
+            "role_required": "manual_source_filter_reviewer",
+            "brief": "Newer ownerless pending task.",
+            "priority": "low",
+            "resume_session_on_return": False,
+        },
+    )
+    assert ownerless_newer_task.status_code == 200
+    ownerless_newer_task_id = ownerless_newer_task.json()["human_task_id"]
+
+    ownerless_backlog_created = client.get(
+        "/v1/human/tasks/backlog",
+        params={
+            "assignment_state": "unassigned",
+            "assignment_source": "none",
+            "sort": "created_asc",
+        },
+    )
+    assert ownerless_backlog_created.status_code == 200
+    ownerless_backlog_created_ids = [
+        row["human_task_id"]
+        for row in ownerless_backlog_created.json()
+        if row["human_task_id"] in {ownerless_task_id, ownerless_newer_task_id}
+    ]
+    assert ownerless_backlog_created_ids == [ownerless_task_id, ownerless_newer_task_id]
+
     auto_summary = client.get(
         "/v1/human/tasks/priority-summary",
         params={"status": "pending", "assignment_source": "auto_preselected"},
