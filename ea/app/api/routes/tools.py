@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.api.dependencies import get_container
 from app.container import AppContainer
+from app.domain.models import ToolInvocationRequest
+from app.services.tool_execution import ToolExecutionError
 
 router = APIRouter(prefix="/v1/tools", tags=["tools"])
 
@@ -30,6 +34,20 @@ class ToolOut(BaseModel):
     approval_default: str
     enabled: bool
     updated_at: str
+
+
+class ToolExecuteIn(BaseModel):
+    tool_name: str = Field(min_length=1, max_length=200)
+    action_kind: str = Field(default="", max_length=200)
+    payload_json: dict[str, object] = Field(default_factory=dict)
+
+
+class ToolExecutionOut(BaseModel):
+    tool_name: str
+    action_kind: str
+    target_ref: str
+    output_json: dict[str, object]
+    receipt_json: dict[str, object]
 
 
 @router.post("/registry")
@@ -100,4 +118,31 @@ def get_tool(
         approval_default=row.approval_default,
         enabled=row.enabled,
         updated_at=row.updated_at,
+    )
+
+
+@router.post("/execute")
+def execute_tool(
+    body: ToolExecuteIn,
+    container: AppContainer = Depends(get_container),
+) -> ToolExecutionOut:
+    invocation = ToolInvocationRequest(
+        session_id=f"direct-tool:{uuid.uuid4()}",
+        step_id=f"direct-step:{uuid.uuid4()}",
+        tool_name=body.tool_name,
+        action_kind=body.action_kind,
+        payload_json=body.payload_json,
+    )
+    try:
+        result = container.tool_execution.execute_invocation(invocation)
+    except ToolExecutionError as exc:
+        detail = str(exc or "tool_execution_failed")
+        status_code = 404 if detail.startswith("tool_not_registered:") else 409
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+    return ToolExecutionOut(
+        tool_name=result.tool_name,
+        action_kind=result.action_kind,
+        target_ref=result.target_ref,
+        output_json=result.output_json,
+        receipt_json=result.receipt_json,
     )

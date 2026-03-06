@@ -7,6 +7,7 @@ from app.domain.models import Artifact, ToolDefinition, ToolInvocationRequest, T
 from app.repositories.artifacts import ArtifactRepository, InMemoryArtifactRepository
 from app.repositories.connector_bindings import InMemoryConnectorBindingRepository
 from app.repositories.tool_registry import InMemoryToolRegistryRepository
+from app.services.channel_runtime import ChannelRuntimeService
 from app.services.tool_runtime import ToolRuntimeService
 
 ToolExecutionHandler = Callable[[ToolInvocationRequest, ToolDefinition], ToolInvocationResult]
@@ -22,14 +23,17 @@ class ToolExecutionService:
         *,
         tool_runtime: ToolRuntimeService | None = None,
         artifacts: ArtifactRepository | None = None,
+        channel_runtime: ChannelRuntimeService | None = None,
     ) -> None:
         self._artifacts = artifacts or InMemoryArtifactRepository()
+        self._channel_runtime = channel_runtime
         self._tool_runtime = tool_runtime or ToolRuntimeService(
             tool_registry=InMemoryToolRegistryRepository(),
             connector_bindings=InMemoryConnectorBindingRepository(),
         )
         self._handlers: dict[str, ToolExecutionHandler] = {}
         self._register_builtin_artifact_repository()
+        self._register_builtin_connector_dispatch()
 
     def register_handler(self, tool_name: str, handler: ToolExecutionHandler) -> None:
         key = str(tool_name or "").strip()
@@ -76,6 +80,35 @@ class ToolExecutionService:
             )
         self.register_handler("artifact_repository", self._execute_artifact_repository)
 
+    def _register_builtin_connector_dispatch(self) -> None:
+        if self._channel_runtime is None:
+            return
+        if self._tool_runtime.get_tool("connector.dispatch") is None:
+            self._tool_runtime.upsert_tool(
+                tool_name="connector.dispatch",
+                version="v1",
+                input_schema_json={
+                    "type": "object",
+                    "required": ["channel", "recipient", "content"],
+                    "properties": {
+                        "channel": {"type": "string"},
+                        "recipient": {"type": "string"},
+                        "content": {"type": "string"},
+                        "metadata": {"type": "object"},
+                        "idempotency_key": {"type": "string"},
+                    },
+                },
+                output_schema_json={
+                    "type": "object",
+                    "required": ["delivery_id", "status", "tool_name", "action_kind"],
+                },
+                policy_json={"builtin": True, "action_kind": "delivery.send"},
+                allowed_channels=("email", "slack", "telegram"),
+                approval_default="manager",
+                enabled=True,
+            )
+        self.register_handler("connector.dispatch", self._execute_connector_dispatch)
+
     def _execute_artifact_repository(
         self,
         request: ToolInvocationRequest,
@@ -116,4 +149,49 @@ class ToolExecutionService:
                 "tool_version": definition.version,
             },
             artifacts=(artifact,),
+        )
+
+    def _execute_connector_dispatch(
+        self,
+        request: ToolInvocationRequest,
+        definition: ToolDefinition,
+    ) -> ToolInvocationResult:
+        if self._channel_runtime is None:
+            raise ToolExecutionError("channel_runtime_unavailable:connector.dispatch")
+        payload = dict(request.payload_json or {})
+        channel = str(payload.get("channel") or "").strip()
+        recipient = str(payload.get("recipient") or "").strip()
+        content = str(payload.get("content") or "")
+        metadata = dict(payload.get("metadata") or {})
+        idempotency_key = str(payload.get("idempotency_key") or "").strip()
+        delivery = self._channel_runtime.queue_delivery(
+            channel=channel,
+            recipient=recipient,
+            content=content,
+            metadata=metadata,
+            idempotency_key=idempotency_key,
+        )
+        action_kind = str(request.action_kind or "delivery.send") or "delivery.send"
+        return ToolInvocationResult(
+            tool_name=definition.tool_name,
+            action_kind=action_kind,
+            target_ref=delivery.delivery_id,
+            output_json={
+                "delivery_id": delivery.delivery_id,
+                "status": delivery.status,
+                "channel": delivery.channel,
+                "recipient": delivery.recipient,
+                "idempotency_key": delivery.idempotency_key,
+                "tool_name": definition.tool_name,
+                "action_kind": action_kind,
+            },
+            receipt_json={
+                "channel": delivery.channel,
+                "delivery_id": delivery.delivery_id,
+                "handler_key": definition.tool_name,
+                "idempotency_key": delivery.idempotency_key,
+                "invocation_contract": "tool.v1",
+                "status": delivery.status,
+                "tool_version": definition.version,
+            },
         )

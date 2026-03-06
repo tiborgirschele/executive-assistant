@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-179 | P1 | Add a real connector/tool handler path beyond `artifact_repository`, starting with a registry-backed `connector.dispatch` execution slice | codex | queued | The runtime now has a reusable tool execution plane, but only the built-in artifact persistence handler is wired into it |
+| Q-180 | P1 | Require connector binding resolution and principal-aware credential checks before `connector.dispatch` execution can queue delivery | codex | queued | The built-in dispatch handler now exists, but it still queues delivery without validating connector binding or principal-scoped credential state |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-179 | P1 | Add a real connector/tool handler path beyond `artifact_repository`, starting with a registry-backed `connector.dispatch` execution slice | codex | done | `connector.dispatch` now executes through `ToolExecutionService`, `POST /v1/tools/execute` exposes the shared handler path, and successful calls queue durable outbox rows with normalized `tool.v1` receipts |
 | D-178 | P1 | Promote the rewrite step-handler scaffold into a reusable tool-execution service with registry-backed handlers and normalized invocation contracts | codex | done | Rewrite tool-call steps now execute through `ToolExecutionService`, the built-in `artifact_repository` handler is registry-backed, and receipts expose a normalized `tool.v1` invocation contract |
 | D-177 | P1 | Replace hardcoded `artifact_repository`-only execution with a typed step-handler/tool-execution gateway | codex | done | Rewrite planning/execution now uses `step_input_prepare` and `step_artifact_save` handlers with sequential queue execution instead of a single hardcoded artifact-save step |
 | D-176 | P1 | Derive principal context from auth/middleware instead of caller-supplied fields on normal user routes | codex | done | Principal-scoped connector and memory routes now derive request scope from `X-EA-Principal-ID`/`EA_DEFAULT_PRINCIPAL_ID`, reject mismatched caller-supplied principal IDs with `403 principal_scope_mismatch`, and hide foreign connector status updates |

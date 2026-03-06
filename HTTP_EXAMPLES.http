@@ -219,6 +219,24 @@ GET {{host}}/v1/tools/registry?limit=20
 ### Tools -> get by name
 GET {{host}}/v1/tools/registry/email.send
 
+### Tools -> execute builtin connector dispatch
+POST {{host}}/v1/tools/execute
+Content-Type: application/json
+
+{
+  "tool_name": "connector.dispatch",
+  "action_kind": "delivery.send",
+  "payload_json": {
+    "channel": "email",
+    "recipient": "ops@example.com",
+    "content": "Queue this via tool execution",
+    "metadata": {
+      "source": "http-example"
+    },
+    "idempotency_key": "tool-dispatch-http-example"
+  }
+}
+
 ### Connectors -> upsert binding
 POST {{host}}/v1/connectors/bindings
 Content-Type: application/json

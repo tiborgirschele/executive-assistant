@@ -240,10 +240,29 @@ echo "== smoke: tools and connectors =="
 curl -fsS -X POST "${BASE}/v1/tools/registry" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"tool_name":"email.send","version":"v1","input_schema_json":{"type":"object"},"output_schema_json":{"type":"object"},"policy_json":{"risk":"medium"},"allowed_channels":["email"],"approval_default":"manager","enabled":true}' >/dev/null
 TOOLS_JSON="$(curl -fsS "${BASE}/v1/tools/registry?limit=10" "${AUTH_ARGS[@]}")"
-TOOL_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); names={row.get('tool_name','') for row in rows}; print('{}|{}'.format('artifact_repository' in names, 'email.send' in names))" <<<"${TOOLS_JSON}")"
-if [[ "${TOOL_FIELDS}" != "True|True" ]]; then
-  echo "expected tool registry to expose builtin artifact_repository and upserted email.send; got ${TOOL_FIELDS}" >&2
+TOOL_FIELDS="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); names={row.get('tool_name','') for row in rows}; print('{}|{}|{}'.format('artifact_repository' in names, 'connector.dispatch' in names, 'email.send' in names))" <<<"${TOOLS_JSON}")"
+if [[ "${TOOL_FIELDS}" != "True|True|True" ]]; then
+  echo "expected tool registry to expose builtin artifact_repository, builtin connector.dispatch, and upserted email.send; got ${TOOL_FIELDS}" >&2
   echo "${TOOLS_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+TOOL_EXEC_JSON="$(curl -fsS -X POST "${BASE}/v1/tools/execute" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"tool_name":"connector.dispatch","action_kind":"delivery.send","payload_json":{"channel":"email","recipient":"ops@example.com","content":"tool-runtime smoke dispatch","metadata":{"source":"tool-execute"},"idempotency_key":"tool-dispatch-smoke-1"}}')"
+TOOL_EXEC_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); receipt=body.get('receipt_json') or {}; out=body.get('output_json') or {}; print('{}|{}|{}|{}'.format(body.get('tool_name',''), out.get('status',''), receipt.get('handler_key',''), receipt.get('invocation_contract','')))" <<<"${TOOL_EXEC_JSON}")"
+if [[ "${TOOL_EXEC_FIELDS}" != "connector.dispatch|queued|connector.dispatch|tool.v1" ]]; then
+  echo "expected connector.dispatch execute route to queue delivery with normalized receipt contract; got ${TOOL_EXEC_FIELDS}" >&2
+  echo "${TOOL_EXEC_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+TOOL_EXEC_DELIVERY_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read() or "{}").get("target_ref",""))' <<<"${TOOL_EXEC_JSON}")"
+if [[ -z "${TOOL_EXEC_DELIVERY_ID}" ]]; then
+  fail 13 "missing target_ref from tool execute response"
+fi
+DELIVERY_PENDING_JSON="$(curl -fsS "${BASE}/v1/delivery/outbox/pending?limit=10" "${AUTH_ARGS[@]}")"
+DELIVERY_PENDING_MATCH="$(python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); target='${TOOL_EXEC_DELIVERY_ID}'; print(any((row or {}).get('delivery_id') == target for row in rows))" <<<"${DELIVERY_PENDING_JSON}")"
+if [[ "${DELIVERY_PENDING_MATCH}" != "True" ]]; then
+  echo "expected tool-executed connector dispatch to appear in pending outbox; delivery_id=${TOOL_EXEC_DELIVERY_ID}" >&2
+  echo "${DELIVERY_PENDING_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
 CONNECTOR_JSON="$(curl -fsS -X POST "${BASE}/v1/connectors/bindings" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \

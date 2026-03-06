@@ -77,6 +77,7 @@ class AppContainer:
     orchestrator: RewriteOrchestrator
     channel_runtime: ChannelRuntimeService
     tool_runtime: ToolRuntimeService
+    tool_execution: ToolExecutionService
     memory_runtime: MemoryRuntimeService
     task_contracts: TaskContractService
     planner: PlannerService
@@ -102,6 +103,15 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         task_contracts = TaskContractService(InMemoryTaskContractRepository())
     planner = PlannerService(task_contracts)
     try:
+        channel_runtime = build_channel_runtime(settings=resolved)
+    except Exception as exc:
+        ensure_storage_fallback_allowed(resolved, "channel runtime bootstrap", exc)
+        log.warning("channel runtime bootstrap failed, using in-memory fallback: %s", exc)
+        channel_runtime = ChannelRuntimeService(
+            observations=InMemoryObservationEventRepository(),
+            outbox=InMemoryDeliveryOutboxRepository(),
+        )
+    try:
         tool_runtime = build_tool_runtime(settings=resolved)
     except Exception as exc:
         ensure_storage_fallback_allowed(resolved, "tool runtime bootstrap", exc)
@@ -110,7 +120,11 @@ def build_container(settings: Settings | None = None) -> AppContainer:
             tool_registry=InMemoryToolRegistryRepository(),
             connector_bindings=InMemoryConnectorBindingRepository(),
         )
-    tool_execution = ToolExecutionService(tool_runtime=tool_runtime, artifacts=artifacts)
+    tool_execution = ToolExecutionService(
+        tool_runtime=tool_runtime,
+        artifacts=artifacts,
+        channel_runtime=channel_runtime,
+    )
     try:
         orchestrator = build_default_orchestrator(
             settings=resolved,
@@ -131,15 +145,6 @@ def build_container(settings: Settings | None = None) -> AppContainer:
             task_contracts=task_contracts,
             planner=planner,
             tool_execution=tool_execution,
-        )
-    try:
-        channel_runtime = build_channel_runtime(settings=resolved)
-    except Exception as exc:
-        ensure_storage_fallback_allowed(resolved, "channel runtime bootstrap", exc)
-        log.warning("channel runtime bootstrap failed, using in-memory fallback: %s", exc)
-        channel_runtime = ChannelRuntimeService(
-            observations=InMemoryObservationEventRepository(),
-            outbox=InMemoryDeliveryOutboxRepository(),
         )
     try:
         memory_runtime = build_memory_runtime(settings=resolved)
@@ -167,6 +172,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         orchestrator=orchestrator,
         channel_runtime=channel_runtime,
         tool_runtime=tool_runtime,
+        tool_execution=tool_execution,
         memory_runtime=memory_runtime,
         task_contracts=task_contracts,
         planner=planner,

@@ -96,6 +96,11 @@ class _FakeToolRuntime:
         return []
 
 
+class _FakeToolExecution:
+    def execute_invocation(self, request):
+        raise AssertionError("not expected in this test")
+
+
 class _FakeMemoryRuntime:
     def stage_candidate(self, **_: object):
         raise AssertionError("not expected in this test")
@@ -240,6 +245,7 @@ class _FakeContainer:
         self.orchestrator = _FakeOrchestrator()
         self.channel_runtime = _FakeRuntime()
         self.tool_runtime = _FakeToolRuntime()
+        self.tool_execution = _FakeToolExecution()
         self.memory_runtime = _FakeMemoryRuntime()
         self.task_contracts = _FakeTaskContracts()
         self.planner = _FakePlanner()

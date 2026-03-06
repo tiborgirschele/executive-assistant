@@ -24,6 +24,7 @@ Removed:
 - `/v1/delivery/outbox` endpoints provide channel-agnostic queued delivery tracking
 - `/v1/delivery/outbox/{delivery_id}/failed` marks retry/dead-letter transitions with error context
 - `/v1/tools/registry*` manages typed tool contracts (`tool_name`, schemas, policy metadata)
+- `/v1/tools/execute` runs built-in tool handlers through the shared execution plane
 - `/v1/connectors/bindings*` manages external connector bindings and status transitions
 - `/v1/tasks/contracts*` manages typed task contracts used by intent compilation
 - `/v1/plans/compile` emits a typed plan DSL projection from task contracts
@@ -45,6 +46,7 @@ Removed:
 - principal-scoped connector and memory routes now derive their effective principal from `X-EA-Principal-ID` or `EA_DEFAULT_PRINCIPAL_ID` instead of trusting caller-supplied body/query IDs
 - rewrite execution now records `plan_compiled`, runs a typed two-step queue path (`step_input_prepare` -> `step_artifact_save`) through the execution ledger, and dispatches tool steps through a registry-backed `ToolExecutionService`
 - rewrite tool receipts now carry a normalized `tool.v1` invocation contract for the built-in `artifact_repository` handler
+- the built-in `connector.dispatch` handler now also runs through `ToolExecutionService` and queues durable delivery outbox rows
 - observation intake supports `source_id`/`external_id`/`dedupe_key` attribution and auth/raw-payload pointers
 - delivery outbox supports idempotency keys plus retry/dead-letter state fields
 - `/v1/channels/telegram/ingest` maps raw Telegram updates into normalized observation events

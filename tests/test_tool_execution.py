@@ -3,9 +3,12 @@ from __future__ import annotations
 import pytest
 
 from app.domain.models import ToolInvocationRequest
+from app.repositories.delivery_outbox import InMemoryDeliveryOutboxRepository
+from app.repositories.observation import InMemoryObservationEventRepository
 from app.repositories.artifacts import InMemoryArtifactRepository
 from app.repositories.connector_bindings import InMemoryConnectorBindingRepository
 from app.repositories.tool_registry import InMemoryToolRegistryRepository
+from app.services.channel_runtime import ChannelRuntimeService
 from app.services.tool_execution import ToolExecutionError, ToolExecutionService
 from app.services.tool_runtime import ToolRuntimeService
 
@@ -69,3 +72,43 @@ def test_tool_execution_service_rejects_disabled_tools() -> None:
                 payload_json={"source_text": "draft note"},
             )
         )
+
+
+def test_tool_execution_service_executes_builtin_connector_dispatch_handler() -> None:
+    tool_runtime = ToolRuntimeService(
+        tool_registry=InMemoryToolRegistryRepository(),
+        connector_bindings=InMemoryConnectorBindingRepository(),
+    )
+    channel_runtime = ChannelRuntimeService(
+        observations=InMemoryObservationEventRepository(),
+        outbox=InMemoryDeliveryOutboxRepository(),
+    )
+    service = ToolExecutionService(
+        tool_runtime=tool_runtime,
+        artifacts=InMemoryArtifactRepository(),
+        channel_runtime=channel_runtime,
+    )
+
+    result = service.execute_invocation(
+        ToolInvocationRequest(
+            session_id="session-2",
+            step_id="step-2",
+            tool_name="connector.dispatch",
+            action_kind="delivery.send",
+            payload_json={
+                "channel": "email",
+                "recipient": "ops@example.com",
+                "content": "queued dispatch",
+                "metadata": {"source": "tool"},
+                "idempotency_key": "tool-dispatch-test",
+            },
+        )
+    )
+
+    assert result.tool_name == "connector.dispatch"
+    assert result.action_kind == "delivery.send"
+    assert result.output_json["status"] == "queued"
+    assert result.receipt_json["handler_key"] == "connector.dispatch"
+    assert result.receipt_json["invocation_contract"] == "tool.v1"
+    pending = channel_runtime.list_pending_delivery(limit=10)
+    assert any(row.delivery_id == result.target_ref for row in pending)

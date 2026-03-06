@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.39.0",
+  "version": "0.40.0",
   "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
@@ -257,6 +257,17 @@
         "shared_tool_runtime_bootstrap"
       ],
       "notes": "Tool-call rewrite steps now execute through a reusable `ToolExecutionService` backed by the tool registry, the built-in `artifact_repository` handler is registered automatically, and receipts/events expose normalized invocation metadata."
+    },
+    {
+      "name": "connector_dispatch_tool_execution_slice",
+      "status": "tested",
+      "scope": [
+        "connector_dispatch_builtin_registration",
+        "tools_execute_route",
+        "delivery_outbox_queue_dispatch",
+        "tool_v1_dispatch_receipts"
+      ],
+      "notes": "The built-in `connector.dispatch` handler is now wired into `ToolExecutionService`, exposed through `POST /v1/tools/execute`, and queues delivery outbox rows while returning normalized `tool.v1` receipt metadata."
     }
   ],
   "migrations": [

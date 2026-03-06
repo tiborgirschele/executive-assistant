@@ -35,6 +35,7 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | POST | `/v1/tools/registry` | `200` | validation `422` |
 | GET | `/v1/tools/registry` | `200` | validation `422` |
 | GET | `/v1/tools/registry/{tool_name}` | `200` | `404 tool_not_found` |
+| POST | `/v1/tools/execute` | `200` | `404 tool_not_registered:*`, `409 tool_execution_failed` |
 | POST | `/v1/connectors/bindings` | `200` | validation `422` |
 | GET | `/v1/connectors/bindings` | `200` | validation `422` |
 | POST | `/v1/connectors/bindings/{binding_id}/status` | `200` | `404 binding_not_found` |
@@ -105,6 +106,7 @@ Policy notes:
 - Allowed and approved rewrites now pass through durable `execution_queue` rows first; the current API path drains that queue inline, while non-API runner roles can drain it as workers.
 - The current rewrite scaffold now executes as two explicit queued steps: `step_input_prepare` followed by `step_artifact_save`.
 - Tool-call steps now flow through a registry-backed `ToolExecutionService`; the built-in `artifact_repository` handler emits normalized `tool.v1` receipt metadata and `tool_execution_completed` events.
+- `POST /v1/tools/execute` now exposes the same execution plane directly for built-in handlers; `connector.dispatch` queues a delivery outbox row and returns normalized `tool.v1` receipt metadata.
 
 ## Operator Script Help Index
 
