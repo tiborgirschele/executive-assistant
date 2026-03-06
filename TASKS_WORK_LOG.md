@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-235 | P1 | Add explicit ownerless alias mixed-source exclusion coverage on backlog, unassigned, and general pending sort slices so ordered `assignment_source=none` queues stay ownerless even when manual and auto rows coexist | codex | queued | Session-scoped ownerless sorted queue slices now have explicit mixed-source exclusion coverage, but the global list/backlog/unassigned sort variants still only prove ownerless ordering without explicit mixed-source exclusion after manual and auto-preselected neighbors coexist |
+| Q-236 | P1 | Add explicit ownerless alias mixed-source count coverage on priority summaries so `assignment_source=none` totals stay ownerless-only after manual and auto rows coexist | codex | queued | Global and session-scoped ownerless sorted queue slices now have explicit mixed-source exclusion coverage, but the ownerless priority summary still only proves the pre-churn single-row case instead of the mixed-source multi-ownerless count after manual and auto-preselected neighbors coexist |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-235 | P1 | Add explicit ownerless alias mixed-source exclusion coverage on backlog, unassigned, and general pending sort slices so ordered `assignment_source=none` queues stay ownerless even when manual and auto rows coexist | codex | done | Added approved smoke/docs coverage proving ownerless backlog, unassigned, and general pending `sort=created_asc` plus `sort=last_transition_desc` slices keep non-ownerless rows out while preserving expected ownerless ordering under mixed-source churn |
 | D-234 | P1 | Add explicit ownerless alias mixed-source exclusion coverage on session-scoped task list sorts so `assignment_source=none` ordered queue slices stay ownerless even when manual and auto rows coexist | codex | done | Added approved smoke/docs coverage proving session-scoped ownerless `sort=created_asc` and `sort=last_transition_desc` slices keep non-ownerless rows out while preserving the expected ownerless ordering under mixed-source churn |
 | D-233 | P1 | Add explicit ownerless alias ordering coverage on the filtered session-detail history projection after mixed-source churn so `human_task_assignment_source=none` stays oldest-first even after manual and auto rows coexist | codex | done | Added approved smoke/docs coverage proving the filtered ownerless session-detail projection keeps both `human_tasks` and inline assignment-history rows oldest-first while excluding manual and auto-preselected neighbors in mixed-source sessions |
 | D-232 | P1 | Add explicit ownerless alias FIFO coverage on session-scoped assignment-history or session-detail projections so multi-task ownerless sessions expose stable oldest-first ordering in docs and smoke too | codex | done | Added approved smoke/docs coverage proving `GET /v1/rewrite/sessions/{session_id}?human_task_assignment_source=none` keeps both filtered ownerless `human_tasks` rows and inline `human_task_assignment_history` rows in oldest-first order after multiple ownerless packets are present |

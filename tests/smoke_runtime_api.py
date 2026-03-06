@@ -1651,6 +1651,8 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
         },
     )
     assert ownerless_backlog_created.status_code == 200
+    ownerless_backlog_created_all_ids = [row["human_task_id"] for row in ownerless_backlog_created.json()]
+    assert ownerless_backlog_created_all_ids == [ownerless_task_id, ownerless_newer_task_id]
     ownerless_backlog_created_ids = [
         row["human_task_id"]
         for row in ownerless_backlog_created.json()
@@ -1667,6 +1669,8 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
         },
     )
     assert ownerless_backlog_transition.status_code == 200
+    ownerless_backlog_transition_all_ids = [row["human_task_id"] for row in ownerless_backlog_transition.json()]
+    assert ownerless_backlog_transition_all_ids == [ownerless_newer_task_id, ownerless_task_id]
     ownerless_backlog_transition_ids = [
         row["human_task_id"]
         for row in ownerless_backlog_transition.json()
@@ -1679,6 +1683,8 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
         params={"assignment_source": "none", "sort": "last_transition_desc"},
     )
     assert ownerless_unassigned_transition.status_code == 200
+    ownerless_unassigned_transition_all_ids = [row["human_task_id"] for row in ownerless_unassigned_transition.json()]
+    assert ownerless_unassigned_transition_all_ids == [ownerless_newer_task_id, ownerless_task_id]
     ownerless_unassigned_transition_ids = [
         row["human_task_id"]
         for row in ownerless_unassigned_transition.json()
@@ -1691,6 +1697,8 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
         params={"assignment_source": "none", "sort": "created_asc"},
     )
     assert ownerless_unassigned_created.status_code == 200
+    ownerless_unassigned_created_all_ids = [row["human_task_id"] for row in ownerless_unassigned_created.json()]
+    assert ownerless_unassigned_created_all_ids == [ownerless_task_id, ownerless_newer_task_id]
     ownerless_unassigned_created_ids = [
         row["human_task_id"]
         for row in ownerless_unassigned_created.json()
@@ -1708,6 +1716,8 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
         },
     )
     assert ownerless_list_created.status_code == 200
+    ownerless_list_created_all_ids = [row["human_task_id"] for row in ownerless_list_created.json()]
+    assert ownerless_list_created_all_ids == [ownerless_task_id, ownerless_newer_task_id]
     ownerless_list_created_ids = [
         row["human_task_id"]
         for row in ownerless_list_created.json()
@@ -1725,6 +1735,8 @@ def test_human_task_priority_summary_for_assignment_source() -> None:
         },
     )
     assert ownerless_list_transition.status_code == 200
+    ownerless_list_transition_all_ids = [row["human_task_id"] for row in ownerless_list_transition.json()]
+    assert ownerless_list_transition_all_ids == [ownerless_newer_task_id, ownerless_task_id]
     ownerless_list_transition_ids = [
         row["human_task_id"]
         for row in ownerless_list_transition.json()

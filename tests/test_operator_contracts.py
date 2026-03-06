@@ -1139,6 +1139,35 @@ def test_human_task_session_ownerless_mixed_source_isolation_is_documented_and_s
     assert "session_ownerless_created_asc_excludes_non_ownerless" in capability["scope"]
 
 
+def test_human_task_ownerless_sorted_queue_mixed_source_isolation_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "manual and auto-preselected neighbors" in readme
+    assert "manual and auto-preselected neighbors present" in runbook
+    assert "HUMAN_OWNERLESS_BACKLOG_CREATED_JSON" in smoke_api
+    assert "HUMAN_OWNERLESS_UNASSIGNED_CREATED_JSON" in smoke_api
+    assert "HUMAN_OWNERLESS_LIST_CREATED_JSON" in smoke_api
+    assert "keeping mixed-source neighbors out" in smoke_api
+    assert "ownerless_backlog_created_all_ids ==" in smoke_runtime
+    assert "ownerless_unassigned_created_all_ids ==" in smoke_runtime
+    assert "ownerless_list_created_all_ids ==" in smoke_runtime
+    assert "ownerless_backlog_transition_all_ids ==" in smoke_runtime
+    assert "ownerless_unassigned_transition_all_ids ==" in smoke_runtime
+    assert "ownerless_list_transition_all_ids ==" in smoke_runtime
+
+    capability = next(
+        entry
+        for entry in milestone["capabilities"]
+        if entry["name"] == "human_task_ownerless_sorted_queue_mixed_source_isolation"
+    )
+    assert capability["status"] == "tested"
+    assert "ownerless_backlog_sorted_excludes_non_ownerless" in capability["scope"]
+
+
 def test_session_ownerless_projection_created_order_is_documented_and_smoked() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
