@@ -45,6 +45,9 @@ class PostgresHumanTaskRepository:
                         task_type TEXT NOT NULL,
                         role_required TEXT NOT NULL,
                         brief TEXT NOT NULL,
+                        authority_required TEXT NOT NULL DEFAULT '',
+                        why_human TEXT NOT NULL DEFAULT '',
+                        quality_rubric_json JSONB NOT NULL DEFAULT '{}'::jsonb,
                         input_json JSONB NOT NULL,
                         desired_output_json JSONB NOT NULL,
                         priority TEXT NOT NULL,
@@ -85,6 +88,24 @@ class PostgresHumanTaskRepository:
                     ADD COLUMN IF NOT EXISTS assignment_state TEXT NOT NULL DEFAULT 'unassigned'
                     """
                 )
+                cur.execute(
+                    """
+                    ALTER TABLE human_tasks
+                    ADD COLUMN IF NOT EXISTS authority_required TEXT NOT NULL DEFAULT ''
+                    """
+                )
+                cur.execute(
+                    """
+                    ALTER TABLE human_tasks
+                    ADD COLUMN IF NOT EXISTS why_human TEXT NOT NULL DEFAULT ''
+                    """
+                )
+                cur.execute(
+                    """
+                    ALTER TABLE human_tasks
+                    ADD COLUMN IF NOT EXISTS quality_rubric_json JSONB NOT NULL DEFAULT '{}'::jsonb
+                    """
+                )
 
     def _from_row(self, row: tuple[Any, ...]) -> HumanTask:
         (
@@ -95,6 +116,9 @@ class PostgresHumanTaskRepository:
             task_type,
             role_required,
             brief,
+            authority_required,
+            why_human,
+            quality_rubric_json,
             input_json,
             desired_output_json,
             priority,
@@ -117,6 +141,9 @@ class PostgresHumanTaskRepository:
             task_type=str(task_type),
             role_required=str(role_required),
             brief=str(brief),
+            authority_required=str(authority_required or ""),
+            why_human=str(why_human or ""),
+            quality_rubric_json=dict(quality_rubric_json or {}),
             input_json=dict(input_json or {}),
             desired_output_json=dict(desired_output_json or {}),
             priority=str(priority),
@@ -141,6 +168,9 @@ class PostgresHumanTaskRepository:
         task_type: str,
         role_required: str,
         brief: str,
+        authority_required: str = "",
+        why_human: str = "",
+        quality_rubric_json: dict[str, object] | None = None,
         input_json: dict[str, object] | None = None,
         desired_output_json: dict[str, object] | None = None,
         priority: str = "normal",
@@ -156,6 +186,9 @@ class PostgresHumanTaskRepository:
             task_type=str(task_type or ""),
             role_required=str(role_required or ""),
             brief=str(brief or ""),
+            authority_required=str(authority_required or ""),
+            why_human=str(why_human or ""),
+            quality_rubric_json=dict(quality_rubric_json or {}),
             input_json=dict(input_json or {}),
             desired_output_json=dict(desired_output_json or {}),
             priority=str(priority or "normal"),
@@ -176,9 +209,10 @@ class PostgresHumanTaskRepository:
                     """
                     INSERT INTO human_tasks (
                         human_task_id, session_id, step_id, principal_id, task_type, role_required, brief,
-                        input_json, desired_output_json, priority, sla_due_at, status, assignment_state, assigned_operator_id,
-                        resolution, resume_session_on_return, returned_payload_json, provenance_json, created_at, updated_at
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        authority_required, why_human, quality_rubric_json, input_json, desired_output_json, priority,
+                        sla_due_at, status, assignment_state, assigned_operator_id, resolution, resume_session_on_return,
+                        returned_payload_json, provenance_json, created_at, updated_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         row.human_task_id,
@@ -188,6 +222,9 @@ class PostgresHumanTaskRepository:
                         row.task_type,
                         row.role_required,
                         row.brief,
+                        row.authority_required,
+                        row.why_human,
+                        self._json_value(row.quality_rubric_json),
                         self._json_value(row.input_json),
                         self._json_value(row.desired_output_json),
                         row.priority,
@@ -214,8 +251,9 @@ class PostgresHumanTaskRepository:
                 cur.execute(
                     """
                     SELECT human_task_id, session_id, step_id, principal_id, task_type, role_required, brief,
-                           input_json, desired_output_json, priority, sla_due_at, status, assignment_state, assigned_operator_id,
-                           resolution, resume_session_on_return, returned_payload_json, provenance_json, created_at, updated_at
+                           authority_required, why_human, quality_rubric_json, input_json, desired_output_json, priority,
+                           sla_due_at, status, assignment_state, assigned_operator_id, resolution, resume_session_on_return,
+                           returned_payload_json, provenance_json, created_at, updated_at
                     FROM human_tasks
                     WHERE human_task_id = %s
                     """,
@@ -266,8 +304,9 @@ class PostgresHumanTaskRepository:
                 cur.execute(
                     f"""
                     SELECT human_task_id, session_id, step_id, principal_id, task_type, role_required, brief,
-                           input_json, desired_output_json, priority, sla_due_at, status, assignment_state, assigned_operator_id,
-                           resolution, resume_session_on_return, returned_payload_json, provenance_json, created_at, updated_at
+                           authority_required, why_human, quality_rubric_json, input_json, desired_output_json, priority,
+                           sla_due_at, status, assignment_state, assigned_operator_id, resolution, resume_session_on_return,
+                           returned_payload_json, provenance_json, created_at, updated_at
                     FROM human_tasks
                     WHERE {' AND '.join(clauses)}
                     ORDER BY created_at DESC, human_task_id DESC
@@ -286,8 +325,9 @@ class PostgresHumanTaskRepository:
                 cur.execute(
                     """
                     SELECT human_task_id, session_id, step_id, principal_id, task_type, role_required, brief,
-                           input_json, desired_output_json, priority, sla_due_at, status, assignment_state, assigned_operator_id,
-                           resolution, resume_session_on_return, returned_payload_json, provenance_json, created_at, updated_at
+                           authority_required, why_human, quality_rubric_json, input_json, desired_output_json, priority,
+                           sla_due_at, status, assignment_state, assigned_operator_id, resolution, resume_session_on_return,
+                           returned_payload_json, provenance_json, created_at, updated_at
                     FROM human_tasks
                     WHERE session_id = %s
                     ORDER BY created_at ASC, human_task_id ASC
@@ -313,8 +353,9 @@ class PostgresHumanTaskRepository:
                         updated_at = %s
                     WHERE human_task_id = %s AND status = 'pending'
                     RETURNING human_task_id, session_id, step_id, principal_id, task_type, role_required, brief,
-                              input_json, desired_output_json, priority, sla_due_at, status, assignment_state, assigned_operator_id,
-                              resolution, resume_session_on_return, returned_payload_json, provenance_json, created_at, updated_at
+                              authority_required, why_human, quality_rubric_json, input_json, desired_output_json, priority,
+                              sla_due_at, status, assignment_state, assigned_operator_id, resolution, resume_session_on_return,
+                              returned_payload_json, provenance_json, created_at, updated_at
                     """,
                     (str(operator_id or ""), now_utc_iso(), task_id),
                 )
@@ -337,8 +378,9 @@ class PostgresHumanTaskRepository:
                         updated_at = %s
                     WHERE human_task_id = %s AND status = 'pending'
                     RETURNING human_task_id, session_id, step_id, principal_id, task_type, role_required, brief,
-                              input_json, desired_output_json, priority, sla_due_at, status, assignment_state, assigned_operator_id,
-                              resolution, resume_session_on_return, returned_payload_json, provenance_json, created_at, updated_at
+                              authority_required, why_human, quality_rubric_json, input_json, desired_output_json, priority,
+                              sla_due_at, status, assignment_state, assigned_operator_id, resolution, resume_session_on_return,
+                              returned_payload_json, provenance_json, created_at, updated_at
                     """,
                     (str(operator_id or ""), now_utc_iso(), task_id),
                 )
@@ -373,8 +415,9 @@ class PostgresHumanTaskRepository:
                         updated_at = %s
                     WHERE human_task_id = %s AND status IN ('pending', 'claimed')
                     RETURNING human_task_id, session_id, step_id, principal_id, task_type, role_required, brief,
-                              input_json, desired_output_json, priority, sla_due_at, status, assignment_state, assigned_operator_id,
-                              resolution, resume_session_on_return, returned_payload_json, provenance_json, created_at, updated_at
+                              authority_required, why_human, quality_rubric_json, input_json, desired_output_json, priority,
+                              sla_due_at, status, assignment_state, assigned_operator_id, resolution, resume_session_on_return,
+                              returned_payload_json, provenance_json, created_at, updated_at
                     """,
                     (
                         str(operator_id or ""),

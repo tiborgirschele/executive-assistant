@@ -418,6 +418,9 @@ class PlanStepSpec:
     priority: str = ""
     sla_minutes: int = 0
     desired_output_json: dict[str, Any] = field(default_factory=dict)
+    authority_required: str = ""
+    why_human: str = ""
+    quality_rubric_json: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -463,6 +466,9 @@ class HumanTask:
     task_type: str
     role_required: str
     brief: str
+    authority_required: str
+    why_human: str
+    quality_rubric_json: dict[str, Any]
     input_json: dict[str, Any]
     desired_output_json: dict[str, Any]
     priority: str

@@ -116,7 +116,7 @@ Policy notes:
 - Allowed and approved rewrites now pass through durable `execution_queue` rows first; the current API path drains that queue inline, while non-API runner roles can drain it as workers.
 - The current rewrite scaffold now executes as three explicit queued steps: `step_input_prepare`, `step_policy_evaluate`, and `step_artifact_save`.
 - `POST /v1/plans/compile` exposes `depends_on`, `input_keys`, and `output_keys` so plan projections show the same dependency graph the rewrite runtime now executes.
-- Task-contract metadata can now add a projected `step_human_review` branch by setting `budget_policy_json.human_review_role`, `human_review_priority`, `human_review_sla_minutes`, and `human_review_desired_output_json`; the rewrite runtime auto-creates the linked human task packet with those routing fields when that step executes, and a returned `final_text` payload now overrides the downstream artifact-save input.
+- Task-contract metadata can now add a projected `step_human_review` branch by setting `budget_policy_json.human_review_role`, `human_review_priority`, `human_review_sla_minutes`, `human_review_desired_output_json`, `human_review_authority_required`, `human_review_why_human`, and `human_review_quality_rubric_json`; the rewrite runtime auto-creates the linked human task packet with those routing and review-contract fields when that step executes, and a returned `final_text` payload now overrides the downstream artifact-save input.
 - Tool-call steps now flow through a registry-backed `ToolExecutionService`; the built-in `artifact_repository` handler emits normalized `tool.v1` receipt metadata and `tool_execution_completed` events.
 - `POST /v1/tools/execute` now exposes the same execution plane directly for built-in handlers; `connector.dispatch` queues a delivery outbox row and returns normalized `tool.v1` receipt metadata.
 - `connector.dispatch` execution now requires a real enabled connector binding in the caller's principal scope; foreign-principal or missing bindings fail before any outbox row is queued.
@@ -260,6 +260,11 @@ Applies:
 - `ea/schema/20260305_v0_20_communication_policies_kernel.sql`
 - `ea/schema/20260305_v0_21_follow_up_rules_kernel.sql`
 - `ea/schema/20260305_v0_22_interruption_budgets_kernel.sql`
+- `ea/schema/20260305_v0_23_execution_queue_kernel.sql`
+- `ea/schema/20260305_v0_24_human_tasks_kernel.sql`
+- `ea/schema/20260305_v0_25_human_task_resume_kernel.sql`
+- `ea/schema/20260305_v0_26_human_task_assignment_state.sql`
+- `ea/schema/20260305_v0_27_human_task_review_contract.sql`
 
 Check table presence/counts:
 

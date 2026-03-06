@@ -50,7 +50,7 @@ Removed:
 - principal-scoped connector and memory routes now derive their effective principal from `X-EA-Principal-ID` or `EA_DEFAULT_PRINCIPAL_ID` instead of trusting caller-supplied body/query IDs
 - rewrite execution now records `plan_compiled`, runs a typed three-step queue path (`step_input_prepare` -> `step_policy_evaluate` -> `step_artifact_save`) through the execution ledger, and dispatches tool steps through a registry-backed `ToolExecutionService`
 - `POST /v1/plans/compile` now exposes explicit plan-step dependencies plus declared input/output keys so planner output reflects the current multi-step rewrite runtime instead of a thin artifact-save wrapper
-- Task contracts can now project a first-class `human_task` branch (`step_human_review`) in plan output by setting `budget_policy_json.human_review_role`, `human_review_priority`, `human_review_sla_minutes`, and `human_review_desired_output_json`; rewrite execution now returns `202 awaiting_human` when that compiled review step pauses the queue runtime, creates the linked human task with those routing semantics, and downstream artifact persistence can consume `returned_payload_json.final_text` from the completed review packet
+- Task contracts can now project a first-class `human_task` branch (`step_human_review`) in plan output by setting `budget_policy_json.human_review_role`, `human_review_priority`, `human_review_sla_minutes`, `human_review_desired_output_json`, `human_review_authority_required`, `human_review_why_human`, and `human_review_quality_rubric_json`; rewrite execution now returns `202 awaiting_human` when that compiled review step pauses the queue runtime, creates the linked human task with those routing and review-contract semantics, and downstream artifact persistence can consume `returned_payload_json.final_text` from the completed review packet
 - rewrite tool receipts now carry a normalized `tool.v1` invocation contract for the built-in `artifact_repository` handler
 - the built-in `connector.dispatch` handler now also runs through `ToolExecutionService` and queues durable delivery outbox rows
 - `connector.dispatch` now requires an enabled connector binding that matches the request principal before `/v1/tools/execute` can queue delivery
@@ -109,6 +109,7 @@ Removed:
 - human tasks kernel migration: `ea/schema/20260305_v0_24_human_tasks_kernel.sql`
 - human task resume kernel migration: `ea/schema/20260305_v0_25_human_task_resume_kernel.sql`
 - human task assignment-state kernel migration: `ea/schema/20260305_v0_26_human_task_assignment_state.sql`
+- human task review-contract kernel migration: `ea/schema/20260305_v0_27_human_task_review_contract.sql`
 
 ## Auth
 

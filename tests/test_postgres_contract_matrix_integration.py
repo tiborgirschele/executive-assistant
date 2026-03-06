@@ -237,6 +237,9 @@ def test_postgres_human_tasks_create_claim_return_and_list() -> None:
         task_type="communications_review",
         role_required="communications_reviewer",
         brief="Review the executive reply before send.",
+        authority_required="send_on_behalf_review",
+        why_human="External executive-facing communication needs human tone review.",
+        quality_rubric_json={"checks": ["tone", "accuracy", "stakeholder_sensitivity"]},
         input_json={"artifact_id": "artifact-1"},
         desired_output_json={"format": "review_packet"},
         priority="high",
@@ -247,6 +250,9 @@ def test_postgres_human_tasks_create_claim_return_and_list() -> None:
     assert created.assignment_state == "unassigned"
     assert created.step_id == step.step_id
     assert created.resume_session_on_return is True
+    assert created.authority_required == "send_on_behalf_review"
+    assert created.why_human == "External executive-facing communication needs human tone review."
+    assert created.quality_rubric_json["checks"][0] == "tone"
 
     listed_principal = repo.list_for_principal(session.intent.principal_id, limit=10)
     assert any(row.human_task_id == created.human_task_id for row in listed_principal)

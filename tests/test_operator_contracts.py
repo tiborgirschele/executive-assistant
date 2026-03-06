@@ -241,6 +241,35 @@ def test_human_task_docs_and_milestone_cover_session_linked_packets() -> None:
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_packets_kernel")
     assert capability["status"] == "tested"
+
+
+def test_human_task_review_contract_metadata_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    planner_test = (ROOT / "tests/test_planner.py").read_text(encoding="utf-8")
+    postgres_matrix = (ROOT / "tests/test_postgres_contract_matrix_integration.py").read_text(encoding="utf-8")
+    db_bootstrap = (ROOT / "scripts/db_bootstrap.sh").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "human_review_authority_required" in readme
+    assert "human_review_why_human" in readme
+    assert "human_review_quality_rubric_json" in readme
+    assert "human_review_authority_required" in runbook
+    assert "human_review_why_human" in runbook
+    assert "human_review_quality_rubric_json" in runbook
+    assert "send_on_behalf_review" in smoke_api
+    assert "External executive communication needs human tone review." in smoke_api
+    assert 'review_task["authority_required"] == "send_on_behalf_review"' in smoke_runtime
+    assert "quality_rubric_json" in smoke_runtime
+    assert "human_review_authority_required" in planner_test
+    assert "human_review_quality_rubric_json" in planner_test
+    assert 'authority_required="send_on_behalf_review"' in postgres_matrix
+    assert "v0_27 human task review contract kernel" in db_bootstrap
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_review_contract_metadata")
+    assert capability["status"] == "tested"
     resume_capability = next(
         entry for entry in milestone["capabilities"] if entry["name"] == "human_task_pause_resume_session_flow"
     )

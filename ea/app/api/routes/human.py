@@ -16,6 +16,9 @@ class HumanTaskCreateIn(BaseModel):
     task_type: str
     role_required: str
     brief: str
+    authority_required: str = ""
+    why_human: str = ""
+    quality_rubric_json: dict[str, object] = Field(default_factory=dict)
     input_json: dict[str, object] = Field(default_factory=dict)
     desired_output_json: dict[str, object] = Field(default_factory=dict)
     priority: str = "normal"
@@ -42,6 +45,9 @@ class HumanTaskOut(BaseModel):
     task_type: str
     role_required: str
     brief: str
+    authority_required: str
+    why_human: str
+    quality_rubric_json: dict[str, object]
     input_json: dict[str, object]
     desired_output_json: dict[str, object]
     priority: str
@@ -66,6 +72,9 @@ def _to_out(row) -> HumanTaskOut:  # type: ignore[no-untyped-def]
         task_type=row.task_type,
         role_required=row.role_required,
         brief=row.brief,
+        authority_required=row.authority_required,
+        why_human=row.why_human,
+        quality_rubric_json=row.quality_rubric_json,
         input_json=row.input_json,
         desired_output_json=row.desired_output_json,
         priority=row.priority,
@@ -97,6 +106,9 @@ def create_human_task(
             task_type=payload.task_type,
             role_required=payload.role_required,
             brief=payload.brief,
+            authority_required=payload.authority_required,
+            why_human=payload.why_human,
+            quality_rubric_json=payload.quality_rubric_json,
             input_json=payload.input_json,
             desired_output_json=payload.desired_output_json,
             priority=payload.priority,

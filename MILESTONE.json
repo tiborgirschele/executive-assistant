@@ -1,6 +1,6 @@
 {
   "milestone": "rewrite-kernel-baseline",
-  "version": "0.54.0",
+  "version": "0.55.0",
   "date": "2026-03-06",
   "status_model": {
     "planned": "scoped but not yet implemented in the current branch",
@@ -303,6 +303,17 @@
       "notes": "Task contracts can now project `priority`, relative SLA minutes, and `desired_output_json` onto compiled `step_human_review` nodes, and the runtime-created human task packet consumes that metadata directly for reviewer routing semantics."
     },
     {
+      "name": "human_task_review_contract_metadata",
+      "status": "tested",
+      "scope": [
+        "human_review_authority_required_projection",
+        "human_review_why_human_projection",
+        "human_review_quality_rubric_projection",
+        "durable_human_task_review_contract_fields"
+      ],
+      "notes": "Compiled `step_human_review` nodes and direct human task packets now carry explicit `authority_required`, `why_human`, and `quality_rubric_json` metadata, backed by durable storage and exposed in plan/session/operator projections."
+    },
+    {
       "name": "registry_backed_tool_execution_service",
       "status": "tested",
       "scope": [
@@ -436,7 +447,8 @@
     "ea/schema/20260305_v0_23_execution_queue_kernel.sql",
     "ea/schema/20260305_v0_24_human_tasks_kernel.sql",
     "ea/schema/20260305_v0_25_human_task_resume_kernel.sql",
-    "ea/schema/20260305_v0_26_human_task_assignment_state.sql"
+    "ea/schema/20260305_v0_26_human_task_assignment_state.sql",
+    "ea/schema/20260305_v0_27_human_task_review_contract.sql"
   ],
   "env_contract": {
     "EA_STORAGE_BACKEND": "memory|postgres|auto",

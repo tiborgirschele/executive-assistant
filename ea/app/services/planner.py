@@ -30,6 +30,13 @@ class PlannerService:
         ).strip()
         human_review_priority = str(contract.budget_policy_json.get("human_review_priority") or "normal").strip() or "normal"
         human_review_sla_minutes = _policy_int(contract.budget_policy_json.get("human_review_sla_minutes"), default=0)
+        human_review_authority_required = str(
+            contract.budget_policy_json.get("human_review_authority_required") or ""
+        ).strip()
+        human_review_why_human = str(
+            contract.budget_policy_json.get("human_review_why_human")
+            or "Human judgment is required before finalizing this review-sensitive rewrite."
+        ).strip()
         raw_human_review_output = contract.budget_policy_json.get("human_review_desired_output_json")
         human_review_desired_output_json = (
             {str(key): value for key, value in raw_human_review_output.items()}
@@ -38,6 +45,12 @@ class PlannerService:
         )
         if not str(human_review_desired_output_json.get("format") or "").strip():
             human_review_desired_output_json["format"] = "review_packet"
+        raw_human_review_rubric = contract.budget_policy_json.get("human_review_quality_rubric_json")
+        human_review_quality_rubric_json = (
+            {str(key): value for key, value in raw_human_review_rubric.items()}
+            if isinstance(raw_human_review_rubric, dict)
+            else {}
+        )
         prepare_step = PlanStepSpec(
             step_key="step_input_prepare",
             step_kind="system_task",
@@ -85,6 +98,9 @@ class PlannerService:
                     priority=human_review_priority,
                     sla_minutes=human_review_sla_minutes,
                     desired_output_json=human_review_desired_output_json,
+                    authority_required=human_review_authority_required,
+                    why_human=human_review_why_human,
+                    quality_rubric_json=human_review_quality_rubric_json,
                 )
             )
             save_depends_on = ("step_human_review",)

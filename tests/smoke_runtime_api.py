@@ -253,6 +253,9 @@ def test_human_task_flow_and_session_projection() -> None:
             "task_type": "communications_review",
             "role_required": "communications_reviewer",
             "brief": "Review the draft before external send.",
+            "authority_required": "send_on_behalf_review",
+            "why_human": "External executive communication needs human tone review.",
+            "quality_rubric_json": {"checks": ["tone", "accuracy", "stakeholder_sensitivity"]},
             "input_json": {"artifact_id": create.json()["artifact_id"]},
             "desired_output_json": {"format": "review_packet"},
             "priority": "high",
@@ -267,6 +270,9 @@ def test_human_task_flow_and_session_projection() -> None:
     assert task["assignment_state"] == "unassigned"
     assert task["step_id"] == step_id
     assert task["resume_session_on_return"] is True
+    assert task["authority_required"] == "send_on_behalf_review"
+    assert task["why_human"] == "External executive communication needs human tone review."
+    assert task["quality_rubric_json"]["checks"][0] == "tone"
 
     session_waiting = client.get(f"/v1/rewrite/sessions/{session_id}")
     assert session_waiting.status_code == 200
@@ -667,6 +673,11 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
                     "format": "review_packet",
                     "escalation_policy": "manager_review",
                 },
+                "human_review_authority_required": "send_on_behalf_review",
+                "human_review_why_human": "Executive-facing rewrite needs human judgment before finalization.",
+                "human_review_quality_rubric_json": {
+                    "checks": ["tone", "accuracy", "stakeholder_sensitivity"]
+                },
             },
         },
     )
@@ -685,6 +696,10 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
     assert compiled_review.json()["plan"]["steps"][2]["priority"] == "high"
     assert compiled_review.json()["plan"]["steps"][2]["sla_minutes"] == 45
     assert compiled_review.json()["plan"]["steps"][2]["desired_output_json"]["escalation_policy"] == "manager_review"
+    assert compiled_review.json()["plan"]["steps"][2]["authority_required"] == "send_on_behalf_review"
+    assert (
+        compiled_review.json()["plan"]["steps"][2]["quality_rubric_json"]["checks"][0] == "tone"
+    )
     assert compiled_review.json()["plan"]["steps"][3]["depends_on"] == ["step_human_review"]
 
     rewrite = client.post("/v1/rewrite/artifact", json={"text": "short rewrite input"})
@@ -716,6 +731,11 @@ def test_rewrite_compiled_human_review_branch_pauses_and_resumes() -> None:
                     "format": "review_packet",
                     "escalation_policy": "manager_review",
                 },
+                "human_review_authority_required": "send_on_behalf_review",
+                "human_review_why_human": "Executive-facing rewrite needs human judgment before finalization.",
+                "human_review_quality_rubric_json": {
+                    "checks": ["tone", "accuracy", "stakeholder_sensitivity"]
+                },
             },
         },
     )
@@ -744,6 +764,9 @@ def test_rewrite_compiled_human_review_branch_pauses_and_resumes() -> None:
     assert review_task["priority"] == "high"
     assert review_task["sla_due_at"]
     assert review_task["desired_output_json"]["escalation_policy"] == "manager_review"
+    assert review_task["authority_required"] == "send_on_behalf_review"
+    assert review_task["why_human"] == "Executive-facing rewrite needs human judgment before finalization."
+    assert review_task["quality_rubric_json"]["checks"][0] == "tone"
 
     reviewed_text = "rewrite with human review, edited by reviewer"
     returned = client.post(

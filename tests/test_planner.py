@@ -54,6 +54,11 @@ def test_planner_can_compile_human_review_branch_from_task_contract_metadata() -
                 "format": "review_packet",
                 "escalation_policy": "manager_review",
             },
+            "human_review_authority_required": "send_on_behalf_review",
+            "human_review_why_human": "Executive-facing rewrite needs human judgment before finalization.",
+            "human_review_quality_rubric_json": {
+                "checks": ["tone", "accuracy", "stakeholder_sensitivity"]
+            },
         },
     )
     planner = PlannerService(contracts)
@@ -68,5 +73,8 @@ def test_planner_can_compile_human_review_branch_from_task_contract_metadata() -
     assert plan.steps[2].priority == "high"
     assert plan.steps[2].sla_minutes == 45
     assert plan.steps[2].desired_output_json["escalation_policy"] == "manager_review"
+    assert plan.steps[2].authority_required == "send_on_behalf_review"
+    assert plan.steps[2].why_human == "Executive-facing rewrite needs human judgment before finalization."
+    assert plan.steps[2].quality_rubric_json["checks"][0] == "tone"
     assert plan.steps[3].step_key == "step_artifact_save"
     assert plan.steps[3].depends_on == ("step_human_review",)

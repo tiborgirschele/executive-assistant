@@ -50,6 +50,9 @@ class PlanStepOut(BaseModel):
     priority: str
     sla_minutes: int
     desired_output_json: dict[str, object]
+    authority_required: str
+    why_human: str
+    quality_rubric_json: dict[str, object]
 
 
 class PlanOut(BaseModel):
@@ -116,6 +119,9 @@ def compile_plan(
                     priority=s.priority,
                     sla_minutes=s.sla_minutes,
                     desired_output_json=dict(s.desired_output_json),
+                    authority_required=s.authority_required,
+                    why_human=s.why_human,
+                    quality_rubric_json=dict(s.quality_rubric_json),
                 )
                 for s in plan.steps
             ],

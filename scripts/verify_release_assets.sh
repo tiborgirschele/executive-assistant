@@ -65,6 +65,11 @@ required_files=(
   "ea/schema/20260305_v0_20_communication_policies_kernel.sql"
   "ea/schema/20260305_v0_21_follow_up_rules_kernel.sql"
   "ea/schema/20260305_v0_22_interruption_budgets_kernel.sql"
+  "ea/schema/20260305_v0_23_execution_queue_kernel.sql"
+  "ea/schema/20260305_v0_24_human_tasks_kernel.sql"
+  "ea/schema/20260305_v0_25_human_task_resume_kernel.sql"
+  "ea/schema/20260305_v0_26_human_task_assignment_state.sql"
+  "ea/schema/20260305_v0_27_human_task_review_contract.sql"
 )
 
 echo "== verify release assets =="
@@ -1135,6 +1140,9 @@ assert visibility_capability["status"] == "tested"
 assert "human_task_assignment_state_field" in visibility_capability["scope"]
 assert "claimed_and_returned_assignment_projection" in visibility_capability["scope"]
 assert "ea/schema/20260305_v0_26_human_task_assignment_state.sql" in milestone["migrations"]
+review_contract_capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_review_contract_metadata")
+assert review_contract_capability["status"] == "tested"
+assert "ea/schema/20260305_v0_27_human_task_review_contract.sql" in milestone["migrations"]
 PY
 then
   if grep -Fq "/v1/human/tasks" "README.md" && \
@@ -1163,6 +1171,7 @@ then
      grep -Fq "v0_24 human tasks kernel" "scripts/db_bootstrap.sh" && \
      grep -Fq "v0_25 human task resume kernel" "scripts/db_bootstrap.sh" && \
      grep -Fq "v0_26 human task assignment-state kernel" "scripts/db_bootstrap.sh" && \
+     grep -Fq "v0_27 human task review contract kernel" "scripts/db_bootstrap.sh" && \
      grep -Fq "human_tasks" "scripts/db_status.sh" && \
      grep -Fq "human tasks ok" "scripts/smoke_api.sh" && \
      grep -Fq "awaiting_human|True|True" "scripts/smoke_api.sh" && \
@@ -1182,6 +1191,40 @@ then
   fi
 else
   echo "missing: human task packet kernel milestone status" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "human_task_review_contract_metadata")
+assert capability["status"] == "tested"
+assert "ea/schema/20260305_v0_27_human_task_review_contract.sql" in milestone["migrations"]
+PY
+then
+  if grep -Fq "human_review_authority_required" "README.md" && \
+     grep -Fq "human_review_why_human" "README.md" && \
+     grep -Fq "human_review_quality_rubric_json" "README.md" && \
+     grep -Fq "human_review_authority_required" "RUNBOOK.md" && \
+     grep -Fq "human_review_why_human" "RUNBOOK.md" && \
+     grep -Fq "human_review_quality_rubric_json" "RUNBOOK.md" && \
+     grep -Fq "send_on_behalf_review" "scripts/smoke_api.sh" && \
+     grep -Fq "External executive communication needs human tone review." "scripts/smoke_api.sh" && \
+     grep -Fq 'review_task["authority_required"] == "send_on_behalf_review"' "tests/smoke_runtime_api.py" && \
+     grep -Fq "quality_rubric_json" "tests/smoke_runtime_api.py" && \
+     grep -Fq "human_review_authority_required" "tests/test_planner.py" && \
+     grep -Fq "human_review_quality_rubric_json" "tests/test_planner.py" && \
+     grep -Fq 'authority_required="send_on_behalf_review"' "tests/test_postgres_contract_matrix_integration.py" && \
+     grep -Fq "v0_27 human task review contract kernel" "scripts/db_bootstrap.sh"; then
+    echo "ok: human task review-contract metadata docs"
+  else
+    echo "missing: human task review-contract metadata docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: human task review-contract metadata milestone" >&2
   missing=1
 fi
 

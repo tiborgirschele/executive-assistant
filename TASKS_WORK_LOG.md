@@ -13,7 +13,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| Q-194 | P1 | Add planner-native human-review quality rubric and authority metadata so operator packets explain why a human is needed and how returned work should be judged | codex | queued | Compiled review steps now project routing metadata, but they still do not carry explicit `quality_rubric`, `authority_required`, or `why_human` fields that make hybrid-intelligence review packets self-describing for operators |
+| Q-195 | P1 | Add operator profile and skill metadata so human-task routing can target reviewer specialization instead of only role labels | codex | queued | Human task packets now carry self-describing review-contract metadata, but routing still depends on coarse `role_required` strings instead of durable operator skills, trust tier, or workload-aware specialization |
 
 ## In Progress
 
@@ -31,6 +31,7 @@ Use this file as the active queue and progress ledger for rewrite slices.
 
 | ID | Priority | Task | Owner | Status | Notes |
 |---|---|---|---|---|---|
+| D-194 | P1 | Add planner-native human-review quality rubric and authority metadata so operator packets explain why a human is needed and how returned work should be judged | codex | done | Compiled `step_human_review` nodes and direct human task packets now persist `authority_required`, `why_human`, and `quality_rubric_json` through plan output, API/session projections, Postgres storage, and approved smoke/contract coverage |
 | D-193 | P1 | Add task-contract-driven SLA/priority metadata for compiled human-review steps so planner-native review work can route with stronger operational semantics | codex | done | Planner output now projects `priority`, relative `human_review_sla_minutes`, and `human_review_desired_output_json` onto `step_human_review`, and the runtime-created human task packet consumes those values directly for reviewer routing and SLA visibility |
 | D-192 | P1 | Let downstream tool steps consume returned human-review payloads so compiled review branches can modify final artifacts instead of only gating them | codex | done | The artifact-save step now reads `returned_payload_json.final_text` from its completed human-review parent step, and the smoke path proves reviewer-edited text becomes the final persisted artifact content |
 | D-191 | P1 | Execute compiled `human_task` plan steps through the queue runtime so review branches pause and resume without a separate API create call | codex | done | Rewrite execution now auto-runs `step_human_review` into a linked human task packet, returns `202 awaiting_human`, and resumes the remaining queue path when the packet is returned |

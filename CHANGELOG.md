@@ -18,6 +18,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Approval-required rewrite requests now return a first-class `202 Accepted` workflow contract with `session_id` and `approval_id` instead of a `409` error envelope.
 - Added first-class principal-scoped human task packets linked to execution sessions/steps, with claim/return APIs and ledger events for returned-from-human work.
 - Human task packets can now reopen a linked session step into `waiting_human` and resume it back to `completed` when the returned packet arrives.
+- Human task packets and compiled `step_human_review` branches now carry explicit `authority_required`, `why_human`, and `quality_rubric_json` review-contract metadata for operator-facing hybrid-intelligence workflows.
 - Human task queue listings now support `role_required`, `assigned_operator_id`, and `overdue_only` filters for operator-targeted backlogs.
 - Added direct `/v1/human/tasks/backlog` and `/v1/human/tasks/mine` endpoints so operators can pull pending and assigned queues without reconstructing filter sets manually.
 - Added `POST /v1/human/tasks/{human_task_id}/assign` so operator ownership can be set while a task remains pending, before `claim` transitions it into active work.

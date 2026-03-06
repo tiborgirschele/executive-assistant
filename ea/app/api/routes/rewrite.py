@@ -104,6 +104,9 @@ class SessionHumanTaskOut(BaseModel):
     task_type: str
     role_required: str
     brief: str
+    authority_required: str
+    why_human: str
+    quality_rubric_json: dict[str, object]
     input_json: dict[str, object]
     desired_output_json: dict[str, object]
     priority: str
@@ -278,6 +281,9 @@ def get_session(
                 task_type=t.task_type,
                 role_required=t.role_required,
                 brief=t.brief,
+                authority_required=t.authority_required,
+                why_human=t.why_human,
+                quality_rubric_json=t.quality_rubric_json,
                 input_json=t.input_json,
                 desired_output_json=t.desired_output_json,
                 priority=t.priority,
