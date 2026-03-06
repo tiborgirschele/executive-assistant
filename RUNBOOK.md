@@ -120,6 +120,7 @@ Policy notes:
 - Approval-required rewrites now return `202` with `session_id`, `approval_id`, `status=awaiting_approval`, and `next_action=poll_or_subscribe` instead of a `409` error contract.
 - Allowed and approved rewrites now pass through durable `execution_queue` rows first; the current API path drains that queue inline, while non-API runner roles can drain it as workers.
 - The current rewrite scaffold now executes as three explicit queued steps: `step_input_prepare`, `step_policy_evaluate`, and `step_artifact_save`.
+- `policy_decision` is now emitted from the queued `step_policy_evaluate` handler after `input_prepared`, so the ledger order matches runtime execution before approval or block transitions are recorded.
 - `POST /v1/plans/compile` exposes `depends_on`, `input_keys`, and `output_keys`, and queue advancement now chooses the next ready step from satisfied dependency edges instead of parent-linked step order.
 - Rewrite creation and session/artifact/receipt/run-cost fetches now enforce the same request principal contract as the rest of the scoped surface, so foreign-principal fetch attempts fail with `403 principal_scope_mismatch` instead of exposing another execution thread.
 - Session-bound `POST /v1/human/tasks` and `GET /v1/human/tasks?session_id=...` now enforce that the request principal matches the linked execution session principal too, so one principal cannot stitch packets onto or enumerate another principal's session thread via `session_id`.

@@ -496,21 +496,93 @@ class RewriteOrchestrator:
             },
         )
 
+    def _dependency_steps_for_step(self, session_id: str, rewrite_step: ExecutionStep) -> list[ExecutionStep]:
+        steps = self._ledger.steps_for(session_id)
+        lookup = self._dependency_lookup(steps)
+        resolved: list[ExecutionStep] = []
+        seen: set[str] = set()
+        for key in self._step_dependency_keys(rewrite_step):
+            row = lookup.get(key)
+            if row is None or row.step_id in seen:
+                continue
+            resolved.append(row)
+            seen.add(row.step_id)
+        if not resolved and rewrite_step.parent_step_id:
+            parent_step = self._ledger.get_step(rewrite_step.parent_step_id)
+            if parent_step is not None:
+                resolved.append(parent_step)
+        return resolved
+
+    def _merged_step_input_json(self, session_id: str, rewrite_step: ExecutionStep) -> dict[str, object]:
+        input_json = dict(rewrite_step.input_json or {})
+        for dependency in self._dependency_steps_for_step(session_id, rewrite_step):
+            for key, value in dict(dependency.output_json or {}).items():
+                if key not in input_json:
+                    input_json[key] = value
+            human_payload = (dependency.output_json or {}).get("human_returned_payload_json")
+            if isinstance(human_payload, dict):
+                final_text = str(human_payload.get("final_text") or human_payload.get("content") or "").strip()
+                if final_text:
+                    input_json["source_text"] = final_text
+                    input_json["normalized_text"] = final_text
+                    input_json["human_task_id"] = str((dependency.output_json or {}).get("human_task_id") or "")
+        return input_json
+
+    def _approval_target_step_for_session(self, session_id: str) -> ExecutionStep | None:
+        steps = self._ledger.steps_for(session_id)
+        return next(
+            (
+                row
+                for row in steps
+                if bool((row.input_json or {}).get("approval_required")) or row.step_kind == "tool_call"
+            ),
+            steps[0] if steps else None,
+        )
+
     def _complete_policy_evaluate_step(self, session_id: str, rewrite_step: ExecutionStep) -> None:
-        decision = next(iter(self._policy_repo.list_recent(limit=1, session_id=session_id)), None)
+        session = self._ledger.get_session(session_id)
+        if session is None:
+            raise RuntimeError(f"session missing for policy step: {session_id}")
+        input_json = self._merged_step_input_json(session_id, rewrite_step)
+        target_step = self._approval_target_step_for_session(session_id)
+        target_tool_name = (
+            str(((target_step.input_json if target_step is not None else {}) or {}).get("tool_name") or "").strip()
+            or "artifact_repository"
+        )
+        target_action_kind = (
+            str(((target_step.input_json if target_step is not None else {}) or {}).get("action_kind") or "").strip()
+            or "artifact.save"
+        )
+        normalized_text = str(input_json.get("normalized_text") or input_json.get("source_text") or "").strip()
+        decision = self._policy.evaluate_rewrite(
+            session.intent,
+            normalized_text,
+            tool_name=target_tool_name,
+            action_kind=target_action_kind,
+        )
+        self._policy_repo.append(session_id, decision)
+        self._ledger.append_event(
+            session_id,
+            "policy_decision",
+            {
+                "allow": decision.allow,
+                "requires_approval": decision.requires_approval,
+                "reason": decision.reason,
+                "retention_policy": decision.retention_policy,
+            },
+        )
         output_json = {
             "plan_id": str((rewrite_step.input_json or {}).get("plan_id") or ""),
             "plan_step_key": str((rewrite_step.input_json or {}).get("plan_step_key") or ""),
+            "tool_name": target_tool_name,
+            "action_kind": target_action_kind,
+            "normalized_text": normalized_text,
+            "text_length": int(input_json.get("text_length") or len(normalized_text)),
+            "allow": decision.allow,
+            "requires_approval": decision.requires_approval,
+            "reason": decision.reason,
+            "retention_policy": decision.retention_policy,
         }
-        if decision is not None:
-            output_json.update(
-                {
-                    "allow": decision.allow,
-                    "requires_approval": decision.requires_approval,
-                    "reason": decision.reason,
-                    "retention_policy": decision.retention_policy,
-                }
-            )
         self._ledger.update_step(
             rewrite_step.step_id,
             state="completed",
@@ -527,6 +599,54 @@ class RewriteOrchestrator:
                 "reason": str(output_json.get("reason") or ""),
             },
         )
+        if not decision.allow:
+            if target_step is None or target_step.step_id == rewrite_step.step_id:
+                self._ledger.update_step(
+                    rewrite_step.step_id,
+                    state="blocked",
+                    output_json=output_json,
+                    error_json={"reason": decision.reason},
+                )
+            else:
+                self._ledger.update_step(
+                    target_step.step_id,
+                    state="blocked",
+                    output_json=target_step.output_json,
+                    error_json={"reason": decision.reason},
+                )
+            self._ledger.complete_session(session_id, status="blocked")
+            self._ledger.append_event(
+                session_id,
+                "session_blocked",
+                {"reason": decision.reason},
+            )
+            return
+        if decision.requires_approval and target_step is not None and target_step.step_id != rewrite_step.step_id:
+            approval_request = self._approvals.create_request(
+                session_id,
+                target_step.step_id,
+                reason="approval_required",
+                requested_action_json={
+                    "action": target_action_kind,
+                    "artifact_kind": str((target_step.input_json or {}).get("expected_artifact") or ""),
+                    "text_length": len(normalized_text),
+                    "plan_id": str((rewrite_step.input_json or {}).get("plan_id") or ""),
+                    "plan_step_key": str((target_step.input_json or {}).get("plan_step_key") or ""),
+                    "tool_name": target_tool_name,
+                },
+            )
+            self._ledger.update_step(
+                target_step.step_id,
+                state="waiting_approval",
+                output_json=target_step.output_json,
+                error_json={"reason": "approval_required", "approval_id": approval_request.approval_id},
+            )
+            self._ledger.complete_session(session_id, status="awaiting_approval")
+            self._ledger.append_event(
+                session_id,
+                "session_paused_for_approval",
+                {"reason": "approval_required", "approval_id": approval_request.approval_id},
+            )
 
     def _start_human_task_step(self, session_id: str, rewrite_step: ExecutionStep) -> HumanTask:
         session = self._ledger.get_session(session_id)
@@ -599,29 +719,8 @@ class RewriteOrchestrator:
         return self._decorate_human_task(row)
 
     def _complete_tool_step(self, session_id: str, rewrite_step: ExecutionStep) -> Artifact | None:
-        input_json = dict(rewrite_step.input_json or {})
+        input_json = self._merged_step_input_json(session_id, rewrite_step)
         session = self._ledger.get_session(session_id)
-        parent_step = self._ledger.get_step(rewrite_step.parent_step_id) if rewrite_step.parent_step_id else None
-        if parent_step is not None:
-            parent_output = dict(parent_step.output_json or {})
-            for key in (
-                "normalized_text",
-                "text_length",
-                "allow",
-                "requires_approval",
-                "reason",
-                "retention_policy",
-                "plan_id",
-            ):
-                if key in parent_output and key not in input_json:
-                    input_json[key] = parent_output[key]
-            human_payload = parent_output.get("human_returned_payload_json")
-            if isinstance(human_payload, dict):
-                final_text = str(human_payload.get("final_text") or human_payload.get("content") or "").strip()
-                if final_text:
-                    input_json["source_text"] = final_text
-                    input_json["normalized_text"] = final_text
-                    input_json["human_task_id"] = str(parent_output.get("human_task_id") or "")
         tool_name = str(input_json.get("tool_name") or "artifact_repository") or "artifact_repository"
         action_kind = str(input_json.get("action_kind") or "artifact.save") or "artifact.save"
         self._ledger.append_event(
@@ -943,7 +1042,6 @@ class RewriteOrchestrator:
                 output_keys=("artifact_id", "receipt_id", "cost_id"),
             ),
         )
-        policy_step = next((step for step in plan_steps if str(step.tool_name or "").strip()), plan_steps[0])
         created_steps: list[ExecutionStep] = []
         parent_step_id: str | None = None
         for index, plan_step in enumerate(plan_steps):
@@ -959,6 +1057,8 @@ class RewriteOrchestrator:
                         "plan_step_key": plan_step.step_key,
                         "plan_step_kind": plan_step.step_kind,
                         "tool_name": plan_step.tool_name,
+                        "action_kind": "artifact.save" if plan_step.step_kind == "tool_call" else "",
+                        "approval_required": plan_step.approval_required,
                         "expected_artifact": plan_step.expected_artifact,
                         "fallback": plan_step.fallback,
                         "depends_on": list(plan_step.depends_on),
@@ -984,85 +1084,6 @@ class RewriteOrchestrator:
                 )
             )
             parent_step_id = created_steps[-1].step_id
-        rewrite_step = created_steps[0]
-        policy_runtime_step = next(
-            (row for row, spec in zip(created_steps, plan_steps) if spec.step_kind == "policy_check"),
-            rewrite_step,
-        )
-        approval_target_step = next(
-            (row for row, spec in zip(created_steps, plan_steps) if spec.approval_required),
-            rewrite_step,
-        )
-        policy_decision = self._policy.evaluate_rewrite(
-            intent,
-            normalized_text,
-            tool_name=policy_step.tool_name or "artifact_repository",
-            action_kind="artifact.save",
-        )
-        self._policy_repo.append(session.session_id, policy_decision)
-        self._ledger.append_event(
-            session.session_id,
-            "policy_decision",
-            {
-                "allow": policy_decision.allow,
-                "requires_approval": policy_decision.requires_approval,
-                "reason": policy_decision.reason,
-                "retention_policy": policy_decision.retention_policy,
-            },
-        )
-        if not policy_decision.allow:
-            self._ledger.update_step(
-                policy_runtime_step.step_id,
-                state="blocked",
-                error_json={"reason": policy_decision.reason},
-            )
-            self._ledger.complete_session(session.session_id, status="blocked")
-            self._ledger.append_event(
-                session.session_id,
-                "session_blocked",
-                {"reason": policy_decision.reason},
-            )
-            raise PolicyDeniedError(policy_decision.reason)
-        if policy_decision.requires_approval:
-            if approval_target_step.step_id != rewrite_step.step_id:
-                next_step = self._next_ready_step(session.session_id, stop_before_step_id=approval_target_step.step_id)
-                if next_step is None:
-                    raise RuntimeError(f"approval prefix queue did not resolve a ready step: {session.session_id}")
-                queue_item = self._enqueue_rewrite_step(session.session_id, next_step.step_id)
-                _ = self.run_queue_item(
-                    queue_item.queue_id,
-                    lease_owner="inline",
-                    stop_before_step_id=approval_target_step.step_id,
-                )
-            approval_request = self._approvals.create_request(
-                session.session_id,
-                approval_target_step.step_id,
-                reason="approval_required",
-                requested_action_json={
-                    "action": "artifact.save",
-                    "artifact_kind": "rewrite_note",
-                    "text_length": len(normalized_text),
-                    "plan_id": plan.plan_id,
-                    "plan_step_key": policy_step.step_key,
-                    "tool_name": policy_step.tool_name,
-                },
-            )
-            self._ledger.update_step(
-                approval_target_step.step_id,
-                state="waiting_approval",
-                error_json={"reason": "approval_required", "approval_id": approval_request.approval_id},
-            )
-            self._ledger.complete_session(session.session_id, status="awaiting_approval")
-            self._ledger.append_event(
-                session.session_id,
-                "session_paused_for_approval",
-                {"reason": "approval_required", "approval_id": approval_request.approval_id},
-            )
-            raise ApprovalRequiredError(
-                session_id=session.session_id,
-                approval_id=approval_request.approval_id,
-                status="awaiting_approval",
-            )
         next_step = self._next_ready_step(session.session_id)
         if next_step is None:
             raise RuntimeError(f"rewrite queue did not resolve a ready step: {session.session_id}")
@@ -1070,13 +1091,28 @@ class RewriteOrchestrator:
         artifact = self.run_queue_item(queue_item.queue_id, lease_owner="inline")
         if artifact is None:
             snapshot = self.fetch_session(session.session_id)
-            if snapshot is not None and snapshot.session.status == "awaiting_human":
-                human_task_id = snapshot.human_tasks[-1].human_task_id if snapshot.human_tasks else ""
-                raise HumanTaskRequiredError(
-                    session_id=session.session_id,
-                    human_task_id=human_task_id,
-                    status=snapshot.session.status,
-                )
+            if snapshot is not None:
+                if snapshot.session.status == "awaiting_human":
+                    human_task_id = snapshot.human_tasks[-1].human_task_id if snapshot.human_tasks else ""
+                    raise HumanTaskRequiredError(
+                        session_id=session.session_id,
+                        human_task_id=human_task_id,
+                        status=snapshot.session.status,
+                    )
+                if snapshot.session.status == "awaiting_approval":
+                    approval_request = next(
+                        (row for row in self._approvals.list_pending(limit=100) if row.session_id == session.session_id),
+                        None,
+                    )
+                    raise ApprovalRequiredError(
+                        session_id=session.session_id,
+                        approval_id=approval_request.approval_id if approval_request is not None else "",
+                        status=snapshot.session.status,
+                    )
+                if snapshot.session.status == "blocked":
+                    decision = next(iter(self._policy_repo.list_recent(limit=1, session_id=session.session_id)), None)
+                    reason = str(decision.reason if decision is not None else "") or "policy_denied"
+                    raise PolicyDeniedError(reason)
             raise RuntimeError(f"queued rewrite did not execute: {queue_item.queue_id}")
         return artifact
 

@@ -945,6 +945,30 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "queued_policy_step_audit_truthfulness")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq 'policy_decision` is now recorded by the queued `step_policy_evaluate` handler after `input_prepared`' "README.md" && \
+     grep -Fq 'policy_decision` is now emitted from the queued `step_policy_evaluate` handler after `input_prepared`' "RUNBOOK.md" && \
+     grep -Fq 'Policy decisions are now recorded from the queued `step_policy_evaluate` handler after `input_prepared`' "CHANGELOG.md" && \
+     grep -Fq "order_ok" "scripts/smoke_api.sh" && \
+     grep -Fq 'event_names.index("input_prepared") < event_names.index("policy_decision")' "tests/smoke_runtime_api.py"; then
+    echo "ok: queued policy-step audit truthfulness docs"
+  else
+    echo "missing: queued policy-step audit truthfulness docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: queued policy-step audit truthfulness milestone status" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "typed_step_handler_gateway")
 assert capability["status"] == "tested"
 planner_capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "planner_dependency_graph_projection")

@@ -293,6 +293,16 @@
       "notes": "Queue advancement now resolves the next runnable step from satisfied `depends_on` edges instead of parent-linked step order, so joins wait for all prerequisites and approval resume uses the same ready-step scheduler."
     },
     {
+      "name": "queued_policy_step_audit_truthfulness",
+      "status": "tested",
+      "scope": [
+        "queued_policy_decision_event",
+        "input_prepared_before_policy_decision",
+        "approval_pause_from_runtime_policy_step"
+      ],
+      "notes": "Policy evaluation is now executed and recorded from the queued `step_policy_evaluate` handler after `input_prepared`, so approval/block audit trails reflect runtime step order instead of preflight bookkeeping."
+    },
+    {
       "name": "planner_human_task_branch_projection",
       "status": "tested",
       "scope": [

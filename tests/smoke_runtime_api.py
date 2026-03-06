@@ -74,6 +74,9 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert "input_prepared" in event_names
     assert "policy_step_completed" in event_names
     assert "tool_execution_completed" in event_names
+    assert event_names.index("input_prepared") < event_names.index("policy_decision") < event_names.index(
+        "policy_step_completed"
+    )
     assert "step_enqueued" in event_names
     assert "queue_item_completed" in event_names
     assert len(body["steps"]) >= 3

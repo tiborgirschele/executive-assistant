@@ -1518,6 +1518,25 @@ def test_dependency_aware_execution_scheduler_is_documented_and_tested() -> None
     assert capability["status"] == "tested"
 
 
+def test_queued_policy_step_audit_truthfulness_is_documented_and_smoked() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "policy_decision` is now recorded by the queued `step_policy_evaluate` handler after `input_prepared`" in readme
+    assert "policy_decision` is now emitted from the queued `step_policy_evaluate` handler after `input_prepared`" in runbook
+    assert "Policy decisions are now recorded from the queued `step_policy_evaluate` handler after `input_prepared`" in changelog
+    assert "policy_decision" in smoke_api
+    assert "order_ok" in smoke_api
+    assert 'event_names.index("input_prepared") < event_names.index("policy_decision")' in smoke_runtime
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "queued_policy_step_audit_truthfulness")
+    assert capability["status"] == "tested"
+
+
 def test_typed_step_handler_gateway_is_documented_and_smoked() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")

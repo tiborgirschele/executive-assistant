@@ -81,9 +81,9 @@ fi
 echo "== smoke: session + policy =="
 curl -fsS "${BASE}/v1/rewrite/artifacts/${ARTIFACT_ID}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" >/dev/null
 SESSION_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${SESSION_ID}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
-SESSION_RUNTIME_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); events={e.get('name','') for e in (body.get('events') or [])}; queues=body.get('queue_items') or []; steps=body.get('steps') or []; history=body.get('human_task_assignment_history') or []; print('{}|{}|{}|{}|{}|{}|{}'.format(body.get('status',''), len(steps) >= 3, len(queues) >= 3 and all((q or {}).get('state','') == 'done' for q in queues), 'input_prepared' in events, 'policy_step_completed' in events, 'tool_execution_completed' in events, len(history) == 0))" <<<"${SESSION_JSON}")"
-if [[ "${SESSION_RUNTIME_FIELDS}" != "completed|True|True|True|True|True|True" ]]; then
-  echo "expected initial rewrite session to complete with three steps, done queue items, input_prepared, policy_step_completed, tool_execution_completed, and empty human-task assignment history; got ${SESSION_RUNTIME_FIELDS}" >&2
+SESSION_RUNTIME_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); names=[e.get('name','') for e in (body.get('events') or [])]; events=set(names); queues=body.get('queue_items') or []; steps=body.get('steps') or []; history=body.get('human_task_assignment_history') or []; order_ok=('input_prepared' in events and 'policy_decision' in events and 'policy_step_completed' in events and names.index('input_prepared') < names.index('policy_decision') < names.index('policy_step_completed')); print('{}|{}|{}|{}|{}|{}|{}|{}'.format(body.get('status',''), len(steps) >= 3, len(queues) >= 3 and all((q or {}).get('state','') == 'done' for q in queues), 'input_prepared' in events, 'policy_decision' in events, 'policy_step_completed' in events, 'tool_execution_completed' in events, len(history) == 0 and order_ok))" <<<"${SESSION_JSON}")"
+if [[ "${SESSION_RUNTIME_FIELDS}" != "completed|True|True|True|True|True|True|True" ]]; then
+  echo "expected initial rewrite session to complete with ordered queued input/policy events, done queue items, tool execution, and empty human-task assignment history; got ${SESSION_RUNTIME_FIELDS}" >&2
   echo "${SESSION_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
