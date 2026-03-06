@@ -80,7 +80,7 @@ class _GraphPlanner:
                     timeout_budget_seconds=60,
                     depends_on=("step_input_prepare",),
                     input_keys=("normalized_text",),
-                    output_keys=("sidecar_artifact_id",),
+                    output_keys=("artifact_id", "receipt_id", "cost_id"),
                     expected_artifact="sidecar_note",
                 ),
                 PlanStepSpec(

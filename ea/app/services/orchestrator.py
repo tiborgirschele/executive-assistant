@@ -580,15 +580,19 @@ class RewriteOrchestrator:
         source_text = str(input_json.get("source_text") or "").strip()
         plan_id = str(input_json.get("plan_id") or "")
         plan_step_key = str(input_json.get("plan_step_key") or "")
-        self._ledger.update_step(
-            rewrite_step.step_id,
-            state="completed",
-            output_json={
+        output_json = self._validate_step_output_contract(
+            rewrite_step,
+            {
                 "normalized_text": source_text,
                 "text_length": len(source_text),
                 "plan_id": plan_id,
                 "plan_step_key": plan_step_key,
             },
+        )
+        self._ledger.update_step(
+            rewrite_step.step_id,
+            state="completed",
+            output_json=output_json,
             error_json={},
         )
         self._ledger.append_event(
@@ -619,18 +623,53 @@ class RewriteOrchestrator:
                 resolved.append(parent_step)
         return resolved
 
+    def _declared_step_input_keys(self, rewrite_step: ExecutionStep) -> tuple[str, ...]:
+        raw = (rewrite_step.input_json or {}).get("input_keys") or ()
+        if isinstance(raw, (list, tuple)):
+            values = tuple(str(value or "").strip() for value in raw if str(value or "").strip())
+            if values:
+                return values
+        return ()
+
+    def _declared_step_output_keys(self, rewrite_step: ExecutionStep) -> tuple[str, ...]:
+        raw = (rewrite_step.input_json or {}).get("output_keys") or ()
+        if isinstance(raw, (list, tuple)):
+            values = tuple(str(value or "").strip() for value in raw if str(value or "").strip())
+            if values:
+                return values
+        return ()
+
+    def _validate_step_input_contract(self, rewrite_step: ExecutionStep, input_json: dict[str, object]) -> dict[str, object]:
+        plan_step_key = str((rewrite_step.input_json or {}).get("plan_step_key") or rewrite_step.step_kind or "")
+        for key in self._declared_step_input_keys(rewrite_step):
+            if key not in input_json:
+                raise RuntimeError(f"missing_step_input:{plan_step_key}:{key}")
+        return input_json
+
+    def _validate_step_output_contract(
+        self, rewrite_step: ExecutionStep, output_json: dict[str, object]
+    ) -> dict[str, object]:
+        plan_step_key = str((rewrite_step.input_json or {}).get("plan_step_key") or rewrite_step.step_kind or "")
+        for key in self._declared_step_output_keys(rewrite_step):
+            if key not in output_json:
+                raise RuntimeError(f"missing_step_output:{plan_step_key}:{key}")
+        return output_json
+
     def _merged_step_input_json(self, session_id: str, rewrite_step: ExecutionStep) -> dict[str, object]:
         input_json = dict(rewrite_step.input_json or {})
+        declared_input_keys = set(self._declared_step_input_keys(rewrite_step))
         for dependency in self._dependency_steps_for_step(session_id, rewrite_step):
             for key, value in dict(dependency.output_json or {}).items():
-                if key not in input_json:
+                if key not in input_json and (not declared_input_keys or key in declared_input_keys):
                     input_json[key] = value
             human_payload = (dependency.output_json or {}).get("human_returned_payload_json")
             if isinstance(human_payload, dict):
                 final_text = str(human_payload.get("final_text") or human_payload.get("content") or "").strip()
                 if final_text:
-                    input_json["source_text"] = final_text
-                    input_json["normalized_text"] = final_text
+                    if not declared_input_keys or "source_text" in declared_input_keys:
+                        input_json["source_text"] = final_text
+                    if not declared_input_keys or "normalized_text" in declared_input_keys:
+                        input_json["normalized_text"] = final_text
                     input_json["human_task_id"] = str((dependency.output_json or {}).get("human_task_id") or "")
         normalized_text = str(input_json.get("normalized_text") or "").strip()
         if normalized_text and not str(input_json.get("source_text") or "").strip():
@@ -640,7 +679,7 @@ class RewriteOrchestrator:
             input_json["normalized_text"] = source_text
         if "text_length" not in input_json and source_text:
             input_json["text_length"] = len(source_text)
-        return input_json
+        return self._validate_step_input_contract(rewrite_step, input_json)
 
     def _approval_target_step_for_session(self, session_id: str) -> ExecutionStep | None:
         steps = self._ledger.steps_for(session_id)
@@ -697,6 +736,7 @@ class RewriteOrchestrator:
             "reason": decision.reason,
             "retention_policy": decision.retention_policy,
         }
+        output_json = self._validate_step_output_contract(rewrite_step, output_json)
         self._ledger.update_step(
             rewrite_step.step_id,
             state="completed",
@@ -861,7 +901,7 @@ class RewriteOrchestrator:
                 },
             )
         )
-        self._ledger.append_tool_receipt(
+        receipt = self._ledger.append_tool_receipt(
             session_id,
             rewrite_step.step_id,
             tool_name=result.tool_name,
@@ -869,17 +909,21 @@ class RewriteOrchestrator:
             target_ref=result.target_ref,
             receipt_json=result.receipt_json,
         )
-        self._ledger.append_run_cost(
+        cost = self._ledger.append_run_cost(
             session_id,
             model_name=result.model_name,
             tokens_in=result.tokens_in,
             tokens_out=result.tokens_out,
             cost_usd=result.cost_usd,
         )
+        output_json = dict(result.output_json or {})
+        output_json.setdefault("receipt_id", receipt.receipt_id)
+        output_json.setdefault("cost_id", cost.cost_id)
+        output_json = self._validate_step_output_contract(rewrite_step, output_json)
         self._ledger.update_step(
             rewrite_step.step_id,
             state="completed",
-            output_json=result.output_json,
+            output_json=output_json,
             error_json={},
         )
         self._ledger.append_event(
@@ -1838,6 +1882,7 @@ class RewriteOrchestrator:
                         "human_provenance_json": updated.provenance_json,
                     }
                 )
+                output_json = self._validate_step_output_contract(step, output_json)
                 self._ledger.update_step(
                     updated.step_id,
                     state="completed",

@@ -218,6 +218,18 @@ def test_plan_graph_validation_contracts_are_wired_into_focused_contract_bundle(
     assert "validate_plan_spec(plan)" in orchestrator
 
 
+def test_step_io_contracts_are_wired_into_focused_contract_bundle() -> None:
+    script = (ROOT / "scripts/test_postgres_contracts.sh").read_text(encoding="utf-8")
+    io_test = (ROOT / "tests/test_step_io_contracts.py").read_text(encoding="utf-8")
+    orchestrator = (ROOT / "ea/app/services/orchestrator.py").read_text(encoding="utf-8")
+
+    assert "tests/test_step_io_contracts.py" in script
+    assert "missing_step_input:step_policy_evaluate:normalized_text" in io_test
+    assert "missing_step_output:step_artifact_save:missing_output" in io_test
+    assert "_validate_step_input_contract" in orchestrator
+    assert "_validate_step_output_contract" in orchestrator
+
+
 def test_principal_fallback_contracts_are_wired_into_focused_contract_bundle() -> None:
     script = (ROOT / "scripts/test_postgres_contracts.sh").read_text(encoding="utf-8")
     fallback_test = (ROOT / "tests/test_principal_fallback_contracts.py").read_text(encoding="utf-8")
@@ -1821,6 +1833,20 @@ def test_plan_graph_validation_is_documented_and_guarded() -> None:
     assert "duplicate step keys, unknown dependency keys, and dependency cycles before queue execution or session creation begins" in changelog
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "plan_graph_validation")
+    assert capability["status"] == "tested"
+
+
+def test_step_io_contracts_are_documented_and_guarded() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "only merges declared dependency inputs and validates declared step outputs before completion" in readme
+    assert "only merges declared dependency inputs and fails missing declared outputs before a step can complete" in runbook
+    assert "only merge declared dependency inputs and now fail fast when a completed step omits any declared output key" in changelog
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "step_io_contract_enforcement")
     assert capability["status"] == "tested"
 
 
