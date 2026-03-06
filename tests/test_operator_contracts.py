@@ -1831,10 +1831,11 @@ def test_dependency_aware_execution_scheduler_is_documented_and_tested() -> None
     postgres_contracts = (ROOT / "tests/test_postgres_contract_matrix_integration.py").read_text(encoding="utf-8")
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
 
-    assert "queue advancement now selects the next ready step from satisfied dependency edges" in readme
-    assert "queue advancement now chooses the next ready step from satisfied dependency edges" in runbook
-    assert "Queue advancement now resolves the next ready step from satisfied `depends_on` edges" in changelog
+    assert "queue advancement now enqueues every currently ready step from satisfied dependency edges" in readme
+    assert "queue advancement now enqueues every currently ready step from satisfied dependency edges" in runbook
+    assert "Queue advancement now enqueues the full ready set from satisfied `depends_on` edges" in changelog
     assert "test_postgres_orchestrator_dependency_scheduler_waits_for_all_dependencies" in postgres_contracts
+    assert "test_postgres_queue_leasing_skips_paused_sessions_even_with_ready_items" in postgres_contracts
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "dependency_aware_execution_scheduler")
     assert capability["status"] == "tested"

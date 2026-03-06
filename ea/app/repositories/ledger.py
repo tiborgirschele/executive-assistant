@@ -139,6 +139,12 @@ class InMemoryExecutionLedgerRepository:
         self._costs: Dict[str, RunCost] = {}
         self._cost_order: Dict[str, List[str]] = {}
 
+    def _session_is_runnable_for_queue(self, session_id: str) -> bool:
+        session = self._sessions.get(str(session_id or ""))
+        if session is None:
+            return False
+        return str(session.status or "") in {"running", "queued"}
+
     def start_session(self, intent: IntentSpecV3) -> ExecutionSession:
         ts = now_utc_iso()
         session = ExecutionSession(
@@ -298,6 +304,8 @@ class InMemoryExecutionLedgerRepository:
         now = datetime.now(timezone.utc)
         eligible: list[str] = []
         for queue_id, row in self._queue_items.items():
+            if not self._session_is_runnable_for_queue(row.session_id):
+                continue
             if row.state == "queued":
                 if row.next_attempt_at:
                     try:

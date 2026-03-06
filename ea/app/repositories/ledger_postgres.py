@@ -602,13 +602,22 @@ class PostgresExecutionLedgerRepository:
                         lease_expires_at = %s,
                         attempt_count = attempt_count + 1,
                         updated_at = %s
-                    WHERE queue_id = %s
+                    FROM execution_sessions
+                    WHERE execution_queue.queue_id = %s
+                      AND execution_sessions.session_id = execution_queue.session_id
+                      AND execution_sessions.status IN ('running', 'queued')
                       AND (
-                        (state = 'queued' AND (next_attempt_at IS NULL OR next_attempt_at <= %s))
-                        OR (state = 'leased' AND lease_expires_at IS NOT NULL AND lease_expires_at <= %s)
+                        (execution_queue.state = 'queued' AND (execution_queue.next_attempt_at IS NULL OR execution_queue.next_attempt_at <= %s))
+                        OR (
+                            execution_queue.state = 'leased'
+                            AND execution_queue.lease_expires_at IS NOT NULL
+                            AND execution_queue.lease_expires_at <= %s
+                        )
                       )
-                    RETURNING queue_id, session_id, step_id, state, lease_owner, lease_expires_at, attempt_count, next_attempt_at,
-                              idempotency_key, last_error, created_at, updated_at
+                    RETURNING execution_queue.queue_id, execution_queue.session_id, execution_queue.step_id, execution_queue.state,
+                              execution_queue.lease_owner, execution_queue.lease_expires_at, execution_queue.attempt_count,
+                              execution_queue.next_attempt_at, execution_queue.idempotency_key, execution_queue.last_error,
+                              execution_queue.created_at, execution_queue.updated_at
                     """,
                     (str(lease_owner or "worker"), lease_expires, now.isoformat(), qid, now.isoformat(), now.isoformat()),
                 )
@@ -625,14 +634,20 @@ class PostgresExecutionLedgerRepository:
                 cur.execute(
                     """
                     WITH candidate AS (
-                        SELECT queue_id
+                        SELECT execution_queue.queue_id
                         FROM execution_queue
-                        WHERE (
-                            state = 'queued' AND (next_attempt_at IS NULL OR next_attempt_at <= %s)
-                        ) OR (
-                            state = 'leased' AND lease_expires_at IS NOT NULL AND lease_expires_at <= %s
-                        )
-                        ORDER BY created_at ASC, queue_id ASC
+                        JOIN execution_sessions
+                          ON execution_sessions.session_id = execution_queue.session_id
+                        WHERE execution_sessions.status IN ('running', 'queued')
+                          AND (
+                            (execution_queue.state = 'queued' AND (execution_queue.next_attempt_at IS NULL OR execution_queue.next_attempt_at <= %s))
+                            OR (
+                                execution_queue.state = 'leased'
+                                AND execution_queue.lease_expires_at IS NOT NULL
+                                AND execution_queue.lease_expires_at <= %s
+                            )
+                          )
+                        ORDER BY execution_queue.created_at ASC, execution_queue.queue_id ASC
                         LIMIT 1
                         FOR UPDATE SKIP LOCKED
                     )

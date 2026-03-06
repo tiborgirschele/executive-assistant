@@ -288,9 +288,10 @@
       "scope": [
         "ready_step_selection_from_depends_on",
         "join_waits_for_all_dependencies",
-        "approval_resume_uses_ready_step_resolution"
+        "approval_resume_uses_ready_step_resolution",
+        "paused_session_queue_leasing"
       ],
-      "notes": "Queue advancement now resolves the next runnable step from satisfied `depends_on` edges instead of parent-linked step order, so joins wait for all prerequisites and approval resume uses the same ready-step scheduler."
+      "notes": "Queue advancement now enqueues the full ready set from satisfied `depends_on` edges instead of parent-linked step order, and queue leasing skips paused sessions so joins wait for all prerequisites while approval resume still uses the same dependency-aware scheduler."
     },
     {
       "name": "queued_policy_step_audit_truthfulness",

@@ -1259,13 +1259,14 @@ capability = next(entry for entry in milestone["capabilities"] if entry["name"] 
 assert capability["status"] == "tested"
 PY
 then
-  if grep -Fq "queue advancement now selects the next ready step from satisfied dependency edges" "README.md" && \
-     grep -Fq "queue advancement now chooses the next ready step from satisfied dependency edges" "RUNBOOK.md" && \
-     grep -Fq 'Queue advancement now resolves the next ready step from satisfied `depends_on` edges' "CHANGELOG.md" && \
-     grep -Fq "test_postgres_orchestrator_dependency_scheduler_waits_for_all_dependencies" "tests/test_postgres_contract_matrix_integration.py"; then
-    echo "ok: dependency-aware execution scheduler docs"
-  else
-    echo "missing: dependency-aware execution scheduler docs" >&2
+if grep -Fq "queue advancement now enqueues every currently ready step from satisfied dependency edges" "README.md" && \
+   grep -Fq "queue advancement now enqueues every currently ready step from satisfied dependency edges" "RUNBOOK.md" && \
+   grep -Fq 'Queue advancement now enqueues the full ready set from satisfied `depends_on` edges' "CHANGELOG.md" && \
+   grep -Fq "test_postgres_orchestrator_dependency_scheduler_waits_for_all_dependencies" "tests/test_postgres_contract_matrix_integration.py" && \
+   grep -Fq "test_postgres_queue_leasing_skips_paused_sessions_even_with_ready_items" "tests/test_postgres_contract_matrix_integration.py"; then
+  echo "ok: dependency-aware execution scheduler docs"
+else
+  echo "missing: dependency-aware execution scheduler docs" >&2
     missing=1
   fi
 else
