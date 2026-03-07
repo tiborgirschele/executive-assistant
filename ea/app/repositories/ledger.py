@@ -87,6 +87,15 @@ class ExecutionLedgerRepository(Protocol):
     def fail_queue_item(self, queue_id: str, *, last_error: str) -> ExecutionQueueItem | None:
         ...
 
+    def retry_queue_item(
+        self,
+        queue_id: str,
+        *,
+        last_error: str,
+        next_attempt_at: str | None,
+    ) -> ExecutionQueueItem | None:
+        ...
+
     def queue_for_session(self, session_id: str) -> list[ExecutionQueueItem]:
         ...
 
@@ -381,6 +390,29 @@ class InMemoryExecutionLedgerRepository:
             lease_owner="",
             lease_expires_at=None,
             last_error=str(last_error or "execution_failed"),
+            updated_at=now_utc_iso(),
+        )
+        self._queue_items[qid] = updated
+        return updated
+
+    def retry_queue_item(
+        self,
+        queue_id: str,
+        *,
+        last_error: str,
+        next_attempt_at: str | None,
+    ) -> ExecutionQueueItem | None:
+        qid = str(queue_id or "")
+        row = self._queue_items.get(qid)
+        if not row:
+            return None
+        updated = replace(
+            row,
+            state="queued",
+            lease_owner="",
+            lease_expires_at=None,
+            last_error=str(last_error or "execution_failed"),
+            next_attempt_at=next_attempt_at,
             updated_at=now_utc_iso(),
         )
         self._queue_items[qid] = updated

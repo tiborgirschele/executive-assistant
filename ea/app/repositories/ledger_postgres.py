@@ -727,6 +727,38 @@ class PostgresExecutionLedgerRepository:
             return None
         return self._queue_from_db_row(row)
 
+    def retry_queue_item(
+        self,
+        queue_id: str,
+        *,
+        last_error: str,
+        next_attempt_at: str | None,
+    ) -> ExecutionQueueItem | None:
+        qid = str(queue_id or "")
+        if not qid:
+            return None
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE execution_queue
+                    SET state = 'queued',
+                        lease_owner = '',
+                        lease_expires_at = NULL,
+                        last_error = %s,
+                        next_attempt_at = %s,
+                        updated_at = %s
+                    WHERE queue_id = %s
+                    RETURNING queue_id, session_id, step_id, state, lease_owner, lease_expires_at, attempt_count, next_attempt_at,
+                              idempotency_key, last_error, created_at, updated_at
+                    """,
+                    (str(last_error or "execution_failed"), next_attempt_at, now_utc_iso(), qid),
+                )
+                row = cur.fetchone()
+        if not row:
+            return None
+        return self._queue_from_db_row(row)
+
     def queue_for_session(self, session_id: str) -> list[ExecutionQueueItem]:
         sid = str(session_id or "")
         if not sid:

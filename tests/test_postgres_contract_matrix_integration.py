@@ -254,6 +254,58 @@ def test_postgres_execution_queue_enqueue_lease_complete_and_list() -> None:
     assert listed[0].state == "done"
 
 
+def test_postgres_execution_queue_retry_requeues_the_same_row() -> None:
+    repo = PostgresExecutionLedgerRepository(_db_url())
+    session = repo.start_session(
+        IntentSpecV3(
+            principal_id="queue-retry-tester",
+            goal="retry a queued step",
+            task_type="rewrite_text",
+            deliverable_type="rewrite_note",
+            risk_class="low",
+            approval_class="none",
+            budget_class="low",
+            allowed_tools=("artifact_repository",),
+        )
+    )
+    step = repo.start_step(
+        session.session_id,
+        "tool_call",
+        input_json={"source_text": "retry contract payload", "tool_name": "artifact_repository"},
+        correlation_id=f"corr-{uuid.uuid4()}",
+        causation_id=f"cause-{uuid.uuid4()}",
+        actor_type="assistant",
+        actor_id="contract-test",
+    )
+
+    queue_item = repo.enqueue_step(
+        session.session_id,
+        step.step_id,
+        idempotency_key=f"{session.session_id}:{step.step_id}",
+    )
+    leased = repo.lease_queue_item(queue_item.queue_id, lease_owner="contract-worker", lease_seconds=30)
+    assert leased is not None
+    assert leased.attempt_count == 1
+
+    retried = repo.retry_queue_item(
+        queue_item.queue_id,
+        last_error="temporary_failure",
+        next_attempt_at=now_utc_iso(),
+    )
+    assert retried is not None
+    assert retried.state == "queued"
+    assert retried.lease_owner == ""
+    assert retried.lease_expires_at is None
+    assert retried.attempt_count == 1
+    assert retried.last_error == "temporary_failure"
+    assert retried.next_attempt_at is not None
+
+    leased_again = repo.lease_next_queue_item(lease_owner="contract-worker", lease_seconds=30)
+    assert leased_again is not None
+    assert leased_again.queue_id == queue_item.queue_id
+    assert leased_again.attempt_count == 2
+
+
 def test_postgres_orchestrator_dependency_scheduler_waits_for_all_dependencies() -> None:
     ledger = PostgresExecutionLedgerRepository(_db_url())
     orchestrator = RewriteOrchestrator(ledger=ledger)

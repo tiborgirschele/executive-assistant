@@ -90,6 +90,7 @@ def test_postgres_contract_script_help_and_wiring() -> None:
     assert "tests/test_openapi_dependency_examples_contracts.py" in script
     assert "tests/test_plan_scope_contracts.py" in script
     assert "tests/test_principal_fallback_contracts.py" in script
+    assert "tests/test_queue_retry_contracts.py" in script
     assert "tests/test_rewrite_scope_contracts.py" in script
     assert "tests/test_rewrite_api_scope_contracts.py" in script
     assert "tests/test_rewrite_dependency_projection_contracts.py" in script
@@ -285,18 +286,26 @@ def test_unknown_workflow_templates_fail_fast_at_planner_and_api_boundaries() ->
 
 def test_review_then_dispatch_workflow_template_is_documented_and_guarded() -> None:
     workflow_test = (ROOT / "tests/test_task_contract_step_templates.py").read_text(encoding="utf-8")
+    smoke_test = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    smoke_script = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
 
     assert "stakeholder_review_dispatch" in workflow_test
+    assert "stakeholder_review_dispatch" in smoke_test
+    assert "hybrid@example.com" in smoke_test
     assert '"step_input_prepare",' in workflow_test
     assert '"step_human_review",' in workflow_test
     assert '"step_artifact_save",' in workflow_test
     assert '"step_policy_evaluate",' in workflow_test
     assert '"step_connector_dispatch",' in workflow_test
     assert "review and send a stakeholder briefing" in workflow_test
+    assert "stakeholder_review_dispatch" in smoke_script
+    assert "hybrid@example.com" in smoke_script
+    assert "review-then-dispatch workflow to pause behind human review first" in smoke_script
+    assert "expected review-then-dispatch workflow to pause for approval after human return and artifact persistence" in smoke_script
     assert "artifact_then_dispatch" in readme
     assert "step_human_review -> step_artifact_save -> step_policy_evaluate -> step_connector_dispatch" in readme
     assert "artifact_then_dispatch" in runbook
@@ -304,6 +313,29 @@ def test_review_then_dispatch_workflow_template_is_documented_and_guarded() -> N
     assert "combined human-review case" in changelog
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "review_then_dispatch_workflow_template")
+    assert capability["status"] == "tested"
+
+
+def test_execution_queue_retry_runtime_is_documented_and_guarded() -> None:
+    retry_test = (ROOT / "tests/test_queue_retry_contracts.py").read_text(encoding="utf-8")
+    postgres_matrix = (ROOT / "tests/test_postgres_contract_matrix_integration.py").read_text(encoding="utf-8")
+    script = (ROOT / "scripts/test_postgres_contracts.sh").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "test_retry_failure_strategy_requeues_a_failed_step_until_it_succeeds" in retry_test
+    assert "test_retry_failure_strategy_exhausts_into_terminal_session_failure" in retry_test
+    assert "step_retry_scheduled" in retry_test
+    assert "test_postgres_execution_queue_retry_requeues_the_same_row" in postgres_matrix
+    assert "retry_queue_item" in postgres_matrix
+    assert "tests/test_queue_retry_contracts.py" in script
+    assert "failure_strategy=retry" in readme
+    assert "failure_strategy=retry" in runbook
+    assert "Queued step failures can now actually honor `failure_strategy=retry`" in changelog
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "execution_queue_retry_runtime")
     assert capability["status"] == "tested"
 
 

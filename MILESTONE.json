@@ -1111,9 +1111,21 @@
         "artifact_then_dispatch_human_review_compile_shape",
         "human_review_then_artifact_pause",
         "human_return_then_dispatch_approval_resume",
-        "reviewed_dispatch_receipt_flow"
+        "reviewed_dispatch_receipt_flow",
+        "review_then_dispatch_api_smoke"
       ],
-      "notes": "The built-in `artifact_then_dispatch` workflow template now has explicit coverage for the combined human-review case too, proving task-contract review metadata can insert `step_human_review` ahead of artifact persistence and still resume later into approval-backed `connector.dispatch`."
+      "notes": "The built-in `artifact_then_dispatch` workflow template now has explicit focused-test and API-smoke coverage for the combined human-review case too, proving task-contract review metadata can insert `step_human_review` ahead of artifact persistence, resume later into approval-backed `connector.dispatch`, and queue the delivery outbox row only after both gates clear."
+    },
+    {
+      "name": "execution_queue_retry_runtime",
+      "status": "tested",
+      "scope": [
+        "failure_strategy_retry_runtime",
+        "queue_row_retry_reschedule",
+        "retry_attempt_count_projection",
+        "retry_terminal_failure_fallback"
+      ],
+      "notes": "Queued step failures now honor `failure_strategy=retry` plus `max_attempts` and `retry_backoff_seconds`: the runtime reuses the same queue row, records `step_retry_scheduled`, delays the next lease through `next_attempt_at`, and only marks the session failed once the retry budget is exhausted."
     }
   ],
   "migrations": [

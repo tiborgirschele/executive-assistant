@@ -558,6 +558,69 @@ class RewriteOrchestrator:
     def _queue_idempotency_key(self, session_id: str, step_id: str) -> str:
         return f"rewrite:{session_id}:{step_id}"
 
+    def _step_failure_strategy(self, rewrite_step: ExecutionStep) -> str:
+        return str((rewrite_step.input_json or {}).get("failure_strategy") or "fail").strip().lower() or "fail"
+
+    def _step_max_attempts(self, rewrite_step: ExecutionStep) -> int:
+        try:
+            value = int((rewrite_step.input_json or {}).get("max_attempts") or 1)
+        except (TypeError, ValueError):
+            return 1
+        return max(1, value)
+
+    def _step_retry_backoff_seconds(self, rewrite_step: ExecutionStep) -> int:
+        try:
+            value = int((rewrite_step.input_json or {}).get("retry_backoff_seconds") or 0)
+        except (TypeError, ValueError):
+            return 0
+        return max(0, value)
+
+    def _schedule_step_retry(
+        self,
+        queue_item: ExecutionQueueItem,
+        rewrite_step: ExecutionStep,
+        exc: Exception,
+    ) -> bool:
+        if self._step_failure_strategy(rewrite_step) != "retry":
+            return False
+        max_attempts = self._step_max_attempts(rewrite_step)
+        if queue_item.attempt_count >= max_attempts:
+            return False
+        next_attempt_at = (
+            datetime.now(timezone.utc) + timedelta(seconds=self._step_retry_backoff_seconds(rewrite_step))
+        ).isoformat()
+        self._ledger.retry_queue_item(
+            queue_item.queue_id,
+            last_error=str(exc),
+            next_attempt_at=next_attempt_at,
+        )
+        self._ledger.update_step(
+            rewrite_step.step_id,
+            state="queued",
+            error_json={
+                "reason": "retry_scheduled",
+                "detail": str(exc),
+                "next_attempt_at": next_attempt_at,
+                "attempt_count": queue_item.attempt_count,
+                "max_attempts": max_attempts,
+            },
+            attempt_count=queue_item.attempt_count,
+        )
+        self._ledger.complete_session(queue_item.session_id, status="queued")
+        self._ledger.append_event(
+            queue_item.session_id,
+            "step_retry_scheduled",
+            {
+                "queue_id": queue_item.queue_id,
+                "step_id": queue_item.step_id,
+                "attempt_count": queue_item.attempt_count,
+                "max_attempts": max_attempts,
+                "next_attempt_at": next_attempt_at,
+                "reason": str(exc),
+            },
+        )
+        return True
+
     def _enqueue_rewrite_step(self, session_id: str, step_id: str) -> ExecutionQueueItem:
         queue_item = self._ledger.enqueue_step(
             session_id,
@@ -1107,6 +1170,8 @@ class RewriteOrchestrator:
         try:
             artifact = self._execute_step_handler(queue_item.session_id, running_step)
         except Exception as exc:
+            if self._schedule_step_retry(queue_item, running_step, exc):
+                return None
             self._ledger.fail_queue_item(queue_item.queue_id, last_error=str(exc))
             self._ledger.update_step(
                 queue_item.step_id,

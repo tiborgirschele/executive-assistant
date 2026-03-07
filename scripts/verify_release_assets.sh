@@ -3197,18 +3197,49 @@ assert capability["status"] == "tested"
 PY
 then
   if grep -Fq "stakeholder_review_dispatch" "tests/test_task_contract_step_templates.py" && \
+     grep -Fq "stakeholder_review_dispatch" "tests/smoke_runtime_api.py" && \
+     grep -Fq "hybrid@example.com" "tests/smoke_runtime_api.py" && \
      grep -Fq "step_human_review" "tests/test_task_contract_step_templates.py" && \
      grep -Fq "review and send a stakeholder briefing" "tests/test_task_contract_step_templates.py" && \
+     grep -Fq "stakeholder_review_dispatch" "scripts/smoke_api.sh" && \
+     grep -Fq "hybrid@example.com" "scripts/smoke_api.sh" && \
      grep -Fq "step_human_review -> step_artifact_save -> step_policy_evaluate -> step_connector_dispatch" "README.md" && \
      grep -Fq "step_human_review -> step_artifact_save -> step_policy_evaluate -> step_connector_dispatch" "RUNBOOK.md" && \
      grep -Fq "combined human-review case" "CHANGELOG.md"; then
-    echo "ok: review-then-dispatch workflow template docs"
+    echo "ok: review-then-dispatch workflow template docs and smoke coverage"
   else
-    echo "missing: review-then-dispatch workflow template docs" >&2
+    echo "missing: review-then-dispatch workflow template docs or smoke coverage" >&2
     missing=1
   fi
 else
   echo "missing: review-then-dispatch workflow template milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "execution_queue_retry_runtime")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "test_retry_failure_strategy_requeues_a_failed_step_until_it_succeeds" "tests/test_queue_retry_contracts.py" && \
+     grep -Fq "test_retry_failure_strategy_exhausts_into_terminal_session_failure" "tests/test_queue_retry_contracts.py" && \
+     grep -Fq "step_retry_scheduled" "tests/test_queue_retry_contracts.py" && \
+     grep -Fq "test_postgres_execution_queue_retry_requeues_the_same_row" "tests/test_postgres_contract_matrix_integration.py" && \
+     grep -Fq "tests/test_queue_retry_contracts.py" "scripts/test_postgres_contracts.sh" && \
+     grep -Fq "failure_strategy=retry" "README.md" && \
+     grep -Fq "failure_strategy=retry" "RUNBOOK.md" && \
+     grep -Fq 'Queued step failures can now actually honor `failure_strategy=retry`' "CHANGELOG.md"; then
+    echo "ok: execution queue retry runtime docs and contract coverage"
+  else
+    echo "missing: execution queue retry runtime docs or contract coverage" >&2
+    missing=1
+  fi
+else
+  echo "missing: execution queue retry runtime milestone" >&2
   missing=1
 fi
 
