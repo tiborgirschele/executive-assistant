@@ -1126,6 +1126,16 @@
         "retry_terminal_failure_fallback"
       ],
       "notes": "Queued step failures now honor `failure_strategy=retry` plus `max_attempts` and `retry_backoff_seconds`: the runtime reuses the same queue row, records `step_retry_scheduled`, delays the next lease through `next_attempt_at`, and only marks the session failed once the retry budget is exhausted."
+    },
+    {
+      "name": "inline_retry_drain_runtime",
+      "status": "tested",
+      "scope": [
+        "zero_backoff_retry_drain",
+        "create_path_inline_retry_completion",
+        "approval_resume_inline_retry_completion"
+      ],
+      "notes": "If a retry-scheduled queue row is already immediately eligible (`retry_backoff_seconds=0`), the inline create/approval/human-return flows now keep draining that same session until it reaches completion, pause, or terminal failure instead of surfacing an intermediate `queued task did not execute` error."
     }
   ],
   "migrations": [

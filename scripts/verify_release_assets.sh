@@ -3243,6 +3243,32 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "inline_retry_drain_runtime")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "test_execute_task_artifact_drains_zero_backoff_retries_inline_to_completion" "tests/test_queue_retry_contracts.py" && \
+     grep -Fq "test_approval_resume_drains_zero_backoff_retries_inline_to_completion" "tests/test_queue_retry_contracts.py" && \
+     grep -Fq "_drain_session_inline(" "ea/app/services/orchestrator.py" && \
+     grep -Fq "_next_eligible_queue_item_for_session" "ea/app/services/orchestrator.py" && \
+     grep -Fq "zero-backoff retries now keep draining same-session queue work inline" "README.md" && \
+     grep -Fq "retry_backoff_seconds=0" "RUNBOOK.md" && \
+     grep -Fq "Zero-backoff retries now keep draining the same session inline" "CHANGELOG.md"; then
+    echo "ok: inline retry drain runtime docs and contract coverage"
+  else
+    echo "missing: inline retry drain runtime docs or contract coverage" >&2
+    missing=1
+  fi
+else
+  echo "missing: inline retry drain runtime milestone" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1

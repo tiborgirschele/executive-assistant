@@ -1058,6 +1058,57 @@ class RewriteOrchestrator:
             if str(row.state or "") in {"queued", "leased"}
         }
 
+    def _queue_item_is_eligible_now(self, row: ExecutionQueueItem) -> bool:
+        now = datetime.now(timezone.utc)
+        state = str(row.state or "")
+        if state == "queued":
+            if row.next_attempt_at:
+                try:
+                    if datetime.fromisoformat(row.next_attempt_at) > now:
+                        return False
+                except ValueError:
+                    return False
+            return True
+        if state == "leased" and row.lease_expires_at:
+            try:
+                return datetime.fromisoformat(row.lease_expires_at) <= now
+            except ValueError:
+                return False
+        return False
+
+    def _next_eligible_queue_item_for_session(self, session_id: str) -> ExecutionQueueItem | None:
+        session = self._ledger.get_session(session_id)
+        if session is None or str(session.status or "") not in {"queued", "running"}:
+            return None
+        eligible = sorted(
+            (
+                row
+                for row in self._ledger.queue_for_session(session_id)
+                if self._queue_item_is_eligible_now(row)
+            ),
+            key=lambda row: (str(row.created_at or ""), str(row.queue_id or "")),
+        )
+        return eligible[0] if eligible else None
+
+    def _drain_session_inline(
+        self,
+        session_id: str,
+        *,
+        stop_before_step_id: str | None = None,
+    ) -> Artifact | None:
+        artifact: Artifact | None = None
+        while True:
+            queue_item = self._next_eligible_queue_item_for_session(session_id)
+            if queue_item is None:
+                return artifact
+            result = self.run_queue_item(
+                queue_item.queue_id,
+                lease_owner="inline",
+                stop_before_step_id=stop_before_step_id,
+            )
+            if result is not None:
+                artifact = result
+
     def _ready_steps(
         self,
         session_id: str,
@@ -1391,6 +1442,9 @@ class RewriteOrchestrator:
             raise RuntimeError(f"task queue did not resolve a ready step: {session.session_id}")
         queue_item = self._enqueue_rewrite_step(session.session_id, next_step.step_id)
         artifact = self.run_queue_item(queue_item.queue_id, lease_owner="inline")
+        drained_artifact = self._drain_session_inline(session.session_id)
+        if drained_artifact is not None:
+            artifact = drained_artifact
         snapshot = self.fetch_session(session.session_id)
         if snapshot is not None:
             if snapshot.session.status == "awaiting_human":
@@ -1975,6 +2029,7 @@ class RewriteOrchestrator:
                     },
                 )
                 _ = self._queue_next_step_after(updated.session_id, updated.step_id, lease_owner="inline")
+                _ = self._drain_session_inline(updated.session_id)
         return self._decorate_human_task(updated)
 
     def fetch_session(self, session_id: str) -> ExecutionSessionSnapshot | None:
@@ -2049,6 +2104,9 @@ class RewriteOrchestrator:
                     raise RuntimeError(f"approved queue item did not resolve a ready step: {request.session_id}")
                 queue_item = self._enqueue_rewrite_step(request.session_id, next_step.step_id)
                 artifact = self.run_queue_item(queue_item.queue_id, lease_owner="inline")
+                drained_artifact = self._drain_session_inline(request.session_id)
+                if drained_artifact is not None:
+                    artifact = drained_artifact
                 if artifact is None:
                     snapshot = self.fetch_session(request.session_id)
                     if snapshot is not None:

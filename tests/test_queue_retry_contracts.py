@@ -1,12 +1,26 @@
 from __future__ import annotations
 
+import uuid
+
 import pytest
 
-from app.domain.models import IntentSpecV3, ToolInvocationResult
+from app.domain.models import (
+    ApprovalRequest,
+    Artifact,
+    IntentSpecV3,
+    PlanSpec,
+    PlanStepSpec,
+    TaskExecutionRequest,
+    ToolInvocationResult,
+    now_utc_iso,
+)
+from app.repositories.approvals import InMemoryApprovalRepository
+from app.repositories.artifacts import InMemoryArtifactRepository
 from app.repositories.ledger import InMemoryExecutionLedgerRepository
 from app.repositories.connector_bindings import InMemoryConnectorBindingRepository
 from app.repositories.tool_registry import InMemoryToolRegistryRepository
 from app.services.orchestrator import RewriteOrchestrator
+from app.services.policy import ApprovalRequiredError
 from app.services.tool_execution import ToolExecutionService
 from app.services.tool_runtime import ToolRuntimeService
 
@@ -159,3 +173,174 @@ def test_retry_failure_strategy_exhausts_into_terminal_session_failure() -> None
     event_names = [row.name for row in ledger.events_for(session.session_id)]
     assert event_names.count("step_retry_scheduled") == 1
     assert "session_failed" in event_names
+
+
+class _StaticRetryPlanner:
+    def __init__(self, *, approval_class: str) -> None:
+        self._approval_class = approval_class
+
+    def build_plan(self, *, task_key: str, principal_id: str, goal: str):
+        intent = IntentSpecV3(
+            principal_id=principal_id,
+            goal=goal,
+            task_type=task_key,
+            deliverable_type="rewrite_note",
+            risk_class="low",
+            approval_class=self._approval_class,
+            budget_class="low",
+            allowed_tools=("artifact_repository",),
+        )
+        plan = PlanSpec(
+            plan_id=str(uuid.uuid4()),
+            task_key=task_key,
+            principal_id=principal_id,
+            created_at=now_utc_iso(),
+            steps=(
+                PlanStepSpec(
+                    step_key="step_input_prepare",
+                    step_kind="system_task",
+                    tool_name="",
+                    evidence_required=(),
+                    approval_required=False,
+                    reversible=False,
+                    expected_artifact="",
+                    fallback="request_human_intervention",
+                    input_keys=("source_text",),
+                    output_keys=("normalized_text", "text_length"),
+                ),
+                PlanStepSpec(
+                    step_key="step_policy_evaluate",
+                    step_kind="policy_check",
+                    tool_name="",
+                    evidence_required=(),
+                    approval_required=False,
+                    reversible=False,
+                    expected_artifact="",
+                    fallback="pause_for_approval_or_block",
+                    depends_on=("step_input_prepare",),
+                    input_keys=("normalized_text", "text_length"),
+                    output_keys=("allow", "requires_approval", "reason", "retention_policy"),
+                ),
+                PlanStepSpec(
+                    step_key="step_artifact_save",
+                    step_kind="tool_call",
+                    tool_name="artifact_repository",
+                    evidence_required=(),
+                    approval_required=self._approval_class not in {"", "none"},
+                    reversible=False,
+                    depends_on=("step_policy_evaluate",),
+                    input_keys=("normalized_text",),
+                    output_keys=("artifact_id", "receipt_id", "cost_id"),
+                    expected_artifact="rewrite_note",
+                    fallback="request_human_intervention",
+                    owner="tool",
+                    authority_class="draft",
+                    review_class="none",
+                    failure_strategy="retry",
+                    max_attempts=2,
+                    retry_backoff_seconds=0,
+                ),
+            ),
+        )
+        return intent, plan
+
+
+def _build_inline_retry_orchestrator(*, approval_class: str):
+    artifacts = InMemoryArtifactRepository()
+    approvals = InMemoryApprovalRepository()
+    tool_runtime = ToolRuntimeService(
+        tool_registry=InMemoryToolRegistryRepository(),
+        connector_bindings=InMemoryConnectorBindingRepository(),
+    )
+    tool_execution = ToolExecutionService(tool_runtime=tool_runtime, artifacts=artifacts)
+    calls = {"count": 0}
+
+    def handler(request, definition):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RuntimeError("temporary_failure")
+        artifact = Artifact(
+            artifact_id=str(uuid.uuid4()),
+            kind=str(request.payload_json.get("expected_artifact") or "rewrite_note"),
+            content=str(request.payload_json.get("normalized_text") or request.payload_json.get("source_text") or ""),
+            execution_session_id=request.session_id,
+            principal_id=str(request.context_json.get("principal_id") or ""),
+        )
+        artifacts.save(artifact)
+        return ToolInvocationResult(
+            tool_name=definition.tool_name,
+            action_kind=str(request.action_kind or "artifact.save") or "artifact.save",
+            target_ref=artifact.artifact_id,
+            output_json={"artifact_id": artifact.artifact_id},
+            receipt_json={"handler_key": definition.tool_name},
+            artifacts=(artifact,),
+        )
+
+    tool_execution.register_handler("artifact_repository", handler)
+    orchestrator = RewriteOrchestrator(
+        artifacts=artifacts,
+        approvals=approvals,
+        ledger=InMemoryExecutionLedgerRepository(),
+        planner=_StaticRetryPlanner(approval_class=approval_class),
+        tool_execution=tool_execution,
+    )
+    return orchestrator, approvals, calls
+
+
+def test_execute_task_artifact_drains_zero_backoff_retries_inline_to_completion() -> None:
+    orchestrator, _approvals, calls = _build_inline_retry_orchestrator(approval_class="none")
+
+    artifact = orchestrator.execute_task_artifact(
+        TaskExecutionRequest(
+            task_key="retry_inline_rewrite",
+            principal_id="exec-1",
+            goal="retry inline rewrite",
+            input_json={"source_text": "retry me inline"},
+        )
+    )
+
+    assert artifact.content == "retry me inline"
+    snapshot = orchestrator.fetch_session(artifact.execution_session_id)
+    assert snapshot is not None
+    assert snapshot.session.status == "completed"
+    assert snapshot.steps[-1].state == "completed"
+    assert snapshot.steps[-1].attempt_count == 2
+    assert snapshot.queue_items[-1].state == "done"
+    assert snapshot.queue_items[-1].attempt_count == 2
+    assert calls["count"] == 2
+
+
+def test_approval_resume_drains_zero_backoff_retries_inline_to_completion() -> None:
+    orchestrator, approvals, calls = _build_inline_retry_orchestrator(approval_class="manager")
+
+    with pytest.raises(ApprovalRequiredError) as exc:
+        orchestrator.execute_task_artifact(
+            TaskExecutionRequest(
+                task_key="retry_inline_approval",
+                principal_id="exec-1",
+                goal="retry inline rewrite after approval",
+                input_json={"source_text": "approval gated retry"},
+            )
+        )
+
+    pending = approvals.list_pending(limit=10)
+    request = next(row for row in pending if row.approval_id == exc.value.approval_id)
+
+    decided = orchestrator.decide_approval(
+        request.approval_id,
+        decision="approved",
+        decided_by="operator",
+        reason="approve retry inline",
+    )
+
+    assert decided is not None
+    snapshot = orchestrator.fetch_session(request.session_id)
+    assert snapshot is not None
+    assert snapshot.session.status == "completed"
+    assert snapshot.steps[-1].state == "completed"
+    assert snapshot.steps[-1].attempt_count == 2
+    assert snapshot.queue_items[-1].state == "done"
+    assert snapshot.queue_items[-1].attempt_count == 2
+    assert len(snapshot.artifacts) == 1
+    assert snapshot.artifacts[0].content == "approval gated retry"
+    assert calls["count"] == 2
