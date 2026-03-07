@@ -1382,6 +1382,17 @@
         "ltd_refresh_docs"
       ],
       "notes": "BrowserAct inventory output can now refresh the `## Discovery Tracking` table in `LTDs.md` through a dedicated script entrypoint, so discovered tier/email/status facts can be written back into the repo tracker without hand-editing each row."
+    },
+    {
+      "name": "ltd_discovery_api_refresh_runner",
+      "status": "tested",
+      "scope": [
+        "ltd_inventory_skill_execute_runner",
+        "inventory_payload_capture",
+        "smoke_api_round_trip_refresh",
+        "ltd_runner_docs"
+      ],
+      "notes": "A dedicated `refresh_ltds_via_api` runner can now execute the BrowserAct-backed `ltd_inventory_refresh` skill through the local `/v1/plans/execute` API, optionally save the returned structured inventory payload, and rewrite `LTDs.md` directly from that live skill output."
     }
   ],
   "migrations": [

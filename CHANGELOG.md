@@ -5,6 +5,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 ## 2026-03-06
 
 ### Changed
+- Added `scripts/refresh_ltds_via_api.sh`, which executes the BrowserAct-backed `ltd_inventory_refresh` skill through the local `/v1/plans/execute` API and rewrites the `## Discovery Tracking` table in `LTDs.md` from the returned structured inventory payload in one pass.
 - Principal-scoped connector and memory routes now derive the effective principal from `X-EA-Principal-ID` or `EA_DEFAULT_PRINCIPAL_ID` instead of trusting caller-supplied body/query values.
 - Caller-supplied `principal_id` on those routes is now a compatibility filter only; mismatches fail with `403 principal_scope_mismatch`.
 - Rewrite creation/session/artifact/receipt/run-cost and plan-compile routes now derive the effective principal from request context too, reject caller-supplied mismatches with `403 principal_scope_mismatch`, and block foreign-principal execution-proof fetches.

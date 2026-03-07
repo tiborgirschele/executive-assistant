@@ -48,6 +48,8 @@ required_files=(
   "scripts/resolve_browseract_key.sh"
   "scripts/refresh_ltds_from_inventory.py"
   "scripts/refresh_ltds_from_inventory.sh"
+  "scripts/refresh_ltds_via_api.py"
+  "scripts/refresh_ltds_via_api.sh"
   "ea/schema/20260305_v0_2_execution_ledger_kernel.sql"
   "ea/schema/20260305_v0_3_channel_runtime_kernel.sql"
   "ea/schema/20260305_v0_4_policy_decisions_kernel.sql"
@@ -3783,6 +3785,35 @@ then
   fi
 else
   echo "missing: ltd discovery markdown refresh milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "ltd_discovery_api_refresh_runner")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "build_inventory_execute_payload" "ea/app/services/ltd_inventory_api.py" && \
+     grep -Fq "extract_inventory_output_json" "ea/app/services/ltd_inventory_api.py" && \
+     grep -Fq "refresh_ltds_via_api.py" "scripts/refresh_ltds_via_api.sh" && \
+     grep -Fq "/v1/plans/execute" "scripts/refresh_ltds_via_api.py" && \
+     grep -Fq "test_refresh_ltds_via_api_script_executes_skill_and_updates_markdown" "tests/test_ltd_inventory_api.py" && \
+     grep -Fq "refresh_ltds_via_api.sh" "scripts/smoke_api.sh" && \
+     grep -Fq "refresh_ltds_via_api.sh" "README.md" && \
+     grep -Fq "refresh_ltds_via_api.sh" "RUNBOOK.md" && \
+     grep -Fq "refresh_ltds_via_api.sh" "CHANGELOG.md" && \
+     grep -Fq "refresh_ltds_via_api.sh" "LTDs.md"; then
+    echo "ok: ltd discovery api refresh runner docs and contract coverage"
+  else
+    echo "missing: ltd discovery api refresh runner docs or contract coverage" >&2
+    missing=1
+  fi
+else
+  echo "missing: ltd discovery api refresh runner milestone" >&2
   missing=1
 fi
 

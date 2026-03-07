@@ -704,6 +704,34 @@ def test_ltd_discovery_markdown_refresh_is_documented_and_guarded() -> None:
     assert capability["status"] == "tested"
 
 
+def test_ltd_discovery_api_refresh_runner_is_documented_and_guarded() -> None:
+    service = (ROOT / "ea/app/services/ltd_inventory_api.py").read_text(encoding="utf-8")
+    shell_script = (ROOT / "scripts/refresh_ltds_via_api.sh").read_text(encoding="utf-8")
+    script = (ROOT / "scripts/refresh_ltds_via_api.py").read_text(encoding="utf-8")
+    test_file = (ROOT / "tests/test_ltd_inventory_api.py").read_text(encoding="utf-8")
+    smoke_script = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    ltds = (ROOT / "LTDs.md").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "build_inventory_execute_payload" in service
+    assert "extract_inventory_output_json" in service
+    assert "refresh_ltds_via_api.py" in shell_script
+    assert "/v1/plans/execute" in script
+    assert "update_discovery_tracking_table" in script
+    assert "test_refresh_ltds_via_api_script_executes_skill_and_updates_markdown" in test_file
+    assert "refresh_ltds_via_api.sh" in smoke_script
+    assert "refresh_ltds_via_api.sh" in readme
+    assert "refresh_ltds_via_api.sh" in runbook
+    assert "refresh_ltds_via_api.sh" in changelog
+    assert "refresh_ltds_via_api.sh" in ltds
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "ltd_discovery_api_refresh_runner")
+    assert capability["status"] == "tested"
+
+
 def test_dispatch_then_memory_candidate_workflow_template_is_documented_and_guarded() -> None:
     workflow_test = (ROOT / "tests/test_task_contract_step_templates.py").read_text(encoding="utf-8")
     smoke_test = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")

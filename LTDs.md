@@ -91,3 +91,4 @@ Use this section to track missing tier/email/account facts discovered through th
 - Product/deal tier (`License Tier 3`, `Gold Plan`, `Elite`, etc.) is separate from the workspace integration tier used to describe local wiring posture.
 - Secrets are intentionally omitted here; only inventory, status, deadlines, and local integration contracts are documented.
 - BrowserAct inventory artifacts can refresh the `## Discovery Tracking` table through `bash scripts/refresh_ltds_from_inventory.sh --input <inventory.json> --write` when a fresh structured inventory payload is available.
+- If the local EA API and BrowserAct binding are already configured, `bash scripts/refresh_ltds_via_api.sh --binding-id <browseract-binding-id> --service-name BrowserAct --service-name Teable --write` can execute the `ltd_inventory_refresh` skill and rewrite this file without manually exporting the intermediate JSON first.

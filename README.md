@@ -7,6 +7,7 @@ This repository is a durable executive-assistant runtime kernel with principal-s
 Lifetime services with API keys or account-backed access that are concretely discoverable from this workspace are tracked in [LTDs.md](/docker/EA/LTDs.md).
 The first-class executive skill catalog that sits on top of task contracts is tracked in [SKILLS.md](/docker/EA/SKILLS.md).
 When a BrowserAct-backed inventory artifact exists, `bash scripts/refresh_ltds_from_inventory.sh --input <inventory.json> --write` can refresh the `## Discovery Tracking` table in [LTDs.md](/docker/EA/LTDs.md) without hand-editing each service row.
+When the local EA API is running, `bash scripts/refresh_ltds_via_api.sh --binding-id <browseract-binding-id> --service-name BrowserAct --service-name Teable --write` can execute the `ltd_inventory_refresh` skill through `/v1/plans/execute` and rewrite [LTDs.md](/docker/EA/LTDs.md) in one step.
 
 ### Workspace Integration Tier Guide
 

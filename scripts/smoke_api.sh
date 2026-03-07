@@ -1695,6 +1695,26 @@ if [[ "${BROWSERACT_INVENTORY_SESSION_FIELDS}" != "browseract_ltd_inventory_refr
   echo "${BROWSERACT_INVENTORY_SESSION_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+TMP_LTD_MD="$(mktemp /tmp/ea_ltds_smoke.XXXXXX.md)"
+cp LTDs.md "${TMP_LTD_MD}"
+TMP_LTD_JSON="$(mktemp /tmp/ea_ltd_inventory.XXXXXX.json)"
+bash scripts/refresh_ltds_via_api.sh \
+  --host "${BASE}" \
+  --api-token "${EA_API_TOKEN:-}" \
+  --principal-id "${PRINCIPAL_ID}" \
+  --binding-id "${BROWSERACT_BINDING_ID}" \
+  --service-name BrowserAct \
+  --service-name Teable \
+  --service-name UnknownService \
+  --markdown "${TMP_LTD_MD}" \
+  --inventory-output "${TMP_LTD_JSON}" \
+  --write >/dev/null
+LTD_REFRESH_FIELDS="$(python3 -c "from pathlib import Path; text=Path('${TMP_LTD_MD}').read_text(encoding='utf-8'); print('{}|{}|{}|{}'.format('ops@example.com' in text, 'ops@teable.example' in text, 'Plan/Tier: Tier 3; Status: activated' in text, 'Plan/Tier: License Tier 4; Status: activated' in text))")"
+rm -f "${TMP_LTD_MD}" "${TMP_LTD_JSON}"
+if [[ "${LTD_REFRESH_FIELDS}" != "True|True|True|True" ]]; then
+  echo "expected refresh_ltds_via_api.sh to rewrite LTD discovery rows from the live skill output; got ${LTD_REFRESH_FIELDS}" >&2
+  fail 12 "policy contract mismatch"
+fi
 curl -fsS -X POST "${BASE}/v1/tasks/contracts" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"task_key":"stakeholder_dispatch","deliverable_type":"stakeholder_briefing","default_risk_class":"low","default_approval_class":"none","allowed_tools":["artifact_repository","connector.dispatch"],"evidence_requirements":["stakeholder_context"],"memory_write_policy":"reviewed_only","budget_policy_json":{"class":"low","workflow_template":"artifact_then_dispatch"}}' >/dev/null
 DISPATCH_PLAN_JSON="$(curl -fsS -X POST "${BASE}/v1/plans/compile" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
