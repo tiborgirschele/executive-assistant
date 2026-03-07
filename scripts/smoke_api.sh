@@ -1676,6 +1676,75 @@ if [[ "${DISPATCH_MEMORY_CANDIDATE_FIELDS}" != "stakeholder_follow_up_fact|exec-
   echo "expected dispatch-memory workflow to stage post-dispatch candidate with delivery context; got ${DISPATCH_MEMORY_CANDIDATE_FIELDS}" >&2
   fail 12 "policy contract mismatch"
 fi
+DISPATCH_MEMORY_REVIEW_BINDING_JSON="$(curl -fsS -X POST "${BASE}/v1/connectors/bindings" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  "${PRINCIPAL_ARGS[@]}" \
+  -d '{"connector_name":"gmail","external_account_ref":"acct-review-dispatch-memory","scope_json":{"scopes":["mail.send"]},"auth_metadata_json":{"provider":"google"},"status":"enabled"}')"
+DISPATCH_MEMORY_REVIEW_BINDING_ID="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read() or "{}").get("binding_id",""))' <<<"${DISPATCH_MEMORY_REVIEW_BINDING_JSON}")"
+if [[ -z "${DISPATCH_MEMORY_REVIEW_BINDING_ID}" ]]; then
+  fail 13 "missing binding_id from review-dispatch-memory workflow binding response"
+fi
+curl -fsS -X POST "${BASE}/v1/tasks/contracts" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"task_key":"stakeholder_review_dispatch_memory_candidate","deliverable_type":"stakeholder_briefing","default_risk_class":"low","default_approval_class":"none","allowed_tools":["artifact_repository","connector.dispatch"],"evidence_requirements":["stakeholder_context"],"memory_write_policy":"reviewed_only","budget_policy_json":{"class":"low","workflow_template":"artifact_then_dispatch_then_memory_candidate","human_review_role":"briefing_reviewer","human_review_task_type":"briefing_review","human_review_brief":"Review before stakeholder dispatch and memory staging.","human_review_priority":"high","human_review_desired_output_json":{"format":"review_packet"},"memory_candidate_category":"stakeholder_follow_up_fact","memory_candidate_confidence":0.8,"memory_candidate_sensitivity":"internal"}}' >/dev/null
+DISPATCH_MEMORY_REVIEW_PLAN_JSON="$(curl -fsS -X POST "${BASE}/v1/plans/compile" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"task_key":"stakeholder_review_dispatch_memory_candidate","goal":"review, send, and stage stakeholder follow-up memory"}')"
+DISPATCH_MEMORY_REVIEW_PLAN_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); steps=body.get('plan',{}).get('steps') or []; print('{}|{}|{}|{}'.format(len(steps), ','.join((row.get('step_key') or '') for row in steps), steps[1].get('role_required','') if len(steps) > 1 else '', ','.join((steps[5].get('depends_on') or [])) if len(steps) > 5 else ''))" <<<"${DISPATCH_MEMORY_REVIEW_PLAN_JSON}")"
+if [[ "${DISPATCH_MEMORY_REVIEW_PLAN_FIELDS}" != "6|step_input_prepare,step_human_review,step_artifact_save,step_policy_evaluate,step_connector_dispatch,step_memory_candidate_stage|briefing_reviewer|step_artifact_save,step_policy_evaluate,step_connector_dispatch" ]]; then
+  echo "expected review-dispatch-memory workflow template to compile human->artifact->policy->dispatch->memory graph; got ${DISPATCH_MEMORY_REVIEW_PLAN_FIELDS}" >&2
+  echo "${DISPATCH_MEMORY_REVIEW_PLAN_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+DISPATCH_MEMORY_REVIEW_EXECUTE_JSON="$(curl -fsS -X POST "${BASE}/v1/plans/execute" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d "{\"task_key\":\"stakeholder_review_dispatch_memory_candidate\",\"goal\":\"review, send, and stage stakeholder follow-up memory\",\"input_json\":{\"source_text\":\"Board context and stakeholder sensitivities.\",\"binding_id\":\"${DISPATCH_MEMORY_REVIEW_BINDING_ID}\",\"channel\":\"email\",\"recipient\":\"reviewed-memory@example.com\"}}")"
+DISPATCH_MEMORY_REVIEW_EXECUTE_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); print('{}|{}|{}|{}|{}|{}'.format(body.get('task_key',''), body.get('status',''), body.get('next_action',''), bool(body.get('human_task_id','')), bool(body.get('session_id','')), bool(body.get('approval_id',''))))" <<<"${DISPATCH_MEMORY_REVIEW_EXECUTE_JSON}")"
+if [[ "${DISPATCH_MEMORY_REVIEW_EXECUTE_FIELDS}" != "stakeholder_review_dispatch_memory_candidate|awaiting_human|poll_or_subscribe|True|True|False" ]]; then
+  echo "expected review-dispatch-memory workflow to pause behind human review first; got ${DISPATCH_MEMORY_REVIEW_EXECUTE_FIELDS}" >&2
+  echo "${DISPATCH_MEMORY_REVIEW_EXECUTE_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+DISPATCH_MEMORY_REVIEW_SESSION_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("session_id",""))' <<<"${DISPATCH_MEMORY_REVIEW_EXECUTE_JSON}")"
+DISPATCH_MEMORY_REVIEW_HUMAN_TASK_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("human_task_id",""))' <<<"${DISPATCH_MEMORY_REVIEW_EXECUTE_JSON}")"
+DISPATCH_MEMORY_REVIEW_RETURN_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks/${DISPATCH_MEMORY_REVIEW_HUMAN_TASK_ID}/return" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"operator_id":"briefing-reviewer","resolution":"ready_for_dispatch","returned_payload_json":{"final_text":"Reviewed stakeholder briefing with follow-up notes."},"provenance_json":{"review_mode":"human"}}')"
+DISPATCH_MEMORY_REVIEW_RETURN_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); print('{}|{}|{}'.format(body.get('task_key',''), body.get('status',''), body.get('resolution','')))" <<<"${DISPATCH_MEMORY_REVIEW_RETURN_JSON}")"
+if [[ "${DISPATCH_MEMORY_REVIEW_RETURN_FIELDS}" != "stakeholder_review_dispatch_memory_candidate|returned|ready_for_dispatch" ]]; then
+  echo "expected review-dispatch-memory human return to preserve task identity; got ${DISPATCH_MEMORY_REVIEW_RETURN_FIELDS}" >&2
+  echo "${DISPATCH_MEMORY_REVIEW_RETURN_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+DISPATCH_MEMORY_REVIEW_AWAITING_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${DISPATCH_MEMORY_REVIEW_SESSION_ID}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+DISPATCH_MEMORY_REVIEW_AWAITING_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); steps={str((row.get('input_json') or {}).get('plan_step_key') or ''): row for row in (body.get('steps') or [])}; artifacts=body.get('artifacts') or []; print('{}|{}|{}|{}|{}|{}|{}'.format(body.get('status',''), steps.get('step_human_review',{}).get('state',''), steps.get('step_artifact_save',{}).get('state',''), steps.get('step_policy_evaluate',{}).get('state',''), steps.get('step_connector_dispatch',{}).get('state',''), steps.get('step_memory_candidate_stage',{}).get('state',''), (artifacts[0] or {}).get('content','') if artifacts else ''))" <<<"${DISPATCH_MEMORY_REVIEW_AWAITING_JSON}")"
+if [[ "${DISPATCH_MEMORY_REVIEW_AWAITING_FIELDS}" != "awaiting_approval|completed|completed|completed|waiting_approval|queued|Reviewed stakeholder briefing with follow-up notes." ]]; then
+  echo "expected review-dispatch-memory workflow to pause for approval after human return while memory step stays queued; got ${DISPATCH_MEMORY_REVIEW_AWAITING_FIELDS}" >&2
+  echo "${DISPATCH_MEMORY_REVIEW_AWAITING_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+DISPATCH_MEMORY_REVIEW_APPROVAL_ID="$(curl -fsS "${BASE}/v1/policy/approvals/pending?limit=20" "${AUTH_ARGS[@]}" | python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); session_id='${DISPATCH_MEMORY_REVIEW_SESSION_ID}'; row=next((row for row in rows if (row or {}).get('session_id') == session_id), {}); print(row.get('approval_id',''))" )"
+if [[ -z "${DISPATCH_MEMORY_REVIEW_APPROVAL_ID}" ]]; then
+  echo "expected review-dispatch-memory workflow to create a pending approval after human return" >&2
+  fail 12 "policy contract mismatch"
+fi
+DISPATCH_MEMORY_REVIEW_APPROVE_JSON="$(curl -fsS -X POST "${BASE}/v1/policy/approvals/${DISPATCH_MEMORY_REVIEW_APPROVAL_ID}/approve" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"decided_by":"operator","reason":"approved reviewed dispatch memory"}')"
+DISPATCH_MEMORY_REVIEW_APPROVE_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); print('{}|{}|{}'.format(body.get('task_key',''), body.get('deliverable_type',''), body.get('decision','')))" <<<"${DISPATCH_MEMORY_REVIEW_APPROVE_JSON}")"
+if [[ "${DISPATCH_MEMORY_REVIEW_APPROVE_FIELDS}" != "stakeholder_review_dispatch_memory_candidate|stakeholder_briefing|approved" ]]; then
+  echo "expected review-dispatch-memory approval decision to keep task identity; got ${DISPATCH_MEMORY_REVIEW_APPROVE_FIELDS}" >&2
+  echo "${DISPATCH_MEMORY_REVIEW_APPROVE_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+DISPATCH_MEMORY_REVIEW_DONE_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${DISPATCH_MEMORY_REVIEW_SESSION_ID}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+DISPATCH_MEMORY_REVIEW_DELIVERY_ID="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); receipts=body.get('receipts') or []; dispatch=next((row for row in receipts if (row or {}).get('tool_name') == 'connector.dispatch'), {}); print(dispatch.get('target_ref',''))" <<<"${DISPATCH_MEMORY_REVIEW_DONE_JSON}")"
+DISPATCH_MEMORY_REVIEW_CANDIDATE_ID="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); steps={str((row.get('input_json') or {}).get('plan_step_key') or ''): row for row in (body.get('steps') or [])}; print(((steps.get('step_memory_candidate_stage',{}).get('output_json') or {}).get('candidate_id','')))" <<<"${DISPATCH_MEMORY_REVIEW_DONE_JSON}")"
+DISPATCH_MEMORY_REVIEW_DONE_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); steps={str((row.get('input_json') or {}).get('plan_step_key') or ''): row for row in (body.get('steps') or [])}; print('{}|{}|{}|{}'.format(body.get('status',''), steps.get('step_connector_dispatch',{}).get('state',''), steps.get('step_memory_candidate_stage',{}).get('state',''), (steps.get('step_memory_candidate_stage',{}).get('output_json') or {}).get('candidate_category','')))" <<<"${DISPATCH_MEMORY_REVIEW_DONE_JSON}")"
+if [[ "${DISPATCH_MEMORY_REVIEW_DONE_FIELDS}" != "completed|completed|completed|stakeholder_follow_up_fact" ]]; then
+  echo "expected review-dispatch-memory workflow to complete dispatch and memory staging after approval; got ${DISPATCH_MEMORY_REVIEW_DONE_FIELDS}" >&2
+  echo "${DISPATCH_MEMORY_REVIEW_DONE_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+DISPATCH_MEMORY_REVIEW_CANDIDATE_FIELDS="$(curl -fsS "${BASE}/v1/memory/candidates?limit=20&status=pending" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" | python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted='${DISPATCH_MEMORY_REVIEW_CANDIDATE_ID}'; delivery_id='${DISPATCH_MEMORY_REVIEW_DELIVERY_ID}'; row=next((row for row in rows if (row or {}).get('candidate_id') == wanted), {}); fact=row.get('fact_json') or {}; print('{}|{}|{}|{}|{}'.format(row.get('category',''), row.get('principal_id',''), fact.get('delivery_id',''), fact.get('recipient',''), row.get('summary','')))" )"
+if [[ "${DISPATCH_MEMORY_REVIEW_CANDIDATE_FIELDS}" != "stakeholder_follow_up_fact|exec-1|${DISPATCH_MEMORY_REVIEW_DELIVERY_ID}|reviewed-memory@example.com|Reviewed stakeholder briefing with follow-up notes." ]]; then
+  echo "expected review-dispatch-memory workflow to stage reviewed post-dispatch candidate with delivery context; got ${DISPATCH_MEMORY_REVIEW_CANDIDATE_FIELDS}" >&2
+  fail 12 "policy contract mismatch"
+fi
 HYBRID_BINDING_JSON="$(curl -fsS -X POST "${BASE}/v1/connectors/bindings" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
   "${PRINCIPAL_ARGS[@]}" \
   -d '{"connector_name":"gmail","external_account_ref":"acct-review-dispatch","scope_json":{"scopes":["mail.send"]},"auth_metadata_json":{"provider":"google"},"status":"enabled"}')"

@@ -672,6 +672,60 @@ X-EA-Principal-ID: {{principal_id}}
   }
 }
 
+### Task Contracts -> upsert review-dispatch-memory workflow template (human review -> dispatch -> memory candidate)
+POST {{host}}/v1/tasks/contracts
+Content-Type: application/json
+
+{
+  "task_key": "stakeholder_review_dispatch_memory_candidate",
+  "deliverable_type": "stakeholder_briefing",
+  "default_risk_class": "low",
+  "default_approval_class": "none",
+  "allowed_tools": ["artifact_repository", "connector.dispatch"],
+  "evidence_requirements": ["stakeholder_context"],
+  "memory_write_policy": "reviewed_only",
+  "budget_policy_json": {
+    "class": "low",
+    "workflow_template": "artifact_then_dispatch_then_memory_candidate",
+    "human_review_role": "briefing_reviewer",
+    "human_review_task_type": "briefing_review",
+    "human_review_brief": "Review before stakeholder dispatch and memory staging.",
+    "human_review_priority": "high",
+    "human_review_desired_output_json": {
+      "format": "review_packet"
+    },
+    "memory_candidate_category": "stakeholder_follow_up_fact",
+    "memory_candidate_confidence": 0.8,
+    "memory_candidate_sensitivity": "internal"
+  }
+}
+
+### Plans -> compile review-dispatch-memory workflow template
+POST {{host}}/v1/plans/compile
+Content-Type: application/json
+X-EA-Principal-ID: {{principal_id}}
+
+{
+  "task_key": "stakeholder_review_dispatch_memory_candidate",
+  "goal": "review, send, and stage stakeholder follow-up memory"
+}
+
+### Plans -> execute review-dispatch-memory workflow template (expected 202 awaiting_human first, then 202 awaiting_approval, then post-dispatch memory staging)
+POST {{host}}/v1/plans/execute
+Content-Type: application/json
+X-EA-Principal-ID: {{principal_id}}
+
+{
+  "task_key": "stakeholder_review_dispatch_memory_candidate",
+  "goal": "review, send, and stage stakeholder follow-up memory",
+  "input_json": {
+    "source_text": "Board context and stakeholder sensitivities.",
+    "binding_id": "{{binding_id}}",
+    "channel": "email",
+    "recipient": "reviewed-memory@example.com"
+  }
+}
+
 ### Plans -> principal mismatch (expected 403 principal_scope_mismatch)
 POST {{host}}/v1/plans/compile
 Content-Type: application/json

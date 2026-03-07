@@ -529,6 +529,48 @@ def test_dispatch_then_memory_candidate_workflow_template_stages_candidate_after
     assert candidate.summary == "Board context and stakeholder sensitivities."
 
 
+def test_planner_can_compile_review_then_dispatch_then_memory_candidate_workflow_template() -> None:
+    task_contracts = TaskContractService(InMemoryTaskContractRepository())
+    task_contracts.upsert_contract(
+        task_key="stakeholder_review_dispatch_memory_candidate",
+        deliverable_type="stakeholder_briefing",
+        default_risk_class="low",
+        default_approval_class="none",
+        allowed_tools=("artifact_repository", "connector.dispatch"),
+        evidence_requirements=("stakeholder_context",),
+        memory_write_policy="reviewed_only",
+        budget_policy_json={
+            "class": "low",
+            "workflow_template": "artifact_then_dispatch_then_memory_candidate",
+            "human_review_role": "communications_reviewer",
+            "human_review_task_type": "communications_review",
+            "human_review_brief": "Review before stakeholder dispatch and memory staging.",
+            "human_review_priority": "high",
+            "human_review_desired_output_json": {"format": "review_packet"},
+            "memory_candidate_category": "stakeholder_follow_up_fact",
+        },
+    )
+    planner = PlannerService(task_contracts)
+
+    _, plan = planner.build_plan(
+        task_key="stakeholder_review_dispatch_memory_candidate",
+        principal_id="exec-1",
+        goal="review, send, and stage stakeholder follow-up memory",
+    )
+
+    assert _step_keys(plan) == (
+        "step_input_prepare",
+        "step_human_review",
+        "step_artifact_save",
+        "step_policy_evaluate",
+        "step_connector_dispatch",
+        "step_memory_candidate_stage",
+    )
+    assert plan.steps[1].step_kind == "human_task"
+    assert plan.steps[2].depends_on == ("step_human_review",)
+    assert plan.steps[5].depends_on == ("step_artifact_save", "step_policy_evaluate", "step_connector_dispatch")
+
+
 def test_planner_can_compile_review_then_dispatch_workflow_template() -> None:
     task_contracts = TaskContractService(InMemoryTaskContractRepository())
     task_contracts.upsert_contract(
@@ -823,6 +865,111 @@ def test_review_then_dispatch_workflow_template_keeps_delayed_dispatch_retry_asy
     assert queued.queue_items[-1].next_attempt_at
     assert channel_runtime.list_pending_delivery(limit=10) == []
     assert calls["count"] == 1
+
+
+def test_review_then_dispatch_then_memory_candidate_workflow_template_stages_candidate_after_human_and_approval() -> None:
+    orchestrator, channel_runtime, tool_runtime, memory_runtime = _build_dispatch_memory_runtime(
+        task_key="stakeholder_review_dispatch_memory_candidate",
+        budget_policy_json={
+            "class": "low",
+            "workflow_template": "artifact_then_dispatch_then_memory_candidate",
+            "human_review_role": "communications_reviewer",
+            "human_review_task_type": "communications_review",
+            "human_review_brief": "Review before stakeholder dispatch and memory staging.",
+            "human_review_priority": "high",
+            "human_review_desired_output_json": {"format": "review_packet"},
+            "memory_candidate_category": "stakeholder_follow_up_fact",
+            "memory_candidate_confidence": 0.8,
+            "memory_candidate_sensitivity": "internal",
+        },
+    )
+    binding = tool_runtime.upsert_connector_binding(
+        principal_id="exec-1",
+        connector_name="gmail",
+        external_account_ref="acct-review-dispatch-memory",
+        scope_json={"scopes": ["mail.send"]},
+        auth_metadata_json={"provider": "google"},
+        status="enabled",
+    )
+
+    with pytest.raises(HumanTaskRequiredError) as exc:
+        orchestrator.execute_task_artifact(
+            TaskExecutionRequest(
+                task_key="stakeholder_review_dispatch_memory_candidate",
+                principal_id="exec-1",
+                goal="review, send, and stage stakeholder follow-up memory",
+                input_json={
+                    "source_text": "Board context and stakeholder sensitivities.",
+                    "binding_id": binding.binding_id,
+                    "channel": "email",
+                    "recipient": "reviewed-memory@example.com",
+                },
+            )
+        )
+    assert exc.value.session_id
+    assert exc.value.human_task_id
+
+    waiting = orchestrator.fetch_session(exc.value.session_id)
+    assert waiting is not None
+    waiting_steps = {step.input_json["plan_step_key"]: step for step in waiting.steps}
+    assert waiting.session.status == "awaiting_human"
+    assert waiting_steps["step_human_review"].state == "waiting_human"
+    assert waiting_steps["step_artifact_save"].state == "queued"
+    assert waiting_steps["step_memory_candidate_stage"].state == "queued"
+    assert waiting.artifacts == []
+    assert channel_runtime.list_pending_delivery(limit=10) == []
+    assert memory_runtime.list_candidates(limit=10, principal_id="exec-1") == []
+
+    returned = orchestrator.return_human_task(
+        exc.value.human_task_id,
+        principal_id="exec-1",
+        operator_id="reviewer-1",
+        resolution="ready_for_dispatch",
+        returned_payload_json={"final_text": "Reviewed stakeholder briefing with follow-up notes."},
+        provenance_json={"review_mode": "human"},
+    )
+    assert returned is not None
+
+    awaiting_approval = orchestrator.fetch_session(exc.value.session_id)
+    assert awaiting_approval is not None
+    approval_steps = {step.input_json["plan_step_key"]: step for step in awaiting_approval.steps}
+    assert awaiting_approval.session.status == "awaiting_approval"
+    assert approval_steps["step_human_review"].state == "completed"
+    assert approval_steps["step_artifact_save"].state == "completed"
+    assert approval_steps["step_policy_evaluate"].state == "completed"
+    assert approval_steps["step_connector_dispatch"].state == "waiting_approval"
+    assert approval_steps["step_memory_candidate_stage"].state == "queued"
+    assert len(awaiting_approval.artifacts) == 1
+    assert awaiting_approval.artifacts[0].content == "Reviewed stakeholder briefing with follow-up notes."
+    assert memory_runtime.list_candidates(limit=10, principal_id="exec-1") == []
+    pending_approvals = orchestrator.list_pending_approvals(limit=10)
+    approval = next(row for row in pending_approvals if row.session_id == exc.value.session_id)
+
+    decision = orchestrator.decide_approval(
+        approval.approval_id,
+        decision="approve",
+        decided_by="operator",
+        reason="approved reviewed dispatch memory",
+    )
+    assert decision is not None
+
+    completed = orchestrator.fetch_session(exc.value.session_id)
+    assert completed is not None
+    completed_steps = {step.input_json["plan_step_key"]: step for step in completed.steps}
+    assert completed.session.status == "completed"
+    assert completed_steps["step_connector_dispatch"].state == "completed"
+    assert completed_steps["step_memory_candidate_stage"].state == "completed"
+    candidate_id = completed_steps["step_memory_candidate_stage"].output_json["candidate_id"]
+    assert candidate_id
+    pending = channel_runtime.list_pending_delivery(limit=10)
+    assert len(pending) == 1
+    assert pending[0].recipient == "reviewed-memory@example.com"
+    candidates = memory_runtime.list_candidates(limit=10, principal_id="exec-1")
+    candidate = next(row for row in candidates if row.candidate_id == candidate_id)
+    assert candidate.category == "stakeholder_follow_up_fact"
+    assert candidate.fact_json["delivery_id"] == pending[0].delivery_id
+    assert candidate.fact_json["recipient"] == "reviewed-memory@example.com"
+    assert candidate.summary == "Reviewed stakeholder briefing with follow-up notes."
 
 
 def test_planner_rejects_unknown_workflow_template_metadata() -> None:

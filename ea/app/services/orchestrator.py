@@ -1156,6 +1156,11 @@ class RewriteOrchestrator:
         memory_write_allowed = bool(input_json.get("memory_write_allowed", session.intent.memory_write_policy != "none"))
         artifact_id = str(input_json.get("artifact_id") or "").strip()
         normalized_text = str(input_json.get("normalized_text") or input_json.get("source_text") or "").strip()
+        if artifact_id:
+            artifact = self._artifacts.get(artifact_id)
+            artifact_content = str((artifact.content if artifact is not None else "") or "").strip()
+            if artifact_content:
+                normalized_text = artifact_content
         delivery_id = str(input_json.get("delivery_id") or "").strip()
         delivery_status = str(input_json.get("status") or "").strip()
         binding_id = str(input_json.get("binding_id") or "").strip()

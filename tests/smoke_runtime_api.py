@@ -3363,6 +3363,154 @@ def test_dispatch_then_memory_candidate_workflow_template_stages_candidate_after
     assert candidate["fact_json"]["recipient"] == "dispatch-memory@example.com"
 
 
+def test_review_then_dispatch_then_memory_candidate_workflow_template_stages_candidate_after_human_and_approval_over_http() -> None:
+    client = _client(storage_backend="memory", principal_id="exec-1")
+
+    binding = client.post(
+        "/v1/connectors/bindings",
+        json={
+            "connector_name": "gmail",
+            "external_account_ref": "acct-review-dispatch-memory",
+            "scope_json": {"scopes": ["mail.send"]},
+            "auth_metadata_json": {"provider": "google"},
+            "status": "enabled",
+        },
+    )
+    assert binding.status_code == 200
+    binding_id = binding.json()["binding_id"]
+
+    contract = client.post(
+        "/v1/tasks/contracts",
+        json={
+            "task_key": "stakeholder_review_dispatch_memory_candidate",
+            "deliverable_type": "stakeholder_briefing",
+            "default_risk_class": "low",
+            "default_approval_class": "none",
+            "allowed_tools": ["artifact_repository", "connector.dispatch"],
+            "evidence_requirements": ["stakeholder_context"],
+            "memory_write_policy": "reviewed_only",
+            "budget_policy_json": {
+                "class": "low",
+                "workflow_template": "artifact_then_dispatch_then_memory_candidate",
+                "human_review_role": "briefing_reviewer",
+                "human_review_task_type": "briefing_review",
+                "human_review_brief": "Review before stakeholder dispatch and memory staging.",
+                "human_review_priority": "high",
+                "human_review_desired_output_json": {"format": "review_packet"},
+                "memory_candidate_category": "stakeholder_follow_up_fact",
+                "memory_candidate_confidence": 0.8,
+                "memory_candidate_sensitivity": "internal",
+            },
+        },
+    )
+    assert contract.status_code == 200
+
+    compiled = client.post(
+        "/v1/plans/compile",
+        json={
+            "task_key": "stakeholder_review_dispatch_memory_candidate",
+            "goal": "review, send, and stage stakeholder follow-up memory",
+        },
+    )
+    assert compiled.status_code == 200
+    assert [step["step_key"] for step in compiled.json()["plan"]["steps"]] == [
+        "step_input_prepare",
+        "step_human_review",
+        "step_artifact_save",
+        "step_policy_evaluate",
+        "step_connector_dispatch",
+        "step_memory_candidate_stage",
+    ]
+
+    execute = client.post(
+        "/v1/plans/execute",
+        json={
+            "task_key": "stakeholder_review_dispatch_memory_candidate",
+            "goal": "review, send, and stage stakeholder follow-up memory",
+            "input_json": {
+                "source_text": "Board context and stakeholder sensitivities.",
+                "binding_id": binding_id,
+                "channel": "email",
+                "recipient": "reviewed-memory@example.com",
+            },
+        },
+    )
+    assert execute.status_code == 202
+    execute_body = execute.json()
+    assert execute_body["status"] == "awaiting_human"
+    assert execute_body["human_task_id"]
+    session_id = execute_body["session_id"]
+
+    waiting = client.get(f"/v1/rewrite/sessions/{session_id}")
+    assert waiting.status_code == 200
+    waiting_body = waiting.json()
+    assert waiting_body["status"] == "awaiting_human"
+    waiting_steps = {step["input_json"]["plan_step_key"]: step for step in waiting_body["steps"]}
+    assert waiting_steps["step_human_review"]["state"] == "waiting_human"
+    assert waiting_steps["step_artifact_save"]["state"] == "queued"
+    assert waiting_steps["step_memory_candidate_stage"]["state"] == "queued"
+    before_candidates = client.get("/v1/memory/candidates", params={"limit": 20, "status": "pending"})
+    assert before_candidates.status_code == 200
+    assert all(row["source_session_id"] != session_id for row in before_candidates.json())
+
+    returned = client.post(
+        f"/v1/human/tasks/{execute_body['human_task_id']}/return",
+        json={
+            "operator_id": "briefing-reviewer",
+            "resolution": "ready_for_dispatch",
+            "returned_payload_json": {"final_text": "Reviewed stakeholder briefing with follow-up notes."},
+            "provenance_json": {"review_mode": "human"},
+        },
+    )
+    assert returned.status_code == 200
+
+    awaiting_approval = client.get(f"/v1/rewrite/sessions/{session_id}")
+    assert awaiting_approval.status_code == 200
+    awaiting_approval_body = awaiting_approval.json()
+    assert awaiting_approval_body["status"] == "awaiting_approval"
+    approval_steps = {step["input_json"]["plan_step_key"]: step for step in awaiting_approval_body["steps"]}
+    assert approval_steps["step_human_review"]["state"] == "completed"
+    assert approval_steps["step_artifact_save"]["state"] == "completed"
+    assert approval_steps["step_policy_evaluate"]["state"] == "completed"
+    assert approval_steps["step_connector_dispatch"]["state"] == "waiting_approval"
+    assert approval_steps["step_memory_candidate_stage"]["state"] == "queued"
+    assert awaiting_approval_body["artifacts"][0]["content"] == "Reviewed stakeholder briefing with follow-up notes."
+
+    approvals = client.get("/v1/policy/approvals/pending", params={"limit": 20})
+    assert approvals.status_code == 200
+    approval_row = next(row for row in approvals.json() if row["session_id"] == session_id)
+
+    approved = client.post(
+        f"/v1/policy/approvals/{approval_row['approval_id']}/approve",
+        json={"decided_by": "operator", "reason": "approved reviewed dispatch memory workflow"},
+    )
+    assert approved.status_code == 200
+    assert approved.json()["task_key"] == "stakeholder_review_dispatch_memory_candidate"
+
+    done = client.get(f"/v1/rewrite/sessions/{session_id}")
+    assert done.status_code == 200
+    done_body = done.json()
+    assert done_body["status"] == "completed"
+    done_steps = {step["input_json"]["plan_step_key"]: step for step in done_body["steps"]}
+    assert done_steps["step_connector_dispatch"]["state"] == "completed"
+    assert done_steps["step_memory_candidate_stage"]["state"] == "completed"
+    candidate_id = done_steps["step_memory_candidate_stage"]["output_json"]["candidate_id"]
+    assert candidate_id
+    dispatch_receipt = next(row for row in done_body["receipts"] if row["tool_name"] == "connector.dispatch")
+    pending = client.get("/v1/delivery/outbox/pending", params={"limit": 20})
+    assert pending.status_code == 200
+    delivery = next(row for row in pending.json() if row["delivery_id"] == dispatch_receipt["target_ref"])
+    assert delivery["recipient"] == "reviewed-memory@example.com"
+    candidates = client.get("/v1/memory/candidates", params={"limit": 20, "status": "pending"})
+    assert candidates.status_code == 200
+    candidate = next(row for row in candidates.json() if row["candidate_id"] == candidate_id)
+    assert candidate["category"] == "stakeholder_follow_up_fact"
+    assert candidate["source_session_id"] == session_id
+    assert candidate["summary"] == "Reviewed stakeholder briefing with follow-up notes."
+    assert candidate["fact_json"]["delivery_id"] == dispatch_receipt["target_ref"]
+    assert candidate["fact_json"]["recipient"] == "reviewed-memory@example.com"
+
+
 def test_review_then_dispatch_workflow_template_pauses_for_human_then_approval_over_http() -> None:
     client = _client(storage_backend="memory", principal_id="exec-1")
 

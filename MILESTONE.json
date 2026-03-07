@@ -1141,6 +1141,17 @@
       "notes": "The built-in `artifact_then_dispatch_then_memory_candidate` workflow template now has focused and API-smoke coverage too, proving task contracts can compile `step_input_prepare -> step_artifact_save -> step_policy_evaluate -> step_connector_dispatch -> step_memory_candidate_stage`, keep the memory step queued behind the approval-gated send, and stage a pending candidate with delivery context once dispatch completes."
     },
     {
+      "name": "review_dispatch_then_memory_candidate_workflow_template",
+      "status": "tested",
+      "scope": [
+        "human_review_dispatch_memory_compile_shape",
+        "awaiting_human_then_awaiting_approval_progression",
+        "reviewed_dispatch_memory_candidate_stage",
+        "review_dispatch_memory_api_smoke"
+      ],
+      "notes": "The built-in `artifact_then_dispatch_then_memory_candidate` workflow template now also has focused and API-smoke coverage for the hybrid human-review case, proving task-contract review metadata can insert `step_human_review` ahead of artifact persistence, resume later into approval-backed `connector.dispatch`, and only stage the pending memory candidate after both gates clear."
+    },
+    {
       "name": "execution_queue_retry_runtime",
       "status": "tested",
       "scope": [
