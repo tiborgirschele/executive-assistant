@@ -460,6 +460,33 @@ def test_skill_identity_projection_is_documented_and_guarded() -> None:
     assert capability["status"] == "tested"
 
 
+def test_runtime_skill_identity_projection_is_documented_and_guarded() -> None:
+    rewrite_route = (ROOT / "ea/app/api/routes/rewrite.py").read_text(encoding="utf-8")
+    skills_test = (ROOT / "tests/test_skills.py").read_text(encoding="utf-8")
+    smoke_test = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    smoke_script = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "intent_skill_key: str" in rewrite_route
+    assert "skill_key: str = \"\"" in rewrite_route
+    assert "_resolve_skill_key(" in rewrite_route
+    assert 'session_body["intent_skill_key"] == "meeting_prep"' in skills_test
+    assert 'fetched_artifact.json()["skill_key"] == "meeting_prep"' in skills_test
+    assert 'session_body["intent_skill_key"] == "stakeholder_briefing"' in smoke_test
+    assert 'fetched_receipt.json()["skill_key"] == "stakeholder_briefing"' in smoke_test
+    assert "body.get('intent_skill_key','')" in smoke_script
+    assert "body.get('skill_key','')" in smoke_script
+    assert "intent_skill_key" in readme
+    assert "intent_skill_key" in runbook
+    assert "intent_skill_key" in changelog
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "runtime_skill_identity_projection")
+    assert capability["status"] == "tested"
+
+
 def test_dispatch_then_memory_candidate_workflow_template_is_documented_and_guarded() -> None:
     workflow_test = (ROOT / "tests/test_task_contract_step_templates.py").read_text(encoding="utf-8")
     smoke_test = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")

@@ -3578,6 +3578,35 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "runtime_skill_identity_projection")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "intent_skill_key: str" "ea/app/api/routes/rewrite.py" && \
+     grep -Fq "_resolve_skill_key(" "ea/app/api/routes/rewrite.py" && \
+     grep -Fq 'session_body["intent_skill_key"] == "meeting_prep"' "tests/test_skills.py" && \
+     grep -Fq 'fetched_artifact.json()["skill_key"] == "meeting_prep"' "tests/test_skills.py" && \
+     grep -Fq 'session_body["intent_skill_key"] == "stakeholder_briefing"' "tests/smoke_runtime_api.py" && \
+     grep -Fq "body.get('intent_skill_key','')" "scripts/smoke_api.sh" && \
+     grep -Fq "body.get('skill_key','')" "scripts/smoke_api.sh" && \
+     grep -Fq "intent_skill_key" "README.md" && \
+     grep -Fq "intent_skill_key" "RUNBOOK.md" && \
+     grep -Fq "intent_skill_key" "CHANGELOG.md"; then
+    echo "ok: runtime skill identity projection docs and contract coverage"
+  else
+    echo "missing: runtime skill identity projection docs or contract coverage" >&2
+    missing=1
+  fi
+else
+  echo "missing: runtime skill identity projection milestone" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1

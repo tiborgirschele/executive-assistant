@@ -2987,6 +2987,7 @@ def test_generic_task_execution_uses_compiled_contract_runtime() -> None:
     )
     assert execute.status_code == 200
     body = execute.json()
+    assert body["skill_key"] == "stakeholder_briefing"
     assert body["task_key"] == "stakeholder_briefing"
     assert body["kind"] == "stakeholder_briefing"
     assert body["content"] == "Board context and stakeholder sensitivities."
@@ -3003,9 +3004,11 @@ def test_generic_task_execution_uses_compiled_contract_runtime() -> None:
     session = client.get(f"/v1/rewrite/sessions/{body['execution_session_id']}")
     assert session.status_code == 200
     session_body = session.json()
+    assert session_body["intent_skill_key"] == "stakeholder_briefing"
     assert session_body["intent_task_type"] == "stakeholder_briefing"
     assert session_body["status"] == "completed"
     assert session_body["artifacts"][0]["kind"] == "stakeholder_briefing"
+    assert session_body["artifacts"][0]["skill_key"] == "stakeholder_briefing"
     assert session_body["artifacts"][0]["task_key"] == "stakeholder_briefing"
     assert session_body["artifacts"][0]["deliverable_type"] == "stakeholder_briefing"
     assert session_body["artifacts"][0]["principal_id"] == "exec-1"
@@ -3030,6 +3033,7 @@ def test_generic_task_execution_uses_compiled_contract_runtime() -> None:
 
     fetched_artifact = client.get(f"/v1/rewrite/artifacts/{body['artifact_id']}")
     assert fetched_artifact.status_code == 200
+    assert fetched_artifact.json()["skill_key"] == "stakeholder_briefing"
     assert fetched_artifact.json()["task_key"] == "stakeholder_briefing"
     assert fetched_artifact.json()["deliverable_type"] == "stakeholder_briefing"
     assert fetched_artifact.json()["principal_id"] == "exec-1"
@@ -3042,11 +3046,13 @@ def test_generic_task_execution_uses_compiled_contract_runtime() -> None:
 
     fetched_receipt = client.get(f"/v1/rewrite/receipts/{session_body['receipts'][0]['receipt_id']}")
     assert fetched_receipt.status_code == 200
+    assert fetched_receipt.json()["skill_key"] == "stakeholder_briefing"
     assert fetched_receipt.json()["task_key"] == "stakeholder_briefing"
     assert fetched_receipt.json()["deliverable_type"] == "stakeholder_briefing"
 
     fetched_cost = client.get(f"/v1/rewrite/run-costs/{session_body['run_costs'][0]['cost_id']}")
     assert fetched_cost.status_code == 200
+    assert fetched_cost.json()["skill_key"] == "stakeholder_briefing"
     assert fetched_cost.json()["task_key"] == "stakeholder_briefing"
     assert fetched_cost.json()["deliverable_type"] == "stakeholder_briefing"
 

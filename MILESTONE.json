@@ -1296,6 +1296,17 @@
         "openapi_async_skill_identity_examples"
       ],
       "notes": "The plan/task execution surface now projects the resolved `skill_key` alongside `task_key`, so product-facing executive capability identity travels with compile and execute responses instead of living only in the separate skill catalog."
+    },
+    {
+      "name": "runtime_skill_identity_projection",
+      "status": "tested",
+      "scope": [
+        "session_intent_skill_key_projection",
+        "artifact_skill_key_projection",
+        "proof_row_skill_key_projection",
+        "generic_task_runtime_skill_smoke"
+      ],
+      "notes": "The rewrite/session inspection surface now also projects resolved skill identity: session payloads expose `intent_skill_key`, and direct artifact/receipt/run-cost rows plus embedded session artifacts/proof rows carry `skill_key` alongside `task_key`."
     }
   ],
   "migrations": [

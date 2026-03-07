@@ -108,6 +108,26 @@ def test_skill_catalog_round_trips_product_metadata_and_backing_contract() -> No
     assert executed.json()["skill_key"] == "meeting_prep"
     assert executed.json()["deliverable_type"] == "meeting_pack"
 
+    session = client.get(f"/v1/rewrite/sessions/{executed.json()['execution_session_id']}")
+    assert session.status_code == 200
+    session_body = session.json()
+    assert session_body["intent_skill_key"] == "meeting_prep"
+    assert session_body["artifacts"][0]["skill_key"] == "meeting_prep"
+    assert session_body["receipts"][0]["skill_key"] == "meeting_prep"
+    assert session_body["run_costs"][0]["skill_key"] == "meeting_prep"
+
+    fetched_artifact = client.get(f"/v1/rewrite/artifacts/{executed.json()['artifact_id']}")
+    assert fetched_artifact.status_code == 200
+    assert fetched_artifact.json()["skill_key"] == "meeting_prep"
+
+    fetched_receipt = client.get(f"/v1/rewrite/receipts/{session_body['receipts'][0]['receipt_id']}")
+    assert fetched_receipt.status_code == 200
+    assert fetched_receipt.json()["skill_key"] == "meeting_prep"
+
+    fetched_cost = client.get(f"/v1/rewrite/run-costs/{session_body['run_costs'][0]['cost_id']}")
+    assert fetched_cost.status_code == 200
+    assert fetched_cost.json()["skill_key"] == "meeting_prep"
+
 
 def test_skill_catalog_can_derive_a_skill_view_from_existing_task_contract() -> None:
     client = _client()

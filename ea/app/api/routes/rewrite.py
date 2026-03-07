@@ -21,6 +21,7 @@ class RewriteIn(BaseModel):
 
 
 class RewriteOut(BaseModel):
+    skill_key: str = ""
     artifact_id: str
     kind: str
     content: str
@@ -173,11 +174,13 @@ class SessionReceiptOut(BaseModel):
     target_ref: str
     receipt_json: dict[str, object]
     created_at: str
+    skill_key: str = ""
     task_key: str = ""
     deliverable_type: str = ""
 
 
 class SessionArtifactOut(BaseModel):
+    skill_key: str = ""
     artifact_id: str
     kind: str
     content: str
@@ -214,6 +217,7 @@ class SessionRunCostOut(BaseModel):
     tokens_out: int
     cost_usd: float
     created_at: str
+    skill_key: str = ""
     task_key: str = ""
     deliverable_type: str = ""
 
@@ -223,6 +227,7 @@ class SessionHumanTaskOut(BaseModel):
     session_id: str
     step_id: str | None
     principal_id: str
+    skill_key: str = ""
     task_key: str = ""
     deliverable_type: str = ""
     task_type: str
@@ -260,6 +265,7 @@ class SessionHumanTaskAssignmentHistoryOut(BaseModel):
     event_id: str
     human_task_id: str
     step_id: str | None
+    skill_key: str = ""
     task_key: str = ""
     deliverable_type: str = ""
     event_name: str
@@ -277,6 +283,7 @@ class SessionOut(BaseModel):
     status: str
     created_at: str
     updated_at: str
+    intent_skill_key: str
     intent_task_type: str
     intent_risk_class: str
     events: list[SessionEventOut]
@@ -304,6 +311,16 @@ def _artifact_out_payload(artifact):  # type: ignore[no-untyped-def]
         "execution_session_id": normalized.execution_session_id,
         "principal_id": normalized.principal_id,
     }
+
+
+def _resolve_skill_key(container: AppContainer, task_key: str) -> str:
+    resolved_task_key = str(task_key or "").strip()
+    if not resolved_task_key:
+        return ""
+    row = container.skills.get_skill(resolved_task_key)
+    if row is None:
+        return resolved_task_key
+    return str(row.skill_key or resolved_task_key)
 
 
 def _step_dependency_projection(step, steps) -> tuple[list[str], dict[str, str], dict[str, str], list[str], bool]:  # type: ignore[no-untyped-def]
@@ -335,6 +352,7 @@ def _step_dependency_projection(step, steps) -> tuple[list[str], dict[str, str],
 def _to_assignment_history_out(
     event,
     *,
+    skill_key: str = "",
     task_key: str = "",
     deliverable_type: str = "",
 ) -> SessionHumanTaskAssignmentHistoryOut:  # type: ignore[no-untyped-def]
@@ -343,6 +361,7 @@ def _to_assignment_history_out(
         event_id=event.event_id,
         human_task_id=str(payload.get("human_task_id") or ""),
         step_id=str(payload.get("step_id") or "") or None,
+        skill_key=skill_key,
         task_key=task_key,
         deliverable_type=deliverable_type,
         event_name=event.name,
@@ -409,9 +428,11 @@ def create_artifact(
         reason = str(exc or "policy_denied")
         raise HTTPException(status_code=403, detail=f"policy_denied:{reason}") from exc
     session = container.orchestrator.fetch_session(artifact.execution_session_id)
+    task_key = session.session.intent.task_type if session is not None else "rewrite_text"
     return RewriteOut(
+        skill_key=_resolve_skill_key(container, task_key),
         **_artifact_out_payload(artifact),
-        task_key=session.session.intent.task_type if session is not None else "rewrite_text",
+        task_key=task_key,
         deliverable_type=session.session.intent.deliverable_type if session is not None else artifact.kind,
     )
 
@@ -430,6 +451,7 @@ def get_session(
     if not found:
         raise HTTPException(status_code=404, detail="session not found")
     session = found.session
+    session_skill_key = _resolve_skill_key(container, session.intent.task_type)
     events = found.events
     step_dependency_projection = {
         row.step_id: _step_dependency_projection(row, found.steps)
@@ -442,6 +464,7 @@ def get_session(
     human_task_assignment_history = [
         _to_assignment_history_out(
             event,
+            skill_key=session_skill_key,
             task_key=session.intent.task_type,
             deliverable_type=session.intent.deliverable_type,
         )
@@ -458,6 +481,7 @@ def get_session(
         status=session.status,
         created_at=session.created_at,
         updated_at=session.updated_at,
+        intent_skill_key=session_skill_key,
         intent_task_type=session.intent.task_type,
         intent_risk_class=session.intent.risk_class,
         events=[
@@ -518,6 +542,7 @@ def get_session(
                 target_ref=r.target_ref,
                 receipt_json=r.receipt_json,
                 created_at=r.created_at,
+                skill_key=session_skill_key,
                 task_key=session.intent.task_type,
                 deliverable_type=session.intent.deliverable_type,
             )
@@ -525,6 +550,7 @@ def get_session(
         ],
         artifacts=[
             SessionArtifactOut(
+                skill_key=session_skill_key,
                 **_artifact_out_payload(a),
                 task_key=session.intent.task_type,
                 deliverable_type=session.intent.deliverable_type,
@@ -539,6 +565,7 @@ def get_session(
                 tokens_out=c.tokens_out,
                 cost_usd=c.cost_usd,
                 created_at=c.created_at,
+                skill_key=session_skill_key,
                 task_key=session.intent.task_type,
                 deliverable_type=session.intent.deliverable_type,
             )
@@ -550,6 +577,7 @@ def get_session(
                 session_id=t.session_id,
                 step_id=t.step_id,
                 principal_id=t.principal_id,
+                skill_key=session_skill_key,
                 task_key=session.intent.task_type,
                 deliverable_type=session.intent.deliverable_type,
                 task_type=t.task_type,
@@ -601,9 +629,11 @@ def get_artifact(
     if not scoped:
         raise HTTPException(status_code=404, detail="artifact_not_found")
     found, session = scoped
+    task_key = session.session.intent.task_type
     return RewriteOut(
+        skill_key=_resolve_skill_key(container, task_key),
         **_artifact_out_payload(found),
-        task_key=session.session.intent.task_type,
+        task_key=task_key,
         deliverable_type=session.session.intent.deliverable_type,
     )
 
@@ -621,6 +651,7 @@ def get_receipt(
     if not scoped:
         raise HTTPException(status_code=404, detail="receipt_not_found")
     found, session = scoped
+    task_key = session.session.intent.task_type
     return SessionReceiptOut(
         receipt_id=found.receipt_id,
         step_id=found.step_id,
@@ -629,7 +660,8 @@ def get_receipt(
         target_ref=found.target_ref,
         receipt_json=found.receipt_json,
         created_at=found.created_at,
-        task_key=session.session.intent.task_type,
+        skill_key=_resolve_skill_key(container, task_key),
+        task_key=task_key,
         deliverable_type=session.session.intent.deliverable_type,
     )
 
@@ -647,6 +679,7 @@ def get_run_cost(
     if not scoped:
         raise HTTPException(status_code=404, detail="run_cost_not_found")
     found, session = scoped
+    task_key = session.session.intent.task_type
     return SessionRunCostOut(
         cost_id=found.cost_id,
         model_name=found.model_name,
@@ -654,6 +687,7 @@ def get_run_cost(
         tokens_out=found.tokens_out,
         cost_usd=found.cost_usd,
         created_at=found.created_at,
-        task_key=session.session.intent.task_type,
+        skill_key=_resolve_skill_key(container, task_key),
+        task_key=task_key,
         deliverable_type=session.session.intent.deliverable_type,
     )
