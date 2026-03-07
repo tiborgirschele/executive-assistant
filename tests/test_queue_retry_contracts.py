@@ -224,7 +224,7 @@ class _StaticRetryPlanner:
                     fallback="pause_for_approval_or_block",
                     depends_on=("step_input_prepare",),
                     input_keys=("normalized_text", "text_length"),
-                    output_keys=("allow", "requires_approval", "reason", "retention_policy"),
+                    output_keys=("allow", "requires_approval", "reason", "retention_policy", "memory_write_allowed"),
                 ),
                 PlanStepSpec(
                     step_key="step_artifact_save",

@@ -3231,6 +3231,38 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "artifact_then_memory_candidate_workflow_template")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "artifact_then_memory_candidate" "tests/test_task_contract_step_templates.py" && \
+     grep -Fq "step_memory_candidate_stage" "tests/test_task_contract_step_templates.py" && \
+     grep -Fq "stakeholder_memory_candidate" "tests/smoke_runtime_api.py" && \
+     grep -Fq "step_memory_candidate_stage" "tests/smoke_runtime_api.py" && \
+     grep -Fq '"memory_write_allowed",' "tests/smoke_runtime_api.py" && \
+     grep -Fq "stakeholder_memory_candidate" "scripts/smoke_api.sh" && \
+     grep -Fq "step_memory_candidate_stage" "scripts/smoke_api.sh" && \
+     grep -Fq "artifact_then_memory_candidate" "README.md" && \
+     grep -Fq "step_input_prepare -> step_policy_evaluate -> step_artifact_save -> step_memory_candidate_stage" "README.md" && \
+     grep -Fq "artifact_then_memory_candidate" "RUNBOOK.md" && \
+     grep -Fq "step_input_prepare -> step_policy_evaluate -> step_artifact_save -> step_memory_candidate_stage" "RUNBOOK.md" && \
+     grep -Fq "artifact_then_memory_candidate" "CHANGELOG.md" && \
+     grep -Fq "stakeholder_memory_candidate" "HTTP_EXAMPLES.http"; then
+    echo "ok: artifact-then-memory-candidate workflow template docs and smoke coverage"
+  else
+    echo "missing: artifact-then-memory-candidate workflow template docs or smoke coverage" >&2
+    missing=1
+  fi
+else
+  echo "missing: artifact-then-memory-candidate workflow template milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "execution_queue_retry_runtime")
 assert capability["status"] == "tested"
 PY

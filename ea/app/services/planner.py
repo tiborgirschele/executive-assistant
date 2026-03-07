@@ -34,6 +34,18 @@ def _policy_bool(value: object, default: bool = False) -> bool:
     return default
 
 
+def _policy_float(value: object, default: float = 0.0) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    if parsed < 0:
+        return default
+    if parsed > 1:
+        return 1.0
+    return parsed
+
+
 def _tool_authority_class(tool_name: str) -> str:
     normalized = str(tool_name or "").strip()
     if normalized == "connector.dispatch":
@@ -51,6 +63,7 @@ class PlannerService:
         ] = {
             "rewrite": self._build_rewrite_steps,
             "artifact_then_dispatch": self._build_artifact_then_dispatch_steps,
+            "artifact_then_memory_candidate": self._build_artifact_then_memory_candidate_steps,
         }
 
     def _require_principal_id(self, principal_id: str) -> str:
@@ -112,7 +125,7 @@ class PlannerService:
             retry_backoff_seconds=0,
             depends_on=depends_on,
             input_keys=("normalized_text", "text_length"),
-            output_keys=("allow", "requires_approval", "reason", "retention_policy"),
+            output_keys=("allow", "requires_approval", "reason", "retention_policy", "memory_write_allowed"),
         )
 
     def _build_artifact_save_step(
@@ -177,6 +190,43 @@ class PlannerService:
             depends_on=depends_on,
             input_keys=("binding_id", "channel", "recipient", "content"),
             output_keys=("delivery_id", "status", "binding_id"),
+        )
+
+    def _build_memory_candidate_step(
+        self,
+        intent: IntentSpecV3,
+        *,
+        contract: TaskContract,
+        depends_on: tuple[str, ...],
+    ) -> PlanStepSpec:
+        metadata = dict(contract.budget_policy_json or {})
+        category = str(metadata.get("memory_candidate_category") or intent.deliverable_type or "artifact_fact").strip()
+        sensitivity = str(metadata.get("memory_candidate_sensitivity") or "internal").strip() or "internal"
+        confidence = _policy_float(metadata.get("memory_candidate_confidence"), default=0.5)
+        return PlanStepSpec(
+            step_key="step_memory_candidate_stage",
+            step_kind="memory_write",
+            tool_name="",
+            evidence_required=intent.evidence_requirements,
+            approval_required=False,
+            reversible=False,
+            expected_artifact="memory_candidate",
+            fallback="skip",
+            owner="system",
+            authority_class="queue",
+            review_class="operator",
+            failure_strategy="fail",
+            timeout_budget_seconds=30,
+            max_attempts=1,
+            retry_backoff_seconds=0,
+            depends_on=depends_on,
+            input_keys=("artifact_id", "normalized_text", "memory_write_allowed"),
+            output_keys=("candidate_id", "candidate_status", "candidate_category"),
+            desired_output_json={
+                "category": category,
+                "sensitivity": sensitivity,
+                "confidence": confidence,
+            },
         )
 
     def _human_review_metadata(self, contract: TaskContract) -> dict[str, object]:
@@ -324,6 +374,27 @@ class PlannerService:
         steps.append(self._build_policy_step(depends_on=("step_artifact_save",)))
         steps.append(self._build_dispatch_step(contract=contract, depends_on=("step_policy_evaluate",)))
         return tuple(steps)
+
+    def _build_artifact_then_memory_candidate_steps(
+        self,
+        intent: IntentSpecV3,
+        *,
+        contract: TaskContract,
+    ) -> tuple[PlanStepSpec, ...]:
+        prepare_step = self._build_prepare_step()
+        policy_step = self._build_policy_step(depends_on=("step_input_prepare",))
+        artifact_step = self._build_artifact_save_step(
+            intent,
+            contract=contract,
+            depends_on=("step_policy_evaluate",),
+            approval_required=False,
+        )
+        memory_step = self._build_memory_candidate_step(
+            intent,
+            contract=contract,
+            depends_on=("step_artifact_save", "step_policy_evaluate"),
+        )
+        return (prepare_step, policy_step, artifact_step, memory_step)
 
     def _workflow_template_key(self, contract: TaskContract) -> str:
         return str(contract.budget_policy_json.get("workflow_template") or "rewrite").strip().lower() or "rewrite"

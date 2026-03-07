@@ -1583,6 +1583,38 @@ if [[ "${DISPATCH_PENDING_AFTER_FIELDS}" != "workflow@example.com|queued" ]]; th
   echo "expected approved dispatch workflow to queue delivery outbox row; got ${DISPATCH_PENDING_AFTER_FIELDS}" >&2
   fail 12 "policy contract mismatch"
 fi
+curl -fsS -X POST "${BASE}/v1/tasks/contracts" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"task_key":"stakeholder_memory_candidate","deliverable_type":"stakeholder_briefing","default_risk_class":"low","default_approval_class":"none","allowed_tools":["artifact_repository"],"evidence_requirements":["stakeholder_context"],"memory_write_policy":"reviewed_only","budget_policy_json":{"class":"low","workflow_template":"artifact_then_memory_candidate","memory_candidate_category":"stakeholder_briefing_fact","memory_candidate_confidence":0.7,"memory_candidate_sensitivity":"internal"}}' >/dev/null
+MEMORY_TEMPLATE_PLAN_JSON="$(curl -fsS -X POST "${BASE}/v1/plans/compile" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"task_key":"stakeholder_memory_candidate","goal":"prepare a stakeholder briefing and stage memory"}')"
+MEMORY_TEMPLATE_PLAN_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); steps=body.get('plan',{}).get('steps') or []; policy=(steps[1] if len(steps) > 1 else {}); memory=(steps[3] if len(steps) > 3 else {}); print('{}|{}|{}|{}|{}|{}|{}|{}|{}'.format(len(steps), ','.join((row.get('step_key') or '') for row in steps), memory.get('step_kind',''), ','.join(memory.get('depends_on') or []), memory.get('authority_class',''), ','.join(memory.get('input_keys') or []), ','.join(memory.get('output_keys') or []), (memory.get('desired_output_json') or {}).get('category',''), ','.join(policy.get('output_keys') or [])))" <<<"${MEMORY_TEMPLATE_PLAN_JSON}")"
+if [[ "${MEMORY_TEMPLATE_PLAN_FIELDS}" != "4|step_input_prepare,step_policy_evaluate,step_artifact_save,step_memory_candidate_stage|memory_write|step_artifact_save,step_policy_evaluate|queue|artifact_id,normalized_text,memory_write_allowed|candidate_id,candidate_status,candidate_category|stakeholder_briefing_fact|allow,requires_approval,reason,retention_policy,memory_write_allowed" ]]; then
+  echo "expected memory-candidate workflow template to compile artifact->memory graph with policy memory-write contract; got ${MEMORY_TEMPLATE_PLAN_FIELDS}" >&2
+  echo "${MEMORY_TEMPLATE_PLAN_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+MEMORY_TEMPLATE_EXECUTE_JSON="$(curl -fsS -X POST "${BASE}/v1/plans/execute" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"task_key":"stakeholder_memory_candidate","goal":"prepare a stakeholder briefing and stage memory","input_json":{"source_text":"Board context and stakeholder sensitivities."}}')"
+MEMORY_TEMPLATE_EXECUTE_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); print('{}|{}|{}|{}|{}|{}'.format(body.get('task_key',''), body.get('kind',''), body.get('deliverable_type',''), body.get('principal_id',''), bool(body.get('artifact_id','')), bool(body.get('execution_session_id',''))))" <<<"${MEMORY_TEMPLATE_EXECUTE_JSON}")"
+if [[ "${MEMORY_TEMPLATE_EXECUTE_FIELDS}" != "stakeholder_memory_candidate|stakeholder_briefing|stakeholder_briefing|exec-1|True|True" ]]; then
+  echo "expected memory-candidate workflow execution to complete inline and return artifact metadata; got ${MEMORY_TEMPLATE_EXECUTE_FIELDS}" >&2
+  echo "${MEMORY_TEMPLATE_EXECUTE_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+MEMORY_TEMPLATE_SESSION_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("execution_session_id",""))' <<<"${MEMORY_TEMPLATE_EXECUTE_JSON}")"
+MEMORY_TEMPLATE_SESSION_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${MEMORY_TEMPLATE_SESSION_ID}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+MEMORY_TEMPLATE_SESSION_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); steps={str((row.get('input_json') or {}).get('plan_step_key') or ''): row for row in (body.get('steps') or [])}; memory=steps.get('step_memory_candidate_stage') or {}; print('{}|{}|{}|{}|{}|{}|{}|{}'.format(body.get('intent_task_type',''), body.get('status',''), steps.get('step_policy_evaluate',{}).get('state',''), steps.get('step_artifact_save',{}).get('state',''), memory.get('state',''), (memory.get('output_json') or {}).get('candidate_status',''), (memory.get('output_json') or {}).get('candidate_category',''), bool((memory.get('output_json') or {}).get('candidate_id',''))))" <<<"${MEMORY_TEMPLATE_SESSION_JSON}")"
+if [[ "${MEMORY_TEMPLATE_SESSION_FIELDS}" != "stakeholder_memory_candidate|completed|completed|completed|completed|pending|stakeholder_briefing_fact|True" ]]; then
+  echo "expected memory-candidate workflow session to complete through memory staging; got ${MEMORY_TEMPLATE_SESSION_FIELDS}" >&2
+  echo "${MEMORY_TEMPLATE_SESSION_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+MEMORY_TEMPLATE_CANDIDATE_ID="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); steps={str((row.get('input_json') or {}).get('plan_step_key') or ''): row for row in (body.get('steps') or [])}; print(((steps.get('step_memory_candidate_stage',{}).get('output_json') or {}).get('candidate_id','')))" <<<"${MEMORY_TEMPLATE_SESSION_JSON}")"
+MEMORY_TEMPLATE_CANDIDATE_FIELDS="$(curl -fsS "${BASE}/v1/memory/candidates?limit=20&status=pending" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" | python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); wanted='${MEMORY_TEMPLATE_CANDIDATE_ID}'; session_id='${MEMORY_TEMPLATE_SESSION_ID}'; row=next((row for row in rows if (row or {}).get('candidate_id') == wanted), {}); print('{}|{}|{}|{}'.format(row.get('category',''), row.get('principal_id',''), row.get('source_session_id','') == session_id, row.get('summary','')))" )"
+if [[ "${MEMORY_TEMPLATE_CANDIDATE_FIELDS}" != "stakeholder_briefing_fact|exec-1|True|Board context and stakeholder sensitivities." ]]; then
+  echo "expected memory-candidate workflow template to stage a pending principal-scoped candidate row; got ${MEMORY_TEMPLATE_CANDIDATE_FIELDS}" >&2
+  fail 12 "policy contract mismatch"
+fi
 HYBRID_BINDING_JSON="$(curl -fsS -X POST "${BASE}/v1/connectors/bindings" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
   "${PRINCIPAL_ARGS[@]}" \
   -d '{"connector_name":"gmail","external_account_ref":"acct-review-dispatch","scope_json":{"scopes":["mail.send"]},"auth_metadata_json":{"provider":"google"},"status":"enabled"}')"

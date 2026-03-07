@@ -2595,7 +2595,13 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
     assert compiled.json()["plan"]["steps"][1]["depends_on"] == ["step_input_prepare"]
     assert compiled.json()["plan"]["steps"][1]["owner"] == "system"
     assert compiled.json()["plan"]["steps"][1]["authority_class"] == "observe"
-    assert compiled.json()["plan"]["steps"][1]["output_keys"] == ["allow", "requires_approval", "reason", "retention_policy"]
+    assert compiled.json()["plan"]["steps"][1]["output_keys"] == [
+        "allow",
+        "requires_approval",
+        "reason",
+        "retention_policy",
+        "memory_write_allowed",
+    ]
     assert compiled.json()["plan"]["steps"][2]["tool_name"] == "artifact_repository"
     assert compiled.json()["plan"]["steps"][2]["depends_on"] == ["step_policy_evaluate"]
     assert compiled.json()["plan"]["steps"][2]["owner"] == "tool"
@@ -3111,6 +3117,110 @@ def test_task_contract_workflow_template_can_compile_and_resume_dispatch_branch(
     assert pending_after.status_code == 200
     assert pending_after.json()[0]["delivery_id"] == dispatch_receipt["target_ref"]
     assert pending_after.json()[0]["recipient"] == "ops@example.com"
+
+
+def test_artifact_then_memory_candidate_workflow_template_stages_candidate_over_http() -> None:
+    client = _client(storage_backend="memory", principal_id="exec-1")
+
+    contract = client.post(
+        "/v1/tasks/contracts",
+        json={
+            "task_key": "stakeholder_memory_candidate",
+            "deliverable_type": "stakeholder_briefing",
+            "default_risk_class": "low",
+            "default_approval_class": "none",
+            "allowed_tools": ["artifact_repository"],
+            "evidence_requirements": ["stakeholder_context"],
+            "memory_write_policy": "reviewed_only",
+            "budget_policy_json": {
+                "class": "low",
+                "workflow_template": "artifact_then_memory_candidate",
+                "memory_candidate_category": "stakeholder_briefing_fact",
+                "memory_candidate_confidence": 0.7,
+                "memory_candidate_sensitivity": "internal",
+            },
+        },
+    )
+    assert contract.status_code == 200
+
+    compiled = client.post(
+        "/v1/plans/compile",
+        json={
+            "task_key": "stakeholder_memory_candidate",
+            "goal": "prepare a stakeholder briefing and stage memory",
+        },
+    )
+    assert compiled.status_code == 200
+    plan_steps = compiled.json()["plan"]["steps"]
+    assert [step["step_key"] for step in plan_steps] == [
+        "step_input_prepare",
+        "step_policy_evaluate",
+        "step_artifact_save",
+        "step_memory_candidate_stage",
+    ]
+    assert plan_steps[1]["output_keys"] == [
+        "allow",
+        "requires_approval",
+        "reason",
+        "retention_policy",
+        "memory_write_allowed",
+    ]
+    assert plan_steps[3]["step_kind"] == "memory_write"
+    assert plan_steps[3]["depends_on"] == ["step_artifact_save", "step_policy_evaluate"]
+    assert plan_steps[3]["authority_class"] == "queue"
+    assert plan_steps[3]["review_class"] == "operator"
+    assert plan_steps[3]["input_keys"] == ["artifact_id", "normalized_text", "memory_write_allowed"]
+    assert plan_steps[3]["output_keys"] == ["candidate_id", "candidate_status", "candidate_category"]
+    assert plan_steps[3]["desired_output_json"]["category"] == "stakeholder_briefing_fact"
+    assert plan_steps[3]["desired_output_json"]["confidence"] == 0.7
+
+    execute = client.post(
+        "/v1/plans/execute",
+        json={
+            "task_key": "stakeholder_memory_candidate",
+            "goal": "prepare a stakeholder briefing and stage memory",
+            "input_json": {
+                "source_text": "Board context and stakeholder sensitivities.",
+            },
+        },
+    )
+    assert execute.status_code == 200
+    execute_body = execute.json()
+    assert execute_body["task_key"] == "stakeholder_memory_candidate"
+    assert execute_body["kind"] == "stakeholder_briefing"
+    assert execute_body["deliverable_type"] == "stakeholder_briefing"
+    assert execute_body["content"] == "Board context and stakeholder sensitivities."
+    assert execute_body["principal_id"] == "exec-1"
+    session_id = execute_body["execution_session_id"]
+
+    session = client.get(f"/v1/rewrite/sessions/{session_id}")
+    assert session.status_code == 200
+    session_body = session.json()
+    assert session_body["intent_task_type"] == "stakeholder_memory_candidate"
+    assert session_body["status"] == "completed"
+    steps_by_key = {step["input_json"]["plan_step_key"]: step for step in session_body["steps"]}
+    assert steps_by_key["step_policy_evaluate"]["state"] == "completed"
+    assert steps_by_key["step_artifact_save"]["state"] == "completed"
+    assert steps_by_key["step_memory_candidate_stage"]["state"] == "completed"
+    assert steps_by_key["step_memory_candidate_stage"]["dependency_states"] == {
+        "step_artifact_save": "completed",
+        "step_policy_evaluate": "completed",
+    }
+    assert steps_by_key["step_memory_candidate_stage"]["blocked_dependency_keys"] == []
+    assert steps_by_key["step_memory_candidate_stage"]["dependencies_satisfied"] is True
+    assert steps_by_key["step_memory_candidate_stage"]["output_json"]["candidate_status"] == "pending"
+    assert steps_by_key["step_memory_candidate_stage"]["output_json"]["candidate_category"] == "stakeholder_briefing_fact"
+    candidate_id = steps_by_key["step_memory_candidate_stage"]["output_json"]["candidate_id"]
+    assert candidate_id
+
+    candidates = client.get("/v1/memory/candidates", params={"limit": 20, "status": "pending"})
+    assert candidates.status_code == 200
+    candidate = next(row for row in candidates.json() if row["candidate_id"] == candidate_id)
+    assert candidate["principal_id"] == "exec-1"
+    assert candidate["category"] == "stakeholder_briefing_fact"
+    assert candidate["summary"] == "Board context and stakeholder sensitivities."
+    assert candidate["source_session_id"] == session_id
+    assert candidate["source_step_id"] == steps_by_key["step_memory_candidate_stage"]["step_id"]
 
 
 def test_review_then_dispatch_workflow_template_pauses_for_human_then_approval_over_http() -> None:

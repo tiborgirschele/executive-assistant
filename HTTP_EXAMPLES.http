@@ -581,6 +581,50 @@ X-EA-Principal-ID: {{principal_id}}
   "goal": "prepare and send a stakeholder briefing"
 }
 
+### Task Contracts -> upsert memory-candidate workflow template (artifact -> memory candidate)
+POST {{host}}/v1/tasks/contracts
+Content-Type: application/json
+
+{
+  "task_key": "stakeholder_memory_candidate",
+  "deliverable_type": "stakeholder_briefing",
+  "default_risk_class": "low",
+  "default_approval_class": "none",
+  "allowed_tools": ["artifact_repository"],
+  "evidence_requirements": ["stakeholder_context"],
+  "memory_write_policy": "reviewed_only",
+  "budget_policy_json": {
+    "class": "low",
+    "workflow_template": "artifact_then_memory_candidate",
+    "memory_candidate_category": "stakeholder_briefing_fact",
+    "memory_candidate_confidence": 0.7,
+    "memory_candidate_sensitivity": "internal"
+  }
+}
+
+### Plans -> compile memory-candidate workflow template (`step_memory_candidate_stage` is the queue-backed memory step)
+POST {{host}}/v1/plans/compile
+Content-Type: application/json
+X-EA-Principal-ID: {{principal_id}}
+
+{
+  "task_key": "stakeholder_memory_candidate",
+  "goal": "prepare a stakeholder briefing and stage memory"
+}
+
+### Plans -> execute memory-candidate workflow template (expected 200 completed artifact plus staged pending memory candidate)
+POST {{host}}/v1/plans/execute
+Content-Type: application/json
+X-EA-Principal-ID: {{principal_id}}
+
+{
+  "task_key": "stakeholder_memory_candidate",
+  "goal": "prepare a stakeholder briefing and stage memory",
+  "input_json": {
+    "source_text": "Board context and stakeholder sensitivities."
+  }
+}
+
 ### Plans -> principal mismatch (expected 403 principal_scope_mismatch)
 POST {{host}}/v1/plans/compile
 Content-Type: application/json

@@ -45,6 +45,7 @@ from app.repositories.policy_decisions import InMemoryPolicyDecisionRepository, 
 from app.repositories.policy_decisions_postgres import PostgresPolicyDecisionRepository
 from app.settings import Settings, ensure_storage_fallback_allowed, get_settings
 from app.services.planner import PlannerService
+from app.services.memory_runtime import MemoryRuntimeService, build_memory_runtime
 from app.services.policy import ApprovalRequiredError, PolicyDecisionService, PolicyDeniedError
 from app.services.task_contracts import TaskContractService, build_task_contract_service
 from app.services.tool_execution import ToolExecutionService
@@ -131,6 +132,7 @@ class RewriteOrchestrator:
         policy: PolicyDecisionService | None = None,
         task_contracts: TaskContractService | None = None,
         planner: PlannerService | None = None,
+        memory_runtime: MemoryRuntimeService | None = None,
         tool_execution: ToolExecutionService | None = None,
     ) -> None:
         self._artifacts = artifacts or InMemoryArtifactRepository()
@@ -142,6 +144,7 @@ class RewriteOrchestrator:
         self._policy = policy or PolicyDecisionService()
         self._task_contracts = task_contracts
         self._planner = planner
+        self._memory_runtime = memory_runtime
         self._tool_execution = tool_execution or ToolExecutionService(artifacts=self._artifacts)
 
     def _required_skill_tags(self, row: HumanTask) -> tuple[str, ...]:
@@ -529,7 +532,7 @@ class RewriteOrchestrator:
             retry_backoff_seconds=0,
             depends_on=("step_input_prepare",),
             input_keys=("normalized_text", "text_length"),
-            output_keys=("allow", "requires_approval", "reason", "retention_policy"),
+            output_keys=("allow", "requires_approval", "reason", "retention_policy", "memory_write_allowed"),
         )
         step = PlanStepSpec(
             step_key="step_artifact_save",
@@ -878,6 +881,7 @@ class RewriteOrchestrator:
                 "requires_approval": decision.requires_approval,
                 "reason": decision.reason,
                 "retention_policy": decision.retention_policy,
+                "memory_write_allowed": decision.memory_write_allowed,
             },
         )
         output_json = {
@@ -895,6 +899,7 @@ class RewriteOrchestrator:
             "requires_approval": decision.requires_approval,
             "reason": decision.reason,
             "retention_policy": decision.retention_policy,
+            "memory_write_allowed": decision.memory_write_allowed,
         }
         output_json = self._validate_step_output_contract(rewrite_step, output_json)
         self._ledger.update_step(
@@ -1125,9 +1130,92 @@ class RewriteOrchestrator:
         if plan_step_key == "step_human_review" or rewrite_step.step_kind == "human_task":
             self._start_human_task_step(session_id, rewrite_step)
             return None
+        if plan_step_key == "step_memory_candidate_stage" or rewrite_step.step_kind == "memory_write":
+            self._complete_memory_candidate_step(session_id, rewrite_step)
+            return None
         if rewrite_step.step_kind == "tool_call":
             return self._complete_tool_step(session_id, rewrite_step)
         raise RuntimeError(f"unsupported_step_handler:{plan_step_key or rewrite_step.step_kind}")
+
+    def _complete_memory_candidate_step(self, session_id: str, rewrite_step: ExecutionStep) -> None:
+        session = self._ledger.get_session(session_id)
+        if session is None:
+            raise RuntimeError(f"session missing for memory step: {session_id}")
+        if self._memory_runtime is None:
+            raise RuntimeError("memory_runtime_unavailable")
+        input_json = self._merged_step_input_json(session_id, rewrite_step)
+        desired_output_json = dict((rewrite_step.input_json or {}).get("desired_output_json") or {})
+        category = str(desired_output_json.get("category") or session.intent.deliverable_type or "artifact_fact").strip()
+        sensitivity = str(desired_output_json.get("sensitivity") or "internal").strip() or "internal"
+        confidence_value = desired_output_json.get("confidence")
+        try:
+            confidence = float(confidence_value if confidence_value is not None else 0.5)
+        except (TypeError, ValueError):
+            confidence = 0.5
+        confidence = min(max(confidence, 0.0), 1.0)
+        memory_write_allowed = bool(input_json.get("memory_write_allowed", session.intent.memory_write_policy != "none"))
+        artifact_id = str(input_json.get("artifact_id") or "").strip()
+        normalized_text = str(input_json.get("normalized_text") or input_json.get("source_text") or "").strip()
+        if not memory_write_allowed or session.intent.memory_write_policy == "none":
+            output_json = self._validate_step_output_contract(
+                rewrite_step,
+                {
+                    "candidate_id": "",
+                    "candidate_status": "skipped",
+                    "candidate_category": category,
+                },
+            )
+            self._ledger.update_step(
+                rewrite_step.step_id,
+                state="completed",
+                output_json=output_json,
+                error_json={},
+            )
+            self._ledger.append_event(
+                session_id,
+                "memory_candidate_skipped",
+                {"step_id": rewrite_step.step_id, "candidate_category": category},
+            )
+            return
+        summary = normalized_text[:4000]
+        candidate = self._memory_runtime.stage_candidate(
+            principal_id=session.intent.principal_id,
+            category=category,
+            summary=summary,
+            fact_json={
+                "artifact_id": artifact_id,
+                "deliverable_type": session.intent.deliverable_type,
+                "task_key": session.intent.task_type,
+                "normalized_text": normalized_text,
+            },
+            source_session_id=session_id,
+            source_step_id=rewrite_step.step_id,
+            confidence=confidence,
+            sensitivity=sensitivity,
+        )
+        output_json = self._validate_step_output_contract(
+            rewrite_step,
+            {
+                "candidate_id": candidate.candidate_id,
+                "candidate_status": candidate.status,
+                "candidate_category": candidate.category,
+            },
+        )
+        self._ledger.update_step(
+            rewrite_step.step_id,
+            state="completed",
+            output_json=output_json,
+            error_json={},
+        )
+        self._ledger.append_event(
+            session_id,
+            "memory_candidate_staged",
+            {
+                "step_id": rewrite_step.step_id,
+                "candidate_id": candidate.candidate_id,
+                "candidate_category": candidate.category,
+            },
+        )
 
     def _step_dependency_keys(self, row: ExecutionStep) -> tuple[str, ...]:
         raw = (row.input_json or {}).get("depends_on") or ()
@@ -1463,7 +1551,7 @@ class RewriteOrchestrator:
                 retry_backoff_seconds=0,
                 depends_on=("step_input_prepare",),
                 input_keys=("normalized_text", "text_length"),
-                output_keys=("allow", "requires_approval", "reason", "retention_policy"),
+                output_keys=("allow", "requires_approval", "reason", "retention_policy", "memory_write_allowed"),
             ),
             PlanStepSpec(
                 step_key="step_artifact_save",
@@ -2366,6 +2454,7 @@ def build_default_orchestrator(
     artifacts: ArtifactRepository | None = None,
     task_contracts: TaskContractService | None = None,
     planner: PlannerService | None = None,
+    memory_runtime: MemoryRuntimeService | None = None,
     tool_execution: ToolExecutionService | None = None,
 ) -> RewriteOrchestrator:
     resolved = settings or get_settings()
@@ -2377,6 +2466,7 @@ def build_default_orchestrator(
     artifact_repo = artifacts or build_artifact_repo(resolved)
     task_contract_service = task_contracts or build_task_contract_service(resolved)
     planner_service = planner or PlannerService(task_contract_service)
+    memory_service = memory_runtime or build_memory_runtime(resolved)
     policy = PolicyDecisionService(
         max_rewrite_chars=resolved.policy.max_rewrite_chars,
         approval_required_chars=resolved.policy.approval_required_chars,
@@ -2391,5 +2481,6 @@ def build_default_orchestrator(
         policy=policy,
         task_contracts=task_contract_service,
         planner=planner_service,
+        memory_runtime=memory_service,
         tool_execution=tool_execution or ToolExecutionService(artifacts=artifact_repo),
     )

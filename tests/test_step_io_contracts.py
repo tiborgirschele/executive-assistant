@@ -75,7 +75,7 @@ def test_merged_step_input_json_rejects_missing_declared_inputs() -> None:
         input_json={
             "plan_step_key": "step_policy_evaluate",
             "input_keys": ["normalized_text", "text_length"],
-            "output_keys": ["allow", "requires_approval", "reason", "retention_policy"],
+            "output_keys": ["allow", "requires_approval", "reason", "retention_policy", "memory_write_allowed"],
         },
     )
 

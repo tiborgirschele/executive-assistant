@@ -262,6 +262,38 @@ def test_task_contract_workflow_templates_are_wired_into_focused_contract_bundle
     assert capability["status"] == "tested"
 
 
+def test_artifact_then_memory_candidate_workflow_template_is_documented_and_guarded() -> None:
+    workflow_test = (ROOT / "tests/test_task_contract_step_templates.py").read_text(encoding="utf-8")
+    smoke_test = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    smoke_script = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "artifact_then_memory_candidate" in workflow_test
+    assert "step_memory_candidate_stage" in workflow_test
+    assert "stakeholder_memory_candidate" in smoke_test
+    assert "step_memory_candidate_stage" in smoke_test
+    assert '"memory_write_allowed",' in smoke_test
+    assert "stakeholder_memory_candidate" in smoke_script
+    assert "step_memory_candidate_stage" in smoke_script
+    assert "memory-candidate workflow template to stage a pending principal-scoped candidate row" in smoke_script
+    assert "artifact_then_memory_candidate" in readme
+    assert "step_input_prepare -> step_policy_evaluate -> step_artifact_save -> step_memory_candidate_stage" in readme
+    assert "artifact_then_memory_candidate" in runbook
+    assert "step_input_prepare -> step_policy_evaluate -> step_artifact_save -> step_memory_candidate_stage" in runbook
+    assert "artifact_then_memory_candidate" in changelog
+    assert "stakeholder_memory_candidate" in http_examples
+    assert "step_memory_candidate_stage" in http_examples
+
+    capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "artifact_then_memory_candidate_workflow_template"
+    )
+    assert capability["status"] == "tested"
+
+
 def test_unknown_workflow_templates_fail_fast_at_planner_and_api_boundaries() -> None:
     workflow_test = (ROOT / "tests/test_task_contract_step_templates.py").read_text(encoding="utf-8")
     planner = (ROOT / "ea/app/services/planner.py").read_text(encoding="utf-8")
