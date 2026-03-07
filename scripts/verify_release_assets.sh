@@ -3161,6 +3161,32 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "workflow_template_registry_validation")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "unknown_workflow_template:<value>" "README.md" && \
+     grep -Fq "unknown_workflow_template:<value>" "RUNBOOK.md" && \
+     grep -Fq "unknown_workflow_template:<value>" "CHANGELOG.md" && \
+     grep -Fq "unknown_workflow_template:not_real" "tests/test_task_contract_step_templates.py" && \
+     grep -Fq "_workflow_template_builders" "ea/app/services/planner.py" && \
+     grep -Fq "except PlanValidationError as exc" "ea/app/api/routes/plans.py" && \
+     grep -Fq "except PlanValidationError as exc" "ea/app/api/routes/rewrite.py"; then
+    echo "ok: workflow template registry validation docs"
+  else
+    echo "missing: workflow template registry validation docs" >&2
+    missing=1
+  fi
+else
+  echo "missing: workflow template registry validation milestone" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
+
 import pytest
 
-from app.domain.models import TaskExecutionRequest
+from app.domain.models import PlanValidationError, TaskExecutionRequest
 from app.repositories.approvals import InMemoryApprovalRepository
 from app.repositories.artifacts import InMemoryArtifactRepository
 from app.repositories.connector_bindings import InMemoryConnectorBindingRepository
@@ -19,6 +21,22 @@ from app.services.policy import ApprovalRequiredError, PolicyDecisionService
 from app.services.task_contracts import TaskContractService
 from app.services.tool_execution import ToolExecutionService
 from app.services.tool_runtime import ToolRuntimeService
+
+
+def _api_client():
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+
+    os.environ["EA_STORAGE_BACKEND"] = "memory"
+    os.environ.pop("EA_LEDGER_BACKEND", None)
+    os.environ["EA_API_TOKEN"] = ""
+    os.environ.pop("DATABASE_URL", None)
+
+    from app.api.app import create_app
+
+    client = TestClient(create_app())
+    client.headers.update({"X-EA-Principal-ID": "exec-1"})
+    return client
 
 
 def _step_keys(plan) -> tuple[str, ...]:
@@ -164,3 +182,57 @@ def test_dispatch_workflow_template_pauses_for_approval_after_artifact_persisten
     pending = channel_runtime.list_pending_delivery(limit=10)
     assert len(pending) == 1
     assert pending[0].recipient == "ops@example.com"
+
+
+def test_planner_rejects_unknown_workflow_template_metadata() -> None:
+    task_contracts = TaskContractService(InMemoryTaskContractRepository())
+    task_contracts.upsert_contract(
+        task_key="invalid_template",
+        deliverable_type="rewrite_note",
+        default_risk_class="low",
+        default_approval_class="none",
+        allowed_tools=("artifact_repository",),
+        evidence_requirements=(),
+        memory_write_policy="reviewed_only",
+        budget_policy_json={"class": "low", "workflow_template": "not_real"},
+    )
+    planner = PlannerService(task_contracts)
+
+    with pytest.raises(PlanValidationError, match="unknown_workflow_template:not_real"):
+        planner.build_plan(
+            task_key="invalid_template",
+            principal_id="exec-1",
+            goal="should fail fast",
+        )
+
+
+def test_api_rejects_unknown_workflow_template_metadata_with_validation_error() -> None:
+    client = _api_client()
+    created = client.post(
+        "/v1/tasks/contracts",
+        json={
+            "task_key": "invalid_template",
+            "deliverable_type": "rewrite_note",
+            "default_risk_class": "low",
+            "default_approval_class": "none",
+            "allowed_tools": ["artifact_repository"],
+            "evidence_requirements": [],
+            "memory_write_policy": "reviewed_only",
+            "budget_policy_json": {"class": "low", "workflow_template": "not_real"},
+        },
+    )
+    assert created.status_code == 200
+
+    compiled = client.post(
+        "/v1/plans/compile",
+        json={"task_key": "invalid_template", "goal": "compile should fail"},
+    )
+    assert compiled.status_code == 422
+    assert compiled.json()["error"]["code"] == "unknown_workflow_template:not_real"
+
+    executed = client.post(
+        "/v1/plans/execute",
+        json={"task_key": "invalid_template", "text": "fail execute", "goal": "execute should fail"},
+    )
+    assert executed.status_code == 422
+    assert executed.json()["error"]["code"] == "unknown_workflow_template:not_real"

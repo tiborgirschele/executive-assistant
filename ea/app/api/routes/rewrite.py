@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.api.dependencies import RequestContext, get_container, get_request_context, resolve_principal_id
 from app.container import AppContainer
-from app.domain.models import RewriteRequest
+from app.domain.models import PlanValidationError, RewriteRequest
 from app.repositories.human_tasks import _parse_assignment_source_filter
 from app.services.orchestrator import HumanTaskRequiredError
 from app.services.policy import ApprovalRequiredError, PolicyDeniedError
@@ -353,6 +353,8 @@ def create_artifact(
                 goal=str(payload.goal or ""),
             )
         )
+    except PlanValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ApprovalRequiredError as exc:
         return JSONResponse(
             status_code=202,

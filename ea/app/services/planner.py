@@ -1,8 +1,17 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 
-from app.domain.models import IntentSpecV3, PlanSpec, PlanStepSpec, TaskContract, now_utc_iso, validate_plan_spec
+from app.domain.models import (
+    IntentSpecV3,
+    PlanSpec,
+    PlanStepSpec,
+    PlanValidationError,
+    TaskContract,
+    now_utc_iso,
+    validate_plan_spec,
+)
 from app.services.task_contracts import TaskContractService
 
 
@@ -37,6 +46,12 @@ def _tool_authority_class(tool_name: str) -> str:
 class PlannerService:
     def __init__(self, task_contracts: TaskContractService) -> None:
         self._task_contracts = task_contracts
+        self._workflow_template_builders: dict[
+            str, Callable[[IntentSpecV3, TaskContract], tuple[PlanStepSpec, ...]]
+        ] = {
+            "rewrite": self._build_rewrite_steps,
+            "artifact_then_dispatch": self._build_artifact_then_dispatch_steps,
+        }
 
     def _require_principal_id(self, principal_id: str) -> str:
         resolved = str(principal_id or "").strip()
@@ -289,6 +304,16 @@ class PlannerService:
         steps.append(self._build_dispatch_step(depends_on=("step_policy_evaluate",)))
         return tuple(steps)
 
+    def _workflow_template_key(self, contract: TaskContract) -> str:
+        return str(contract.budget_policy_json.get("workflow_template") or "rewrite").strip().lower() or "rewrite"
+
+    def _steps_for_contract(self, intent: IntentSpecV3, contract: TaskContract) -> tuple[PlanStepSpec, ...]:
+        workflow_template = self._workflow_template_key(contract)
+        builder = self._workflow_template_builders.get(workflow_template)
+        if builder is None:
+            raise PlanValidationError(f"unknown_workflow_template:{workflow_template}")
+        return builder(intent, contract=contract)
+
     def compile_intent(
         self,
         *,
@@ -321,11 +346,7 @@ class PlannerService:
     ) -> tuple[IntentSpecV3, PlanSpec]:
         contract = self._task_contracts.contract_or_default(task_key)
         intent = self.compile_intent(task_key=task_key, principal_id=principal_id, goal=goal)
-        workflow_template = str(contract.budget_policy_json.get("workflow_template") or "").strip().lower()
-        if workflow_template == "artifact_then_dispatch":
-            steps = self._build_artifact_then_dispatch_steps(intent, contract=contract)
-        else:
-            steps = self._build_rewrite_steps(intent, contract=contract)
+        steps = self._steps_for_contract(intent, contract)
         plan = PlanSpec(
             plan_id=str(uuid.uuid4()),
             task_key=intent.task_type,

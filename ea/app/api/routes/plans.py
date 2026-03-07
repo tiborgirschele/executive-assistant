@@ -7,7 +7,7 @@ from pydantic_core import PydanticCustomError
 
 from app.api.dependencies import RequestContext, get_container, get_request_context, resolve_principal_id
 from app.container import AppContainer
-from app.domain.models import TaskExecutionRequest
+from app.domain.models import PlanValidationError, TaskExecutionRequest
 from app.services.orchestrator import HumanTaskRequiredError
 from app.services.policy import ApprovalRequiredError, PolicyDeniedError
 
@@ -147,11 +147,14 @@ def compile_plan(
     context: RequestContext = Depends(get_request_context),
 ) -> PlanCompileOut:
     principal_id = resolve_principal_id(body.principal_id, context)
-    intent, plan = container.planner.build_plan(
-        task_key=body.task_key,
-        principal_id=principal_id,
-        goal=body.goal,
-    )
+    try:
+        intent, plan = container.planner.build_plan(
+            task_key=body.task_key,
+            principal_id=principal_id,
+            goal=body.goal,
+        )
+    except PlanValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return PlanCompileOut(
         intent=IntentOut(
             principal_id=intent.principal_id,
@@ -229,6 +232,8 @@ def execute_plan(
                 context_refs=tuple(str(value or "").strip() for value in (body.context_refs or []) if str(value or "").strip()),
             )
         )
+    except PlanValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ApprovalRequiredError as exc:
         return JSONResponse(
             status_code=202,

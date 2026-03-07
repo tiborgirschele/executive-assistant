@@ -258,6 +258,30 @@ def test_task_contract_workflow_templates_are_wired_into_focused_contract_bundle
     assert capability["status"] == "tested"
 
 
+def test_unknown_workflow_templates_fail_fast_at_planner_and_api_boundaries() -> None:
+    workflow_test = (ROOT / "tests/test_task_contract_step_templates.py").read_text(encoding="utf-8")
+    planner = (ROOT / "ea/app/services/planner.py").read_text(encoding="utf-8")
+    plans_route = (ROOT / "ea/app/api/routes/plans.py").read_text(encoding="utf-8")
+    rewrite_route = (ROOT / "ea/app/api/routes/rewrite.py").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "unknown_workflow_template:not_real" in workflow_test
+    assert "_workflow_template_builders" in planner
+    assert "unknown_workflow_template:" in planner
+    assert "except PlanValidationError as exc" in plans_route
+    assert "status_code=422" in plans_route
+    assert "except PlanValidationError as exc" in rewrite_route
+    assert "unknown_workflow_template:<value>" in readme
+    assert "unknown_workflow_template:<value>" in runbook
+    assert "unknown_workflow_template:<value>" in changelog
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "workflow_template_registry_validation")
+    assert capability["status"] == "tested"
+
+
 def test_principal_fallback_contracts_are_wired_into_focused_contract_bundle() -> None:
     script = (ROOT / "scripts/test_postgres_contracts.sh").read_text(encoding="utf-8")
     fallback_test = (ROOT / "tests/test_principal_fallback_contracts.py").read_text(encoding="utf-8")
