@@ -1,22 +1,65 @@
 # LTDs
 
-Workspace-scoped inventory of discovered lifetime services with API keys or account-backed access.
+Consolidated inventory of your lifetime services/products, including product tier/plan, ownership status, redemption deadlines, and local workspace integration posture.
 
-## Tier Guide
+Updated: 2026-03-07
+
+## Workspace Integration Tier Guide
 
 - `Tier 1`: actively wired into the local workspace/runtime and ready for operational use
-- `Tier 2`: account or key exists, but local runtime wiring is partial or parked
-- `Tier 3`: known service/account placeholder with no active local integration yet
+- `Tier 2`: owned and partially wired, referenced, or intentionally parked in the local workspace
+- `Tier 3`: owned and tracked, but no active local workspace integration yet
 
-## Inventory
+## Non-AppSumo / Other LTDs
 
-| Service | Tier | Access Model | Local Integration | Description |
-|---|---|---|---|---|
-| `1min.AI` | `Tier 1` | API key | Local `.env` key rotation slots: `ONEMIN_AI_API_KEY` and `ONEMIN_AI_API_KEY_FALLBACK_1` | Lifetime AI service access for model/API usage. The workspace now reserves a primary slot and a protected fallback key slot in the gitignored `.env`, plus `scripts/resolve_onemin_ai_key.sh` for local key-resolution order. |
+| Service | Plan / Tier | Holding | Status | Redeem By | Workspace Integration Tier | Local Integration | Notes |
+|---|---|---|---|---|---|---|---|
+| `1min.AI` | `Advanced Business Plan` | `2 licenses / 2 accounts` | `Owned` |  | `Tier 1` | Local `.env` key rotation slots plus `scripts/resolve_onemin_ai_key.sh` | Primary and fallback API-key flow is wired locally and kept out of git. |
+| `Prompting Systems` | `Gold Plan` | `1 account` | `Owned` |  | `Tier 3` | None | Tracked LTD only; no local runtime integration yet. |
+| `ChatPlayground AI` | `Unlimited Plan` | `1 account` | `Owned` |  | `Tier 3` | None | Tracked LTD only; no local runtime integration yet. |
+| `AI Magicx` | `Rune Plan` | `1 account` | `Owned` |  | `Tier 3` | None | Tracked LTD only; no local runtime integration yet. |
+| `FastestVPN PRO` | `15 Devices` | `1 subscription/account` | `Owned` |  | `Tier 3` | None | Infrastructure/privacy utility, not currently wired into this repo. |
+| `OneAir` | `Elite` | `1 account` | `Owned` |  | `Tier 3` | None | Travel utility only; no local runtime integration yet. |
+| `Headway` | `Premium` | `1 account` | `Owned` |  | `Tier 3` | None | Knowledge/content utility only; no local runtime integration yet. |
+| `Internxt Cloud Storage` | `100TB` | `1 account` | `Owned` |  | `Tier 3` | None | Storage service not currently wired into the workspace. |
+
+## AppSumo LTDs
+
+| Service | Plan / Tier | Holding | Status | Redeem By | Workspace Integration Tier | Local Integration | Notes |
+|---|---|---|---|---|---|---|---|
+| `ApiX-Drive` | `Plus exclusive / License Tier 3` | `1 license` | `Activated` |  | `Tier 3` | None | Tracked LTD only; no local runtime integration yet. |
+| `ApproveThis` | `License Tier 3` | `1 license` | `Activated` |  | `Tier 3` | None | Tracked LTD only; no local runtime integration yet. |
+| `AvoMap` | `10x code-based` | `10 codes` | `9 redeemed / 1 pending` | `2026-05-02` | `Tier 3` | None | One remaining code must be redeemed by May 2, 2026. |
+| `BrowserAct` | `Tier unspecified` | `1 product` | `Unknown` |  | `Tier 3` | None | Tier, activation status, and purchase date still unclear. |
+| `Documentation.AI` | `License Tier 3` | `1 license` | `Activated` |  | `Tier 3` | None | Tracked LTD only; no local runtime integration yet. |
+| `Invoiless` | `1x code-based` | `1 code` | `Pending redemption` | `2026-04-29` | `Tier 3` | None | Redeem by April 29, 2026. |
+| `MarkupGo` | `7x code-based` | `7 codes` | `Pending redemption` | `2026-04-28` | `Tier 3` | None | Redeem by April 28, 2026. |
+| `MetaSurvey` | `Plus exclusive / 3x code-based` | `3 codes` | `Pending redemption` | `2026-04-29` | `Tier 3` | None | Redeem by April 29, 2026. |
+| `Paperguide` | `License Tier 4` | `1 license` | `Activated` |  | `Tier 3` | None | Tracked LTD only; no local runtime integration yet. |
+| `PeekShot` | `3x code-based` | `3 codes` | `Pending redemption` | `2026-04-30` | `Tier 3` | None | Redeem by April 30, 2026. |
+| `Teable` | `License Tier 4` | `1 license` | `Activated` |  | `Tier 2` | Referenced historically as a possible projection surface, not active runtime storage | Keep out of the hot-path runtime database role; use only as a curated projection if revived. |
+| `Vizologi` | `Plus exclusive / 4x code-based` | `4 codes` | `Pending redemption` | `2026-04-30` | `Tier 3` | None | Redeem by April 30, 2026. |
+
+## Summary
+
+- `20` total LTD products tracked
+- Multiple-code holdings: `AvoMap`, `MarkupGo`, `MetaSurvey`, `PeekShot`, `Vizologi`
+- Multiple-account holding: `1min.AI` (`2 licenses / 2 accounts`)
+
+## Attention Items
+
+| Service | Action Needed | Deadline |
+|---|---|---|
+| `MarkupGo` | Redeem pending codes | `2026-04-28` |
+| `Invoiless` | Redeem pending code | `2026-04-29` |
+| `MetaSurvey` | Redeem pending codes | `2026-04-29` |
+| `PeekShot` | Redeem pending codes | `2026-04-30` |
+| `Vizologi` | Redeem pending codes | `2026-04-30` |
+| `AvoMap` | Redeem 1 remaining code | `2026-05-02` |
+| `BrowserAct` | Confirm tier and activation details |  |
 
 ## Notes
 
-- This file reflects LTDs discoverable from the current workspace and local repo configuration.
-- The Codex session skill list is not used as the LTD source of truth; skills are local agent capabilities, while this file tracks external services/accounts with keys or logins.
-- No additional AI-service LTDs are listed until they are concretely discoverable from local config, tracked docs, or local-only secret wiring.
-- Secrets are intentionally omitted here; only the service inventory and local integration contract are documented.
+- The Codex session skill list is not the LTD source of truth; skills are local agent capabilities, while this file tracks your external services/accounts.
+- Product/deal tier (`License Tier 3`, `Gold Plan`, `Elite`, etc.) is separate from the workspace integration tier used to describe local wiring posture.
+- Secrets are intentionally omitted here; only inventory, status, deadlines, and local integration contracts are documented.

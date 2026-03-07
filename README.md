@@ -6,7 +6,7 @@ This repository is a durable executive-assistant runtime kernel with principal-s
 
 Lifetime services with API keys or account-backed access that are concretely discoverable from this workspace are tracked in [LTDs.md](/docker/EA/LTDs.md).
 
-### Tier Guide
+### Workspace Integration Tier Guide
 
 - `Tier 1`: actively wired into the local workspace/runtime and ready for operational use
 - `Tier 2`: account or key exists, but local runtime wiring is partial or parked
@@ -14,9 +14,17 @@ Lifetime services with API keys or account-backed access that are concretely dis
 
 ### Current List
 
-| Service | Tier | Access Model | Local Integration | Description |
-|---|---|---|---|---|
-| `1min.AI` | `Tier 1` | API key | Local `.env` key rotation slots: `ONEMIN_AI_API_KEY` and `ONEMIN_AI_API_KEY_FALLBACK_1` | Lifetime AI service access for model/API usage. The workspace reserves a primary slot and protected fallback rotation slot in the gitignored `.env`, plus `scripts/resolve_onemin_ai_key.sh` for local key-resolution order. |
+- Non-AppSumo / other LTDs:
+  `1min.AI` (`Advanced Business Plan`, `2 licenses / 2 accounts`, workspace `Tier 1`), `Prompting Systems` (`Gold Plan`), `ChatPlayground AI` (`Unlimited Plan`), `AI Magicx` (`Rune Plan`), `FastestVPN PRO` (`15 Devices`), `OneAir` (`Elite`), `Headway` (`Premium`), `Internxt Cloud Storage` (`100TB`)
+- AppSumo LTDs:
+  `ApiX-Drive` (`Plus exclusive / License Tier 3`), `ApproveThis` (`License Tier 3`), `AvoMap` (`10x code-based`, `9 redeemed / 1 pending`, redeem by `2026-05-02`), `BrowserAct` (`tier unspecified`), `Documentation.AI` (`License Tier 3`), `Invoiless` (`1x code-based`, redeem by `2026-04-29`), `MarkupGo` (`7x code-based`, redeem by `2026-04-28`), `MetaSurvey` (`Plus exclusive / 3x code-based`, redeem by `2026-04-29`), `Paperguide` (`License Tier 4`), `PeekShot` (`3x code-based`, redeem by `2026-04-30`), `Teable` (`License Tier 4`, workspace `Tier 2`), `Vizologi` (`Plus exclusive / 4x code-based`, redeem by `2026-04-30`)
+
+### Summary
+
+- `20` LTD products tracked
+- Immediate attention items:
+  `MarkupGo` (`2026-04-28`), `Invoiless` (`2026-04-29`), `MetaSurvey` (`2026-04-29`), `PeekShot` (`2026-04-30`), `Vizologi` (`2026-04-30`), `AvoMap` (`2026-05-02`), plus unresolved `BrowserAct` tier/activation details
+- Full status, holdings, and local integration notes live in [LTDs.md](/docker/EA/LTDs.md)
 
 The Codex session skill list is separate from this LTD inventory: skills are local agent capabilities, while LTDs are your external services/accounts.
 
