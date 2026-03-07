@@ -29,8 +29,46 @@ from app.services.tool_execution import ToolExecutionService
 from app.services.tool_runtime import ToolRuntimeService
 
 
+class _RecordingLedger(InMemoryExecutionLedgerRepository):
+    def __init__(self) -> None:
+        super().__init__()
+        self.status_updates: list[str] = []
+        self.completion_updates: list[str] = []
+
+    def set_session_status(self, session_id: str, status: str):
+        self.status_updates.append(str(status))
+        return super().set_session_status(session_id, status)
+
+    def complete_session(self, session_id: str, status: str = "completed"):
+        self.completion_updates.append(str(status))
+        return super().complete_session(session_id, status=status)
+
+
 def _build_retry_orchestrator(handler):
     ledger = InMemoryExecutionLedgerRepository()
+    tool_runtime = ToolRuntimeService(
+        tool_registry=InMemoryToolRegistryRepository(),
+        connector_bindings=InMemoryConnectorBindingRepository(),
+    )
+    tool_runtime.upsert_tool(
+        tool_name="flaky_tool",
+        version="v1",
+        input_schema_json={"type": "object"},
+        output_schema_json={"type": "object"},
+        policy_json={"builtin": False},
+        approval_default="none",
+        enabled=True,
+    )
+    tool_execution = ToolExecutionService(tool_runtime=tool_runtime)
+    tool_execution.register_handler("flaky_tool", handler)
+    orchestrator = RewriteOrchestrator(
+        ledger=ledger,
+        tool_execution=tool_execution,
+    )
+    return orchestrator, ledger
+
+
+def _build_retry_orchestrator_with_ledger(handler, ledger):
     tool_runtime = ToolRuntimeService(
         tool_registry=InMemoryToolRegistryRepository(),
         connector_bindings=InMemoryConnectorBindingRepository(),
@@ -145,6 +183,29 @@ def test_retry_failure_strategy_requeues_a_failed_step_until_it_succeeds() -> No
     assert len(receipts) == 1
     assert receipts[0].tool_name == "flaky_tool"
     assert calls["count"] == 2
+
+
+def test_retry_scheduling_uses_explicit_session_status_transition_api() -> None:
+    def handler(request, definition):
+        raise RuntimeError("temporary_failure")
+
+    ledger = _RecordingLedger()
+    orchestrator, _ = _build_retry_orchestrator_with_ledger(handler, ledger)
+    session, step, queue_item = _start_retry_step(
+        orchestrator,
+        ledger,
+        max_attempts=2,
+        retry_backoff_seconds=0,
+    )
+
+    assert orchestrator.run_queue_item(queue_item.queue_id, lease_owner="worker") is None
+
+    assert ledger.get_session(session.session_id).status == "queued"
+    assert ledger.status_updates == ["running", "queued"]
+    assert ledger.completion_updates == []
+    queued_step = ledger.get_step(step.step_id)
+    assert queued_step is not None
+    assert queued_step.state == "queued"
 
 
 def test_retry_failure_strategy_exhausts_into_terminal_session_failure() -> None:

@@ -310,7 +310,7 @@ class PostgresExecutionLedgerRepository:
             updated_at=ts,
         )
 
-    def complete_session(self, session_id: str, status: str = "completed") -> ExecutionSession | None:
+    def set_session_status(self, session_id: str, status: str) -> ExecutionSession | None:
         sid = str(session_id or "")
         if not sid:
             return None
@@ -323,12 +323,15 @@ class PostgresExecutionLedgerRepository:
                     WHERE session_id = %s
                     RETURNING session_id, intent_json, status, created_at, updated_at
                     """,
-                    (str(status or "completed"), now_utc_iso(), sid),
+                    (str(status or "running"), now_utc_iso(), sid),
                 )
                 row = cur.fetchone()
         if not row:
             return None
         return self._session_from_db_row(row)
+
+    def complete_session(self, session_id: str, status: str = "completed") -> ExecutionSession | None:
+        return self.set_session_status(session_id, str(status or "completed") or "completed")
 
     def append_event(self, session_id: str, name: str, payload: dict[str, object] | None = None) -> ExecutionEvent:
         sid = str(session_id or "")

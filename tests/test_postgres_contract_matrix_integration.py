@@ -428,10 +428,10 @@ def test_postgres_queue_leasing_skips_paused_sessions_even_with_ready_items() ->
     queued = ledger.queue_for_session(session.session_id)
     assert [row.step_id for row in queued] == [branch_a.step_id, branch_b.step_id]
 
-    ledger.complete_session(session.session_id, status="awaiting_approval")
+    ledger.set_session_status(session.session_id, "awaiting_approval")
     assert ledger.lease_queue_item(queued[0].queue_id, lease_owner="worker") is None
 
-    ledger.complete_session(session.session_id, status="running")
+    ledger.set_session_status(session.session_id, "running")
     leased = ledger.lease_queue_item(queued[0].queue_id, lease_owner="worker")
     assert leased is not None
     assert leased.step_id == branch_a.step_id

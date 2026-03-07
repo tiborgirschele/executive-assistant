@@ -683,7 +683,7 @@ class RewriteOrchestrator:
             },
             attempt_count=queue_item.attempt_count,
         )
-        self._ledger.complete_session(queue_item.session_id, status="queued")
+        self._ledger.set_session_status(queue_item.session_id, "queued")
         self._ledger.append_event(
             queue_item.session_id,
             "step_retry_scheduled",
@@ -936,7 +936,7 @@ class RewriteOrchestrator:
                     output_json=target_step.output_json,
                     error_json={"reason": decision.reason},
                 )
-            self._ledger.complete_session(session_id, status="blocked")
+            self._ledger.set_session_status(session_id, "blocked")
             self._ledger.append_event(
                 session_id,
                 "session_blocked",
@@ -967,7 +967,7 @@ class RewriteOrchestrator:
                 output_json=target_step.output_json,
                 error_json={"reason": "approval_required", "approval_id": approval_request.approval_id},
             )
-            self._ledger.complete_session(session_id, status="awaiting_approval")
+            self._ledger.set_session_status(session_id, "awaiting_approval")
             self._ledger.append_event(
                 session_id,
                 "session_paused_for_approval",
@@ -1401,7 +1401,7 @@ class RewriteOrchestrator:
         if step is None:
             self._ledger.fail_queue_item(queue_item.queue_id, last_error="step_not_found")
             raise RuntimeError(f"queued step missing: {queue_item.step_id}")
-        self._ledger.complete_session(queue_item.session_id, status="running")
+        self._ledger.set_session_status(queue_item.session_id, "running")
         running_step = self._ledger.update_step(
             step.step_id,
             state="running",
@@ -1433,7 +1433,7 @@ class RewriteOrchestrator:
                 error_json={"reason": "execution_failed", "detail": str(exc)},
                 attempt_count=queue_item.attempt_count,
             )
-            self._ledger.complete_session(queue_item.session_id, status="failed")
+            self._ledger.set_session_status(queue_item.session_id, "failed")
             self._ledger.append_event(
                 queue_item.session_id,
                 "session_failed",
@@ -1821,7 +1821,7 @@ class RewriteOrchestrator:
                 error_json={"reason": "human_task_required", "human_task_id": row.human_task_id},
                 attempt_count=step.attempt_count,
             )
-            self._ledger.complete_session(session.session_id, status="awaiting_human")
+            self._ledger.set_session_status(session.session_id, "awaiting_human")
             self._ledger.append_event(
                 session.session_id,
                 "session_paused_for_human_task",
@@ -2218,7 +2218,7 @@ class RewriteOrchestrator:
                     error_json={},
                     attempt_count=step.attempt_count,
                 )
-                self._ledger.complete_session(updated.session_id, status="running")
+                self._ledger.set_session_status(updated.session_id, "running")
                 self._ledger.append_event(
                     updated.session_id,
                     "session_resumed_from_human_task",
@@ -2357,7 +2357,7 @@ class RewriteOrchestrator:
                 output_json={"approval_id": request.approval_id, "decision": "approved"},
                 error_json={},
             )
-            self._ledger.complete_session(request.session_id, status="running")
+            self._ledger.set_session_status(request.session_id, "running")
             self._ledger.append_event(
                 request.session_id,
                 "session_resumed_from_approval",
@@ -2386,7 +2386,7 @@ class RewriteOrchestrator:
                 state="blocked",
                 error_json={"approval_id": request.approval_id, "decision": decision_row.decision},
             )
-            self._ledger.complete_session(request.session_id, status="blocked")
+            self._ledger.set_session_status(request.session_id, "blocked")
             self._ledger.append_event(
                 request.session_id,
                 "session_blocked",

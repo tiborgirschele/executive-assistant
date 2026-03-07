@@ -3521,6 +3521,33 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "session_status_transition_api")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "test_retry_scheduling_uses_explicit_session_status_transition_api" "tests/test_queue_retry_contracts.py" && \
+     grep -Fq "_RecordingLedger" "tests/test_queue_retry_contracts.py" && \
+     grep -Fq "set_session_status" "ea/app/repositories/ledger.py" && \
+     grep -Fq "set_session_status" "ea/app/repositories/ledger_postgres.py" && \
+     grep -Fq "_ledger.set_session_status(" "ea/app/services/orchestrator.py" && \
+     grep -Fq "set_session_status(...)" "README.md" && \
+     grep -Fq "set_session_status(...)" "RUNBOOK.md" && \
+     grep -Fq "set_session_status(...)" "CHANGELOG.md"; then
+    echo "ok: session-status transition api docs and contract coverage"
+  else
+    echo "missing: session-status transition api docs or contract coverage" >&2
+    missing=1
+  fi
+else
+  echo "missing: session-status transition api milestone" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1

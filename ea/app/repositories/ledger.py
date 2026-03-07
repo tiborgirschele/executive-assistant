@@ -18,6 +18,9 @@ from app.domain.models import (
 
 
 class ExecutionLedgerRepository(Protocol):
+    def set_session_status(self, session_id: str, status: str) -> ExecutionSession | None:
+        ...
+
     def start_session(self, intent: IntentSpecV3) -> ExecutionSession:
         ...
 
@@ -171,13 +174,16 @@ class InMemoryExecutionLedgerRepository:
         self._cost_order[session.session_id] = []
         return session
 
-    def complete_session(self, session_id: str, status: str = "completed") -> ExecutionSession | None:
+    def set_session_status(self, session_id: str, status: str) -> ExecutionSession | None:
         session = self._sessions.get(str(session_id or ""))
         if not session:
             return None
-        updated = replace(session, status=str(status or "completed"), updated_at=now_utc_iso())
+        updated = replace(session, status=str(status or session.status or "running"), updated_at=now_utc_iso())
         self._sessions[updated.session_id] = updated
         return updated
+
+    def complete_session(self, session_id: str, status: str = "completed") -> ExecutionSession | None:
+        return self.set_session_status(session_id, str(status or "completed") or "completed")
 
     def append_event(self, session_id: str, name: str, payload: dict[str, object] | None = None) -> ExecutionEvent:
         sid = str(session_id or "")

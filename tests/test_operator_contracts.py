@@ -401,6 +401,34 @@ def test_skill_catalog_layer_is_documented_and_guarded() -> None:
     assert capability["status"] == "tested"
 
 
+def test_session_status_transition_api_is_documented_and_guarded() -> None:
+    queue_retry_test = (ROOT / "tests/test_queue_retry_contracts.py").read_text(encoding="utf-8")
+    postgres_contract_test = (ROOT / "tests/test_postgres_contract_matrix_integration.py").read_text(encoding="utf-8")
+    ledger_repo = (ROOT / "ea/app/repositories/ledger.py").read_text(encoding="utf-8")
+    ledger_postgres = (ROOT / "ea/app/repositories/ledger_postgres.py").read_text(encoding="utf-8")
+    orchestrator = (ROOT / "ea/app/services/orchestrator.py").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "set_session_status" in queue_retry_test
+    assert "_RecordingLedger" in queue_retry_test
+    assert 'ledger.status_updates == ["running", "queued"]' in queue_retry_test
+    assert 'ledger.completion_updates == []' in queue_retry_test
+    assert 'ledger.set_session_status(session.session_id, "awaiting_approval")' in postgres_contract_test
+    assert "def set_session_status(" in ledger_repo
+    assert "def set_session_status(" in ledger_postgres
+    assert "_ledger.set_session_status(" in orchestrator
+    assert 'complete_session(queue_item.session_id, status="queued")' not in orchestrator
+    assert "set_session_status(...)" in readme
+    assert "set_session_status(...)" in runbook
+    assert "set_session_status(...)" in changelog
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "session_status_transition_api")
+    assert capability["status"] == "tested"
+
+
 def test_dispatch_then_memory_candidate_workflow_template_is_documented_and_guarded() -> None:
     workflow_test = (ROOT / "tests/test_task_contract_step_templates.py").read_text(encoding="utf-8")
     smoke_test = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
