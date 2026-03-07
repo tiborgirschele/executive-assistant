@@ -379,6 +379,9 @@ def test_policy_evaluate_external_send_requires_approval() -> None:
     assert body["tool_name"] == "connector.dispatch"
     assert body["action_kind"] == "delivery.send"
     assert body["channel"] == "email"
+    assert body["step_kind"] == "connector_call"
+    assert body["authority_class"] == "execute"
+    assert body["review_class"] == "manager"
     assert body["allowed_tools"] == ["connector.dispatch"]
 
 

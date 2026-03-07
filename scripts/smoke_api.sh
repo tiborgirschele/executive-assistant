@@ -1141,9 +1141,9 @@ echo "approval resume path ok"
 echo "== smoke: external-send policy path =="
 POLICY_EVAL_JSON="$(curl -fsS -X POST "${BASE}/v1/policy/evaluate" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
   -d '{"content":"Send the board update to the distribution list.","tool_name":"connector.dispatch","action_kind":"delivery.send","channel":"email"}')"
-POLICY_EVAL_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}|{}".format(body.get("allow", False), body.get("requires_approval", False), body.get("reason", "")))' <<<"${POLICY_EVAL_JSON}")"
-if [[ "${POLICY_EVAL_FIELDS}" != "True|True|allowed" ]]; then
-  echo "expected policy evaluate response True|True|allowed; got ${POLICY_EVAL_FIELDS}" >&2
+POLICY_EVAL_FIELDS="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print("{}|{}|{}|{}|{}|{}".format(body.get("allow", False), body.get("requires_approval", False), body.get("reason", ""), body.get("step_kind", ""), body.get("authority_class", ""), body.get("review_class", "")))' <<<"${POLICY_EVAL_JSON}")"
+if [[ "${POLICY_EVAL_FIELDS}" != "True|True|allowed|connector_call|execute|manager" ]]; then
+  echo "expected policy evaluate response True|True|allowed|connector_call|execute|manager; got ${POLICY_EVAL_FIELDS}" >&2
   echo "${POLICY_EVAL_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi

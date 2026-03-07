@@ -59,6 +59,9 @@ class PolicyEvaluateIn(BaseModel):
     tool_name: str = Field(default="connector.dispatch", min_length=1, max_length=200)
     action_kind: str = Field(default="delivery.send", min_length=1, max_length=200)
     channel: str = Field(default="email", max_length=100)
+    step_kind: str = Field(default="connector_call", max_length=100)
+    authority_class: str = Field(default="execute", max_length=100)
+    review_class: str = Field(default="manager", max_length=100)
     principal_id: str = Field(default="local-user", min_length=1, max_length=200)
     goal: str = Field(default="evaluate outbound action policy", max_length=2000)
     task_type: str = Field(default="external_action", min_length=1, max_length=200)
@@ -80,6 +83,9 @@ class PolicyEvaluateOut(BaseModel):
     tool_name: str
     action_kind: str
     channel: str
+    step_kind: str
+    authority_class: str
+    review_class: str
     allowed_tools: list[str]
 
 
@@ -140,6 +146,9 @@ def evaluate_policy(
     tool_name = str(body.tool_name or "").strip()
     action_kind = str(body.action_kind or "").strip()
     channel = str(body.channel or "").strip()
+    step_kind = str(body.step_kind or "").strip()
+    authority_class = str(body.authority_class or "").strip()
+    review_class = str(body.review_class or "").strip()
     allowed_tools = tuple(str(value or "").strip() for value in body.allowed_tools if str(value or "").strip())
     if not allowed_tools and tool_name:
         allowed_tools = (tool_name,)
@@ -154,12 +163,15 @@ def evaluate_policy(
         allowed_tools=allowed_tools,
         memory_write_policy=str(body.memory_write_policy or "none").strip() or "none",
     )
-    decision = _policy_service(container).evaluate_rewrite(
+    decision = _policy_service(container).evaluate_action(
         intent,
         str(body.content or ""),
         tool_name=tool_name,
         action_kind=action_kind,
         channel=channel,
+        step_kind=step_kind,
+        authority_class=authority_class,
+        review_class=review_class,
     )
     return PolicyEvaluateOut(
         allow=decision.allow,
@@ -171,6 +183,9 @@ def evaluate_policy(
         tool_name=tool_name,
         action_kind=action_kind,
         channel=channel,
+        step_kind=step_kind,
+        authority_class=authority_class,
+        review_class=review_class,
         allowed_tools=list(intent.allowed_tools),
     )
 

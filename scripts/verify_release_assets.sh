@@ -180,8 +180,13 @@ else
 fi
 
 if grep -Fq "/v1/policy/evaluate" "README.md" && \
+   grep -Fq "step_kind" "README.md" && \
    grep -Fq "/v1/policy/evaluate" "RUNBOOK.md" && \
+   grep -Fq "step/authority/review metadata" "RUNBOOK.md" && \
    grep -Fq "/v1/policy/evaluate" "HTTP_EXAMPLES.http" && \
+   grep -Fq '"step_kind": "connector_call"' "HTTP_EXAMPLES.http" && \
+   grep -Fq "connector_call|execute|manager" "scripts/smoke_api.sh" && \
+   grep -Fq "test_policy_requires_approval_for_connector_dispatch_step_even_without_explicit_send_action" "tests/test_policy.py" && \
    grep -Fq "/v1/policy/evaluate" "scripts/smoke_api.sh"; then
   echo "ok: external-action policy evaluation route docs"
 else

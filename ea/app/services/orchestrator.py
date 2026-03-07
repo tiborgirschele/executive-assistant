@@ -844,12 +844,30 @@ class RewriteOrchestrator:
             str(((target_step.input_json if target_step is not None else {}) or {}).get("action_kind") or "").strip()
             or "artifact.save"
         )
+        target_step_kind = (
+            str(((target_step.input_json if target_step is not None else {}) or {}).get("plan_step_kind") or "").strip()
+            or str(target_step.step_kind if target_step is not None else "").strip()
+            or "tool_call"
+        )
+        target_authority_class = (
+            str(((target_step.input_json if target_step is not None else {}) or {}).get("authority_class") or "").strip()
+            or "observe"
+        )
+        target_review_class = (
+            str(((target_step.input_json if target_step is not None else {}) or {}).get("review_class") or "").strip()
+            or "none"
+        )
+        target_channel = str(((target_step.input_json if target_step is not None else {}) or {}).get("channel") or "").strip()
         normalized_text = str(input_json.get("normalized_text") or input_json.get("source_text") or "").strip()
-        decision = self._policy.evaluate_rewrite(
+        decision = self._policy.evaluate_action(
             session.intent,
             normalized_text,
             tool_name=target_tool_name,
             action_kind=target_action_kind,
+            channel=target_channel,
+            step_kind=target_step_kind,
+            authority_class=target_authority_class,
+            review_class=target_review_class,
         )
         self._policy_repo.append(session_id, decision)
         self._ledger.append_event(
@@ -867,6 +885,10 @@ class RewriteOrchestrator:
             "plan_step_key": str((rewrite_step.input_json or {}).get("plan_step_key") or ""),
             "tool_name": target_tool_name,
             "action_kind": target_action_kind,
+            "channel": target_channel,
+            "step_kind": target_step_kind,
+            "authority_class": target_authority_class,
+            "review_class": target_review_class,
             "normalized_text": normalized_text,
             "text_length": int(input_json.get("text_length") or len(normalized_text)),
             "allow": decision.allow,
@@ -925,6 +947,10 @@ class RewriteOrchestrator:
                     "plan_id": str((rewrite_step.input_json or {}).get("plan_id") or ""),
                     "plan_step_key": str((target_step.input_json or {}).get("plan_step_key") or ""),
                     "tool_name": target_tool_name,
+                    "channel": target_channel,
+                    "step_kind": target_step_kind,
+                    "authority_class": target_authority_class,
+                    "review_class": target_review_class,
                 },
             )
             self._ledger.update_step(

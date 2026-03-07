@@ -175,9 +175,10 @@
       "name": "external_action_policy_api_exposure",
       "status": "tested",
       "scope": [
-        "policy_external_action_api_coverage"
+        "policy_external_action_api_coverage",
+        "policy_step_action_metadata_projection"
       ],
-      "notes": "HTTP policy evaluation now exposes external-send approval checks directly, with docs/examples and API coverage backing queue item Q-167."
+      "notes": "HTTP policy evaluation now exposes external-send approval checks directly, echoes the evaluated `step_kind|authority_class|review_class` contract, and matches the queued runtime policy step's action-aware decision path."
     },
     {
       "name": "artifact_lookup_api_exposure",

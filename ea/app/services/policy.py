@@ -20,16 +20,19 @@ class PolicyDecisionService:
         self._max_rewrite_chars = max(1, int(max_rewrite_chars))
         self._approval_required_chars = max(1, int(approval_required_chars))
 
-    def evaluate_rewrite(
+    def evaluate_action(
         self,
         intent: IntentSpecV3,
-        text: str,
+        content: str,
         *,
         tool_name: str = "",
-        action_kind: str = "artifact.save",
+        action_kind: str = "",
         channel: str = "",
+        step_kind: str = "",
+        authority_class: str = "",
+        review_class: str = "",
     ) -> PolicyDecision:
-        normalized = str(text or "")
+        normalized = str(content or "")
         if not normalized.strip():
             return PolicyDecision(
                 allow=False,
@@ -63,8 +66,17 @@ class PolicyDecisionService:
             requires_approval = True
         if str(intent.budget_class or "").strip().lower() in {"high", "critical"}:
             requires_approval = True
+        normalized_step_kind = str(step_kind or "").strip().lower()
+        normalized_authority = str(authority_class or "").strip().lower()
+        normalized_review = str(review_class or "").strip().lower()
         normalized_action = str(action_kind or "").strip().lower()
         normalized_channel = str(channel or "").strip().lower()
+        if normalized_tool == "connector.dispatch":
+            requires_approval = True
+        if normalized_step_kind == "connector_call":
+            requires_approval = True
+        if normalized_authority == "execute" and normalized_tool and normalized_tool != "artifact_repository":
+            requires_approval = True
         if normalized_action in {"delivery.send", "message.send", "connector.dispatch"}:
             requires_approval = True
         if normalized_channel in {"email", "slack", "telegram"} and (
@@ -74,10 +86,32 @@ class PolicyDecisionService:
             or normalized_action.startswith("connector.")
         ):
             requires_approval = True
+        if normalized_review in {"manager", "principal"} and normalized_authority == "execute":
+            requires_approval = True
         return PolicyDecision(
             allow=True,
             requires_approval=requires_approval,
             reason="allowed",
             retention_policy="standard",
             memory_write_allowed=intent.memory_write_policy != "none",
+        )
+
+    def evaluate_rewrite(
+        self,
+        intent: IntentSpecV3,
+        text: str,
+        *,
+        tool_name: str = "",
+        action_kind: str = "artifact.save",
+        channel: str = "",
+    ) -> PolicyDecision:
+        return self.evaluate_action(
+            intent,
+            text,
+            tool_name=tool_name,
+            action_kind=action_kind,
+            channel=channel,
+            step_kind="tool_call" if str(tool_name or "").strip() else "system_task",
+            authority_class="draft",
+            review_class="none",
         )

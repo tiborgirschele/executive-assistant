@@ -90,6 +90,7 @@ def test_postgres_contract_script_help_and_wiring() -> None:
     assert "tests/test_openapi_dependency_examples_contracts.py" in script
     assert "tests/test_plan_scope_contracts.py" in script
     assert "tests/test_planner.py" in script
+    assert "tests/test_policy.py" in script
     assert "tests/test_principal_fallback_contracts.py" in script
     assert "tests/test_queue_retry_contracts.py" in script
     assert "tests/test_rewrite_scope_contracts.py" in script
@@ -520,14 +521,22 @@ def test_policy_docs_and_milestone_cover_external_action_evaluation() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
     http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    policy_tests = (ROOT / "tests/test_policy.py").read_text(encoding="utf-8")
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
 
     assert "/v1/policy/evaluate" in readme
+    assert "step_kind" in readme
     assert "/v1/policy/evaluate" in runbook
+    assert "step/authority/review metadata" in runbook
     assert "/v1/policy/evaluate" in http_examples
+    assert '"step_kind": "connector_call"' in http_examples
+    assert "connector_call|execute|manager" in smoke_api
+    assert "test_policy_requires_approval_for_connector_dispatch_step_even_without_explicit_send_action" in policy_tests
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "external_action_policy_api_exposure")
     assert capability["status"] == "tested"
+    assert "policy_step_action_metadata_projection" in capability["scope"]
 
 
 def test_artifact_lookup_docs_and_milestone_cover_direct_fetch() -> None:

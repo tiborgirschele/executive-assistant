@@ -107,7 +107,10 @@ Content-Type: application/json
   "content": "Send the board update to the distribution list.",
   "tool_name": "connector.dispatch",
   "action_kind": "delivery.send",
-  "channel": "email"
+  "channel": "email",
+  "step_kind": "connector_call",
+  "authority_class": "execute",
+  "review_class": "manager"
 }
 
 ### Approvals -> pending (includes originating task_key and deliverable_type)

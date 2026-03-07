@@ -84,7 +84,7 @@ Removed:
 - delivery outbox supports idempotency keys plus retry/dead-letter state fields
 - `/v1/channels/telegram/ingest` maps raw Telegram updates into normalized observation events
 - `/v1/policy/decisions/recent` exposes persisted policy decision audit records
-- `/v1/policy/evaluate` exposes direct policy checks for tool/action/channel combinations, including external-send approval branches
+- `/v1/policy/evaluate` exposes direct policy checks for tool/action/channel plus step/authority/review metadata, including external-send approval branches
 - `/v1/policy/approvals/*` exposes pending/history plus approve/deny/expire decision endpoints, and those approval projections now carry the originating task identity for non-rewrite async work
 - `/v1/human/tasks*` queue/detail payloads now also carry the originating task identity, so paused non-rewrite async work stays self-describing before completion
 - human task packets append `human_task_created`, `human_task_claimed`, and `human_task_returned` events into the linked session ledger so returned-from-human work is auditable
@@ -188,7 +188,7 @@ Removed:
 - `EA_APPROVAL_THRESHOLD_CHARS` sets rewrite input length requiring approval (default `5000`).
 - `EA_APPROVAL_TTL_MINUTES` sets default approval request expiration window (default `120`).
 - Policy decisions also consider declared tool/action metadata plus task risk and budget classes; disallowed tools fail closed with `policy_denied:tool_not_allowed`.
-- `POST /v1/policy/evaluate` can dry-run external-send approval checks over HTTP without going through rewrite artifact creation.
+- `POST /v1/policy/evaluate` can dry-run external-send approval checks over HTTP without going through rewrite artifact creation, and now echoes the evaluated `step_kind`, `authority_class`, and `review_class` contract.
 - `POST /v1/human/tasks` accepts `resume_session_on_return=true` to pause a linked step for human review and resume it when `/v1/human/tasks/{human_task_id}/return` is called.
 
 ## Quick Start

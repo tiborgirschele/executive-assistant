@@ -116,7 +116,7 @@ Runtime mode:
 Policy notes:
 - Rewrite policy denies empty input, oversized input, and disallowed tool usage.
 - Rewrite policy requires approval for explicit approval classes, long inputs, and high-risk/high-budget or external-send actions.
-- `POST /v1/policy/evaluate` provides a direct HTTP path for previewing external-send approval requirements.
+- `POST /v1/policy/evaluate` provides a direct HTTP path for previewing external-send approval requirements, including the step/authority/review metadata that now drives the queued policy step.
 - Approving a paused rewrite resumes execution immediately on the current scaffold, so the session should move from `awaiting_approval` to `completed` with an artifact, receipt, and run-cost row.
 - Approval-required rewrites now return `202` with `session_id`, `approval_id`, `status=awaiting_approval`, and `next_action=poll_or_subscribe` instead of a `409` error contract.
 - Allowed and approved rewrites now pass through durable `execution_queue` rows first; the current API path drains that queue inline, while non-API runner roles can drain it as workers.
