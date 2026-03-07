@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Callable
 
-from app.domain.models import Artifact, ToolDefinition, ToolInvocationRequest, ToolInvocationResult
+from app.domain.models import Artifact, ToolDefinition, ToolInvocationRequest, ToolInvocationResult, normalize_artifact
 from app.repositories.artifacts import ArtifactRepository, InMemoryArtifactRepository
 from app.repositories.connector_bindings import InMemoryConnectorBindingRepository
 from app.repositories.tool_registry import InMemoryToolRegistryRepository
@@ -133,13 +133,18 @@ class ToolExecutionService:
         artifact_kind = str(payload.get("expected_artifact") or "rewrite_note")
         plan_id = str(payload.get("plan_id") or "")
         plan_step_key = str(payload.get("plan_step_key") or "")
-        artifact = Artifact(
+        artifact = normalize_artifact(Artifact(
             artifact_id=str(uuid.uuid4()),
             kind=artifact_kind,
             content=source_text,
             execution_session_id=request.session_id,
             principal_id=principal_id,
-        )
+            mime_type=str(payload.get("mime_type") or "text/plain") or "text/plain",
+            preview_text=str(payload.get("preview_text") or ""),
+            body_ref=str(payload.get("body_ref") or ""),
+            structured_output_json=dict(payload.get("structured_output_json") or {}),
+            attachments_json=dict(payload.get("attachments_json") or {}),
+        ))
         self._artifacts.save(artifact)
         return ToolInvocationResult(
             tool_name=definition.tool_name,
@@ -149,6 +154,12 @@ class ToolExecutionService:
                 "artifact_id": artifact.artifact_id,
                 "artifact_kind": artifact.kind,
                 "content_length": len(source_text),
+                "mime_type": artifact.mime_type,
+                "preview_text": artifact.preview_text,
+                "storage_handle": artifact.storage_handle,
+                "body_ref": artifact.body_ref,
+                "structured_output_json": dict(artifact.structured_output_json or {}),
+                "attachments_json": dict(artifact.attachments_json or {}),
                 "plan_id": plan_id,
                 "plan_step_key": plan_step_key,
                 "principal_id": artifact.principal_id,
@@ -158,6 +169,8 @@ class ToolExecutionService:
             receipt_json={
                 "artifact_kind": artifact.kind,
                 "content_length": len(source_text),
+                "mime_type": artifact.mime_type,
+                "body_ref": artifact.body_ref,
                 "handler_key": definition.tool_name,
                 "invocation_contract": "tool.v1",
                 "plan_id": plan_id,

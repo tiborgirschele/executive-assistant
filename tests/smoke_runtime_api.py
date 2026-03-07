@@ -134,8 +134,12 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert body["artifacts"][0]["task_key"] == "rewrite_text"
     assert body["artifacts"][0]["deliverable_type"] == "rewrite_note"
     assert body["artifacts"][0]["principal_id"] == "exec-1"
+    assert body["artifacts"][0]["mime_type"] == "text/plain"
     assert body["artifacts"][0]["preview_text"] == "smoke"
     assert body["artifacts"][0]["storage_handle"] == f"artifact://{artifact_id}"
+    assert body["artifacts"][0]["body_ref"].startswith("file://")
+    assert body["artifacts"][0]["structured_output_json"] == {}
+    assert body["artifacts"][0]["attachments_json"] == {}
     assert len(body["run_costs"]) >= 1
     cost_id = body["run_costs"][0]["cost_id"]
 
@@ -145,8 +149,12 @@ def test_rewrite_and_policy_audit_flow() -> None:
     assert fetched_artifact.json()["execution_session_id"] == session_id
     assert fetched_artifact.json()["content"] == "smoke"
     assert fetched_artifact.json()["principal_id"] == "exec-1"
+    assert fetched_artifact.json()["mime_type"] == "text/plain"
     assert fetched_artifact.json()["preview_text"] == "smoke"
     assert fetched_artifact.json()["storage_handle"] == f"artifact://{artifact_id}"
+    assert fetched_artifact.json()["body_ref"].startswith("file://")
+    assert fetched_artifact.json()["structured_output_json"] == {}
+    assert fetched_artifact.json()["attachments_json"] == {}
     assert fetched_artifact.json()["task_key"] == "rewrite_text"
     assert fetched_artifact.json()["deliverable_type"] == "rewrite_note"
 
@@ -2734,8 +2742,12 @@ def test_generic_task_execution_uses_compiled_contract_runtime() -> None:
     assert body["execution_session_id"]
     assert body["deliverable_type"] == "stakeholder_briefing"
     assert body["principal_id"] == "exec-1"
+    assert body["mime_type"] == "text/plain"
     assert body["preview_text"] == "Board context and stakeholder sensitivities."
     assert body["storage_handle"] == f"artifact://{body['artifact_id']}"
+    assert body["body_ref"] == f"artifact://{body['artifact_id']}"
+    assert body["structured_output_json"] == {}
+    assert body["attachments_json"] == {}
 
     session = client.get(f"/v1/rewrite/sessions/{body['execution_session_id']}")
     assert session.status_code == 200
@@ -2746,8 +2758,12 @@ def test_generic_task_execution_uses_compiled_contract_runtime() -> None:
     assert session_body["artifacts"][0]["task_key"] == "stakeholder_briefing"
     assert session_body["artifacts"][0]["deliverable_type"] == "stakeholder_briefing"
     assert session_body["artifacts"][0]["principal_id"] == "exec-1"
+    assert session_body["artifacts"][0]["mime_type"] == "text/plain"
     assert session_body["artifacts"][0]["preview_text"] == "Board context and stakeholder sensitivities."
     assert session_body["artifacts"][0]["storage_handle"] == f"artifact://{body['artifact_id']}"
+    assert session_body["artifacts"][0]["body_ref"].startswith("file://")
+    assert session_body["artifacts"][0]["structured_output_json"] == {}
+    assert session_body["artifacts"][0]["attachments_json"] == {}
     assert session_body["steps"][0]["parent_step_id"] is None
     assert session_body["steps"][1]["parent_step_id"] == session_body["steps"][0]["step_id"]
     assert session_body["steps"][2]["parent_step_id"] == session_body["steps"][1]["step_id"]
@@ -2766,8 +2782,12 @@ def test_generic_task_execution_uses_compiled_contract_runtime() -> None:
     assert fetched_artifact.json()["task_key"] == "stakeholder_briefing"
     assert fetched_artifact.json()["deliverable_type"] == "stakeholder_briefing"
     assert fetched_artifact.json()["principal_id"] == "exec-1"
+    assert fetched_artifact.json()["mime_type"] == "text/plain"
     assert fetched_artifact.json()["preview_text"] == "Board context and stakeholder sensitivities."
     assert fetched_artifact.json()["storage_handle"] == f"artifact://{body['artifact_id']}"
+    assert fetched_artifact.json()["body_ref"].startswith("file://")
+    assert fetched_artifact.json()["structured_output_json"] == {}
+    assert fetched_artifact.json()["attachments_json"] == {}
 
     fetched_receipt = client.get(f"/v1/rewrite/receipts/{session_body['receipts'][0]['receipt_id']}")
     assert fetched_receipt.status_code == 200

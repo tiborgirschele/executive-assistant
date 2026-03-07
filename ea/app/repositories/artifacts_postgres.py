@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from app.domain.models import Artifact, now_utc_iso
+from app.domain.models import Artifact, normalize_artifact, now_utc_iso
 
 
 def _file_uri(path: Path) -> str:
@@ -103,8 +103,9 @@ class PostgresArtifactRepository:
         return self._artifacts_dir / f"{artifact_id}.txt"
 
     def save(self, artifact: Artifact) -> None:
-        path = self._path_for(artifact.artifact_id)
-        path.write_text(artifact.content, encoding="utf-8")
+        normalized = normalize_artifact(artifact)
+        path = self._path_for(normalized.artifact_id)
+        path.write_text(normalized.content, encoding="utf-8")
         stamp = now_utc_iso()
         with self._connect() as conn:
             with conn.cursor() as cur:
@@ -123,18 +124,23 @@ class PostgresArtifactRepository:
                         updated_at = EXCLUDED.updated_at
                     """,
                     (
-                        artifact.artifact_id,
+                        normalized.artifact_id,
                         self._tenant_id,
-                        artifact.execution_session_id,
-                        artifact.principal_id,
-                        artifact.kind,
-                        "text/plain",
+                        normalized.execution_session_id,
+                        normalized.principal_id,
+                        normalized.kind,
+                        normalized.mime_type,
                         _file_uri(path),
                         self._json_value(
                             {
-                                "execution_session_id": artifact.execution_session_id,
-                                "principal_id": artifact.principal_id,
-                                "artifact_kind": artifact.kind,
+                                "execution_session_id": normalized.execution_session_id,
+                                "principal_id": normalized.principal_id,
+                                "artifact_kind": normalized.kind,
+                                "preview_text": normalized.preview_text,
+                                "storage_handle": normalized.storage_handle,
+                                "body_ref": _file_uri(path),
+                                "structured_output_json": dict(normalized.structured_output_json or {}),
+                                "attachments_json": dict(normalized.attachments_json or {}),
                             }
                         ),
                         stamp,
@@ -150,7 +156,7 @@ class PostgresArtifactRepository:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT artifact_id, session_id, principal_id, artifact_type, storage_uri
+                    SELECT artifact_id, session_id, principal_id, artifact_type, mime_type, storage_uri, metadata_json
                     FROM artifacts
                     WHERE artifact_id = %s AND tenant_id = %s
                     """,
@@ -159,18 +165,25 @@ class PostgresArtifactRepository:
                 row = cur.fetchone()
         if not row:
             return None
-        found_id, session_id, principal_id, artifact_type, storage_uri = row
+        found_id, session_id, principal_id, artifact_type, mime_type, storage_uri, metadata_json = row
         path = _path_from_uri(str(storage_uri or ""))
         if not path.exists():
             return None
         content = path.read_text(encoding="utf-8")
-        return Artifact(
+        metadata = dict(metadata_json or {})
+        return normalize_artifact(Artifact(
             artifact_id=str(found_id),
             kind=str(artifact_type),
             content=content,
             execution_session_id=str(session_id),
             principal_id=str(principal_id or ""),
-        )
+            mime_type=str(mime_type or "text/plain") or "text/plain",
+            preview_text=str(metadata.get("preview_text") or ""),
+            storage_handle=str(metadata.get("storage_handle") or ""),
+            body_ref=str(metadata.get("body_ref") or str(storage_uri or "")),
+            structured_output_json=dict(metadata.get("structured_output_json") or {}),
+            attachments_json=dict(metadata.get("attachments_json") or {}),
+        ))
 
     def list_for_session(self, session_id: str) -> list[Artifact]:
         sid = str(session_id or "").strip()
@@ -180,7 +193,7 @@ class PostgresArtifactRepository:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT artifact_id, session_id, principal_id, artifact_type, storage_uri
+                    SELECT artifact_id, session_id, principal_id, artifact_type, mime_type, storage_uri, metadata_json
                     FROM artifacts
                     WHERE session_id = %s AND tenant_id = %s
                     ORDER BY created_at ASC, artifact_id ASC
@@ -189,18 +202,25 @@ class PostgresArtifactRepository:
                 )
                 rows = cur.fetchall()
         out: list[Artifact] = []
-        for found_id, found_session_id, principal_id, artifact_type, storage_uri in rows:
+        for found_id, found_session_id, principal_id, artifact_type, mime_type, storage_uri, metadata_json in rows:
             path = _path_from_uri(str(storage_uri or ""))
             if not path.exists():
                 continue
             content = path.read_text(encoding="utf-8")
+            metadata = dict(metadata_json or {})
             out.append(
-                Artifact(
+                normalize_artifact(Artifact(
                     artifact_id=str(found_id),
                     kind=str(artifact_type),
                     content=content,
                     execution_session_id=str(found_session_id),
                     principal_id=str(principal_id or ""),
-                )
+                    mime_type=str(mime_type or "text/plain") or "text/plain",
+                    preview_text=str(metadata.get("preview_text") or ""),
+                    storage_handle=str(metadata.get("storage_handle") or ""),
+                    body_ref=str(metadata.get("body_ref") or str(storage_uri or "")),
+                    structured_output_json=dict(metadata.get("structured_output_json") or {}),
+                    attachments_json=dict(metadata.get("attachments_json") or {}),
+                ))
             )
         return out

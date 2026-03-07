@@ -7,7 +7,14 @@ from pydantic_core import PydanticCustomError
 
 from app.api.dependencies import RequestContext, get_container, get_request_context, resolve_principal_id
 from app.container import AppContainer
-from app.domain.models import PlanValidationError, TaskExecutionRequest
+from app.domain.models import (
+    PlanValidationError,
+    TaskExecutionRequest,
+    artifact_body_ref,
+    artifact_preview_text,
+    artifact_storage_handle,
+    normalize_artifact,
+)
 from app.services.orchestrator import AsyncExecutionQueuedError, HumanTaskRequiredError
 from app.services.policy import ApprovalRequiredError, PolicyDeniedError
 
@@ -101,8 +108,12 @@ class PlanExecuteOut(BaseModel):
     artifact_id: str
     kind: str
     content: str
+    mime_type: str = "text/plain"
     preview_text: str = ""
     storage_handle: str = ""
+    body_ref: str = ""
+    structured_output_json: dict[str, object] = Field(default_factory=dict)
+    attachments_json: dict[str, object] = Field(default_factory=dict)
     execution_session_id: str
     principal_id: str
     deliverable_type: str = ""
@@ -145,6 +156,23 @@ class PlanExecuteAcceptedOut(BaseModel):
                 },
             ]
         }
+    }
+
+
+def _artifact_execute_out_payload(artifact):  # type: ignore[no-untyped-def]
+    normalized = normalize_artifact(artifact)
+    return {
+        "artifact_id": normalized.artifact_id,
+        "kind": normalized.kind,
+        "content": normalized.content,
+        "mime_type": normalized.mime_type,
+        "preview_text": normalized.preview_text or artifact_preview_text(normalized.content),
+        "storage_handle": normalized.storage_handle or artifact_storage_handle(normalized.artifact_id),
+        "body_ref": artifact_body_ref(normalized),
+        "structured_output_json": dict(normalized.structured_output_json or {}),
+        "attachments_json": dict(normalized.attachments_json or {}),
+        "execution_session_id": normalized.execution_session_id,
+        "principal_id": normalized.principal_id,
     }
 
 
@@ -279,12 +307,6 @@ def execute_plan(
         raise HTTPException(status_code=403, detail=f"policy_denied:{reason}") from exc
     return PlanExecuteOut(
         task_key=body.task_key,
-        artifact_id=artifact.artifact_id,
-        kind=artifact.kind,
-        content=artifact.content,
-        preview_text=(f"{artifact.content[:157]}..." if len(artifact.content) > 160 else artifact.content),
-        storage_handle=f"artifact://{artifact.artifact_id}",
-        execution_session_id=artifact.execution_session_id,
-        principal_id=artifact.principal_id,
+        **_artifact_execute_out_payload(artifact),
         deliverable_type=artifact.kind,
     )

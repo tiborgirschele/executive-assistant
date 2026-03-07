@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.api.dependencies import RequestContext, get_container, get_request_context, resolve_principal_id
 from app.container import AppContainer
-from app.domain.models import PlanValidationError, RewriteRequest
+from app.domain.models import PlanValidationError, RewriteRequest, artifact_body_ref, artifact_preview_text, artifact_storage_handle, normalize_artifact
 from app.repositories.human_tasks import _parse_assignment_source_filter
 from app.services.orchestrator import AsyncExecutionQueuedError, HumanTaskRequiredError
 from app.services.policy import ApprovalRequiredError, PolicyDeniedError
@@ -24,8 +24,12 @@ class RewriteOut(BaseModel):
     artifact_id: str
     kind: str
     content: str
+    mime_type: str = "text/plain"
     preview_text: str = ""
     storage_handle: str = ""
+    body_ref: str = ""
+    structured_output_json: dict[str, object] = Field(default_factory=dict)
+    attachments_json: dict[str, object] = Field(default_factory=dict)
     execution_session_id: str
     principal_id: str
     task_key: str = ""
@@ -177,8 +181,12 @@ class SessionArtifactOut(BaseModel):
     artifact_id: str
     kind: str
     content: str
+    mime_type: str = "text/plain"
     preview_text: str = ""
     storage_handle: str = ""
+    body_ref: str = ""
+    structured_output_json: dict[str, object] = Field(default_factory=dict)
+    attachments_json: dict[str, object] = Field(default_factory=dict)
     execution_session_id: str
     principal_id: str
     task_key: str = ""
@@ -281,15 +289,21 @@ class SessionOut(BaseModel):
     human_task_assignment_history: list[SessionHumanTaskAssignmentHistoryOut]
 
 
-def _artifact_preview_text(content: str, *, limit: int = 160) -> str:
-    normalized = str(content or "")
-    if len(normalized) <= limit:
-        return normalized
-    return f"{normalized[: max(limit - 3, 0)]}..."
-
-
-def _artifact_storage_handle(artifact_id: str) -> str:
-    return f"artifact://{artifact_id}"
+def _artifact_out_payload(artifact):  # type: ignore[no-untyped-def]
+    normalized = normalize_artifact(artifact)
+    return {
+        "artifact_id": normalized.artifact_id,
+        "kind": normalized.kind,
+        "content": normalized.content,
+        "mime_type": normalized.mime_type,
+        "preview_text": normalized.preview_text or artifact_preview_text(normalized.content),
+        "storage_handle": normalized.storage_handle or artifact_storage_handle(normalized.artifact_id),
+        "body_ref": artifact_body_ref(normalized),
+        "structured_output_json": dict(normalized.structured_output_json or {}),
+        "attachments_json": dict(normalized.attachments_json or {}),
+        "execution_session_id": normalized.execution_session_id,
+        "principal_id": normalized.principal_id,
+    }
 
 
 def _step_dependency_projection(step, steps) -> tuple[list[str], dict[str, str], dict[str, str], list[str], bool]:  # type: ignore[no-untyped-def]
@@ -396,13 +410,7 @@ def create_artifact(
         raise HTTPException(status_code=403, detail=f"policy_denied:{reason}") from exc
     session = container.orchestrator.fetch_session(artifact.execution_session_id)
     return RewriteOut(
-        artifact_id=artifact.artifact_id,
-        kind=artifact.kind,
-        content=artifact.content,
-        preview_text=_artifact_preview_text(artifact.content),
-        storage_handle=_artifact_storage_handle(artifact.artifact_id),
-        execution_session_id=artifact.execution_session_id,
-        principal_id=artifact.principal_id,
+        **_artifact_out_payload(artifact),
         task_key=session.session.intent.task_type if session is not None else "rewrite_text",
         deliverable_type=session.session.intent.deliverable_type if session is not None else artifact.kind,
     )
@@ -517,13 +525,7 @@ def get_session(
         ],
         artifacts=[
             SessionArtifactOut(
-                artifact_id=a.artifact_id,
-                kind=a.kind,
-                content=a.content,
-                preview_text=_artifact_preview_text(a.content),
-                storage_handle=_artifact_storage_handle(a.artifact_id),
-                execution_session_id=a.execution_session_id,
-                principal_id=a.principal_id,
+                **_artifact_out_payload(a),
                 task_key=session.intent.task_type,
                 deliverable_type=session.intent.deliverable_type,
             )
@@ -600,13 +602,7 @@ def get_artifact(
         raise HTTPException(status_code=404, detail="artifact_not_found")
     found, session = scoped
     return RewriteOut(
-        artifact_id=found.artifact_id,
-        kind=found.kind,
-        content=found.content,
-        preview_text=_artifact_preview_text(found.content),
-        storage_handle=_artifact_storage_handle(found.artifact_id),
-        execution_session_id=found.execution_session_id,
-        principal_id=found.principal_id,
+        **_artifact_out_payload(found),
         task_key=session.session.intent.task_type,
         deliverable_type=session.session.intent.deliverable_type,
     )

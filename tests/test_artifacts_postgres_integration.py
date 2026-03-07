@@ -25,6 +25,12 @@ def test_postgres_artifact_roundtrip_persists_across_repo_reinit(tmp_path) -> No
         content="postgres durable content",
         execution_session_id=str(uuid.uuid4()),
         principal_id="exec-1",
+        mime_type="text/markdown",
+        preview_text="postgres durable preview",
+        storage_handle="artifact://custom-handle",
+        body_ref="artifact-body://custom",
+        structured_output_json={"sections": ["summary"]},
+        attachments_json={"files": ["brief.md"]},
     )
     repo.save(artifact)
 
@@ -38,6 +44,12 @@ def test_postgres_artifact_roundtrip_persists_across_repo_reinit(tmp_path) -> No
     assert loaded.artifact_id == artifact.artifact_id
     assert loaded.content == "postgres durable content"
     assert loaded.principal_id == "exec-1"
+    assert loaded.mime_type == "text/markdown"
+    assert loaded.preview_text == "postgres durable preview"
+    assert loaded.storage_handle == "artifact://custom-handle"
+    assert loaded.body_ref.startswith("file://")
+    assert loaded.structured_output_json == {"sections": ["summary"]}
+    assert loaded.attachments_json == {"files": ["brief.md"]}
 
 
 def test_postgres_artifact_repo_backfills_principal_from_session_intent(tmp_path) -> None:

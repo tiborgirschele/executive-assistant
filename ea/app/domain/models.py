@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any
 
@@ -29,6 +29,45 @@ class Artifact:
     content: str
     execution_session_id: str
     principal_id: str
+    mime_type: str = "text/plain"
+    preview_text: str = ""
+    storage_handle: str = ""
+    body_ref: str = ""
+    structured_output_json: dict[str, Any] = field(default_factory=dict)
+    attachments_json: dict[str, Any] = field(default_factory=dict)
+
+
+def artifact_preview_text(content: str, *, limit: int = 160) -> str:
+    normalized = str(content or "")
+    if len(normalized) <= limit:
+        return normalized
+    return f"{normalized[: max(limit - 3, 0)]}..."
+
+
+def artifact_storage_handle(artifact_id: str) -> str:
+    return f"artifact://{artifact_id}"
+
+
+def artifact_body_ref(artifact: Artifact) -> str:
+    return str(artifact.body_ref or "").strip() or str(artifact.storage_handle or "").strip() or artifact_storage_handle(
+        artifact.artifact_id
+    )
+
+
+def normalize_artifact(artifact: Artifact) -> Artifact:
+    mime_type = str(artifact.mime_type or "").strip() or "text/plain"
+    preview_text = str(artifact.preview_text or "").strip() or artifact_preview_text(artifact.content)
+    storage_handle = str(artifact.storage_handle or "").strip() or artifact_storage_handle(artifact.artifact_id)
+    body_ref = artifact_body_ref(replace(artifact, storage_handle=storage_handle))
+    return replace(
+        artifact,
+        mime_type=mime_type,
+        preview_text=preview_text,
+        storage_handle=storage_handle,
+        body_ref=body_ref,
+        structured_output_json=dict(artifact.structured_output_json or {}),
+        attachments_json=dict(artifact.attachments_json or {}),
+    )
 
 
 @dataclass(frozen=True)
