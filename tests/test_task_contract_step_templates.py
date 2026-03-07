@@ -1484,3 +1484,79 @@ def test_rewrite_route_rejects_unknown_workflow_template_metadata_with_validatio
     )
     assert rewrite.status_code == 422
     assert rewrite.json()["error"]["code"] == "unknown_workflow_template:not_real"
+
+
+def test_planner_can_project_evidence_pack_artifact_output_template() -> None:
+    task_contracts = TaskContractService(InMemoryTaskContractRepository())
+    task_contracts.upsert_contract(
+        task_key="research_brief",
+        deliverable_type="decision_summary",
+        default_risk_class="low",
+        default_approval_class="none",
+        allowed_tools=("artifact_repository",),
+        evidence_requirements=("decision_context",),
+        memory_write_policy="reviewed_only",
+        budget_policy_json={
+            "class": "low",
+            "workflow_template": "artifact_then_memory_candidate",
+            "artifact_output_template": "evidence_pack",
+            "evidence_pack_confidence": 0.72,
+        },
+    )
+    planner = PlannerService(task_contracts)
+
+    _intent, plan = planner.build_plan(
+        task_key="research_brief",
+        principal_id="exec-1",
+        goal="compile an evidence-backed decision brief",
+    )
+
+    prepare_step = plan.steps[0]
+    artifact_step = plan.steps[2]
+    assert prepare_step.output_keys == (
+        "normalized_text",
+        "text_length",
+        "structured_output_json",
+        "preview_text",
+        "mime_type",
+    )
+    assert prepare_step.desired_output_json["artifact_output_template"] == "evidence_pack"
+    assert prepare_step.desired_output_json["default_confidence"] == 0.72
+    assert "structured_output_json" in artifact_step.input_keys
+    assert "preview_text" in artifact_step.input_keys
+    assert "mime_type" in artifact_step.input_keys
+
+
+def test_artifact_then_memory_candidate_evidence_pack_persists_structured_output() -> None:
+    orchestrator, _memory_runtime = _build_memory_candidate_runtime(
+        task_key="research_brief",
+        budget_policy_json={
+            "class": "low",
+            "workflow_template": "artifact_then_memory_candidate",
+            "artifact_output_template": "evidence_pack",
+            "evidence_pack_confidence": 0.72,
+        },
+    )
+
+    artifact = orchestrator.execute_task_artifact(
+        TaskExecutionRequest(
+            task_key="research_brief",
+            principal_id="exec-1",
+            goal="prepare an evidence-backed brief",
+            input_json={
+                "source_text": "Market conditions suggest two viable options.",
+                "claims": ["Option A preserves margin", "Option B accelerates launch"],
+                "evidence_refs": ["browseract://run/123", "paper://abc"],
+                "open_questions": ["Need final vendor pricing"],
+            },
+        )
+    )
+
+    assert artifact.kind == "stakeholder_briefing"
+    assert artifact.structured_output_json == {
+        "format": "evidence_pack",
+        "claims": ["Option A preserves margin", "Option B accelerates launch"],
+        "evidence_refs": ["browseract://run/123", "paper://abc"],
+        "open_questions": ["Need final vendor pricing"],
+        "confidence": 0.72,
+    }

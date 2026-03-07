@@ -3822,6 +3822,33 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "artifact_evidence_pack_output_template")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "_artifact_output_template_key" "ea/app/services/planner.py" && \
+     grep -Fq '"format": "evidence_pack"' "ea/app/services/orchestrator.py" && \
+     grep -Fq "test_planner_can_project_evidence_pack_artifact_output_template" "tests/test_task_contract_step_templates.py" && \
+     grep -Fq "test_artifact_then_memory_candidate_evidence_pack_persists_structured_output" "tests/test_task_contract_step_templates.py" && \
+     grep -Fq 'artifact_output_template":"evidence_pack' "scripts/smoke_api.sh" && \
+     grep -Fq "artifact_output_template=evidence_pack" "README.md" && \
+     grep -Fq "artifact_output_template=evidence_pack" "RUNBOOK.md" && \
+     grep -Fq "artifact_output_template=evidence_pack" "CHANGELOG.md"; then
+    echo "ok: artifact evidence-pack output template docs and contract coverage"
+  else
+    echo "missing: artifact evidence-pack output template docs or contract coverage" >&2
+    missing=1
+  fi
+else
+  echo "missing: artifact evidence-pack output template milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "runtime_skill_identity_projection")
 assert capability["status"] == "tested"
 PY

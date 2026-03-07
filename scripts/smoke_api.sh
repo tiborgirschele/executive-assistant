@@ -1508,6 +1508,16 @@ if [[ "${TASK_EXECUTE_COST_FIELDS}" != "stakeholder_briefing|stakeholder_briefin
   echo "${TASK_EXECUTE_COST_JSON}" >&2
   fail 12 "policy contract mismatch"
 fi
+curl -fsS -X POST "${BASE}/v1/tasks/contracts" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"task_key":"research_brief","deliverable_type":"decision_summary","default_risk_class":"low","default_approval_class":"none","allowed_tools":["artifact_repository"],"evidence_requirements":["decision_context"],"memory_write_policy":"reviewed_only","budget_policy_json":{"class":"low","workflow_template":"artifact_then_memory_candidate","artifact_output_template":"evidence_pack","evidence_pack_confidence":0.72}}' >/dev/null
+EVIDENCE_PACK_JSON="$(curl -fsS -X POST "${BASE}/v1/plans/execute" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"task_key":"research_brief","goal":"prepare an evidence-backed brief","input_json":{"source_text":"Market conditions suggest two viable options.","claims":["Option A preserves margin","Option B accelerates launch"],"evidence_refs":["browseract://run/123","paper://abc"],"open_questions":["Need final vendor pricing"]}}')"
+EVIDENCE_PACK_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); structured=body.get('structured_output_json') or {}; print('{}|{}|{}|{}|{}|{}|{}|{}'.format(body.get('task_key',''), body.get('kind',''), structured.get('format',''), len(structured.get('claims') or []), len(structured.get('evidence_refs') or []), len(structured.get('open_questions') or []), structured.get('confidence',''), body.get('preview_text','')))" <<<"${EVIDENCE_PACK_JSON}")"
+if [[ "${EVIDENCE_PACK_FIELDS}" != "research_brief|decision_summary|evidence_pack|2|2|1|0.72|Market conditions suggest two viable options." ]]; then
+  echo "expected evidence-pack artifact output template to persist structured claims/evidence/open questions; got ${EVIDENCE_PACK_FIELDS}" >&2
+  echo "${EVIDENCE_PACK_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
 TASK_EXECUTE_MISMATCH_CODE="$(curl -sS -o /tmp/ea_task_execute_mismatch_resp.json -w '%{http_code}' -X POST "${BASE}/v1/plans/execute" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' -d "{\"task_key\":\"stakeholder_briefing\",\"text\":\"Should stay in principal scope.\",\"principal_id\":\"${MISMATCH_PRINCIPAL_ID}\",\"goal\":\"prepare a stakeholder briefing\"}")"
 if [[ "${TASK_EXECUTE_MISMATCH_CODE}" != "403" ]]; then
   echo "expected generic task execution principal mismatch to return 403; got ${TASK_EXECUTE_MISMATCH_CODE}" >&2

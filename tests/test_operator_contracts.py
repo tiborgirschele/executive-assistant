@@ -732,6 +732,30 @@ def test_ltd_discovery_api_refresh_runner_is_documented_and_guarded() -> None:
     assert capability["status"] == "tested"
 
 
+def test_artifact_evidence_pack_output_template_is_documented_and_guarded() -> None:
+    planner = (ROOT / "ea/app/services/planner.py").read_text(encoding="utf-8")
+    orchestrator = (ROOT / "ea/app/services/orchestrator.py").read_text(encoding="utf-8")
+    workflow_test = (ROOT / "tests/test_task_contract_step_templates.py").read_text(encoding="utf-8")
+    smoke_script = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "_artifact_output_template_key" in planner
+    assert "artifact_output_template" in planner
+    assert "\"format\": \"evidence_pack\"" in orchestrator
+    assert "test_planner_can_project_evidence_pack_artifact_output_template" in workflow_test
+    assert "test_artifact_then_memory_candidate_evidence_pack_persists_structured_output" in workflow_test
+    assert "artifact_output_template\":\"evidence_pack" in smoke_script
+    assert "artifact_output_template=evidence_pack" in readme
+    assert "artifact_output_template=evidence_pack" in runbook
+    assert "artifact_output_template=evidence_pack" in changelog
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "artifact_evidence_pack_output_template")
+    assert capability["status"] == "tested"
+
+
 def test_dispatch_then_memory_candidate_workflow_template_is_documented_and_guarded() -> None:
     workflow_test = (ROOT / "tests/test_task_contract_step_templates.py").read_text(encoding="utf-8")
     smoke_test = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")

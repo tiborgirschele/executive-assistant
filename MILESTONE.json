@@ -1393,6 +1393,17 @@
         "ltd_runner_docs"
       ],
       "notes": "A dedicated `refresh_ltds_via_api` runner can now execute the BrowserAct-backed `ltd_inventory_refresh` skill through the local `/v1/plans/execute` API, optionally save the returned structured inventory payload, and rewrite `LTDs.md` directly from that live skill output."
+    },
+    {
+      "name": "artifact_evidence_pack_output_template",
+      "status": "tested",
+      "scope": [
+        "prepare_step_evidence_envelope_projection",
+        "artifact_save_evidence_envelope_persistence",
+        "generic_task_evidence_pack_smoke",
+        "evidence_template_docs"
+      ],
+      "notes": "Task contracts can now opt into `budget_policy_json.artifact_output_template=evidence_pack`, causing `step_input_prepare` to emit structured `claims`, `evidence_refs`, `open_questions`, and `confidence` metadata that persists through `step_artifact_save` as a first-class evidence envelope."
     }
   ],
   "migrations": [

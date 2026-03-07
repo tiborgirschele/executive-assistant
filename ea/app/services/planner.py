@@ -78,7 +78,13 @@ class PlannerService:
             return resolved
         raise ValueError("principal_id_required")
 
-    def _build_prepare_step(self, *, input_keys: tuple[str, ...] = ("source_text",)) -> PlanStepSpec:
+    def _build_prepare_step(
+        self,
+        *,
+        input_keys: tuple[str, ...] = ("source_text",),
+        output_keys: tuple[str, ...] = ("normalized_text", "text_length"),
+        desired_output_json: dict[str, object] | None = None,
+    ) -> PlanStepSpec:
         return PlanStepSpec(
             step_key="step_input_prepare",
             step_kind="system_task",
@@ -96,7 +102,8 @@ class PlannerService:
             max_attempts=1,
             retry_backoff_seconds=0,
             input_keys=input_keys,
-            output_keys=("normalized_text", "text_length"),
+            output_keys=output_keys,
+            desired_output_json=dict(desired_output_json or {}),
         )
 
     def _step_retry_policy(self, contract: TaskContract, *, prefix: str) -> tuple[str, int, int]:
@@ -112,7 +119,16 @@ class PlannerService:
         self,
         *,
         depends_on: tuple[str, ...],
+        additional_passthrough_keys: tuple[str, ...] = (),
     ) -> PlanStepSpec:
+        input_keys = ("normalized_text", "text_length")
+        output_keys = ("allow", "requires_approval", "reason", "retention_policy", "memory_write_allowed")
+        for value in additional_passthrough_keys:
+            key = str(value or "").strip()
+            if key and key not in input_keys:
+                input_keys += (key,)
+            if key and key not in output_keys:
+                output_keys += (key,)
         return PlanStepSpec(
             step_key="step_policy_evaluate",
             step_kind="policy_check",
@@ -130,8 +146,8 @@ class PlannerService:
             max_attempts=1,
             retry_backoff_seconds=0,
             depends_on=depends_on,
-            input_keys=("normalized_text", "text_length"),
-            output_keys=("allow", "requires_approval", "reason", "retention_policy", "memory_write_allowed"),
+            input_keys=input_keys,
+            output_keys=output_keys,
         )
 
     def _build_artifact_save_step(
@@ -294,6 +310,32 @@ class PlannerService:
             return ("structured_output_json", "preview_text", "mime_type")
         return ()
 
+    def _artifact_output_template_key(self, contract: TaskContract) -> str:
+        metadata = dict(contract.budget_policy_json or {})
+        return str(
+            metadata.get("artifact_output_template")
+            or metadata.get("structured_output_template")
+            or ""
+        ).strip().lower()
+
+    def _prepare_step_artifact_envelope(self, contract: TaskContract) -> tuple[tuple[str, ...], dict[str, object]]:
+        template = self._artifact_output_template_key(contract)
+        if template != "evidence_pack":
+            return ("normalized_text", "text_length"), {}
+        metadata = dict(contract.budget_policy_json or {})
+        return (
+            ("normalized_text", "text_length", "structured_output_json", "preview_text", "mime_type"),
+            {
+                "artifact_output_template": "evidence_pack",
+                "default_confidence": _policy_float(metadata.get("evidence_pack_confidence"), default=0.5),
+            },
+        )
+
+    def _artifact_envelope_input_keys(self, contract: TaskContract) -> tuple[str, ...]:
+        if self._artifact_output_template_key(contract) == "evidence_pack":
+            return ("structured_output_json", "preview_text", "mime_type")
+        return ()
+
     def _build_pre_artifact_tool_then_artifact_steps(
         self,
         intent: IntentSpecV3,
@@ -307,13 +349,22 @@ class PlannerService:
             tool_name=tool_name,
             depends_on=("step_input_prepare",),
         )
-        prepare_step = self._build_prepare_step(input_keys=tuple(tool_step.input_keys or ("source_text",)))
+        prepare_output_keys, prepare_desired_output_json = self._prepare_step_artifact_envelope(contract)
+        prepare_step = self._build_prepare_step(
+            input_keys=tuple(tool_step.input_keys or ("source_text",)),
+            output_keys=prepare_output_keys,
+            desired_output_json=prepare_desired_output_json,
+        )
+        additional_input_keys = self._additional_artifact_inputs_for_pre_artifact_tool(tool_name)
+        for value in self._artifact_envelope_input_keys(contract):
+            if value not in additional_input_keys:
+                additional_input_keys += (value,)
         artifact_step = self._build_artifact_save_step(
             intent,
             contract=contract,
             depends_on=(tool_step.step_key,),
             approval_required=False,
-            additional_input_keys=self._additional_artifact_inputs_for_pre_artifact_tool(tool_name),
+            additional_input_keys=additional_input_keys,
         )
         return (prepare_step, tool_step, artifact_step)
 
@@ -505,8 +556,15 @@ class PlannerService:
     def _build_rewrite_steps(self, intent: IntentSpecV3, *, contract: TaskContract) -> tuple[PlanStepSpec, ...]:
         approval_required = intent.approval_class not in {"", "none"}
         human_review_metadata = self._human_review_metadata(contract)
-        prepare_step = self._build_prepare_step()
-        policy_step = self._build_policy_step(depends_on=("step_input_prepare",))
+        prepare_output_keys, prepare_desired_output_json = self._prepare_step_artifact_envelope(contract)
+        prepare_step = self._build_prepare_step(
+            output_keys=prepare_output_keys,
+            desired_output_json=prepare_desired_output_json,
+        )
+        policy_step = self._build_policy_step(
+            depends_on=("step_input_prepare",),
+            additional_passthrough_keys=self._artifact_envelope_input_keys(contract),
+        )
         steps: list[PlanStepSpec] = [prepare_step, policy_step]
         save_depends_on = ("step_policy_evaluate",)
         human_review_step = self._build_human_review_step(
@@ -523,6 +581,7 @@ class PlannerService:
                 contract=contract,
                 depends_on=save_depends_on,
                 approval_required=approval_required,
+                additional_input_keys=self._artifact_envelope_input_keys(contract),
             )
         )
         return tuple(steps)
@@ -566,7 +625,11 @@ class PlannerService:
             )
 
         human_review_metadata = self._human_review_metadata(contract)
-        prepare_step = self._build_prepare_step()
+        prepare_output_keys, prepare_desired_output_json = self._prepare_step_artifact_envelope(contract)
+        prepare_step = self._build_prepare_step(
+            output_keys=prepare_output_keys,
+            desired_output_json=prepare_desired_output_json,
+        )
         steps: list[PlanStepSpec] = [prepare_step]
         artifact_depends_on = ("step_input_prepare",)
         human_review_step = self._build_human_review_step(
@@ -583,6 +646,7 @@ class PlannerService:
                 contract=contract,
                 depends_on=artifact_depends_on,
                 approval_required=False,
+                additional_input_keys=self._artifact_envelope_input_keys(contract),
             )
         )
         policy_depends_on = ("step_artifact_save",)
@@ -620,13 +684,21 @@ class PlannerService:
         contract: TaskContract,
         pack_keys: tuple[str, ...] | None = None,
     ) -> tuple[PlanStepSpec, ...]:
-        prepare_step = self._build_prepare_step()
-        policy_step = self._build_policy_step(depends_on=("step_input_prepare",))
+        prepare_output_keys, prepare_desired_output_json = self._prepare_step_artifact_envelope(contract)
+        prepare_step = self._build_prepare_step(
+            output_keys=prepare_output_keys,
+            desired_output_json=prepare_desired_output_json,
+        )
+        policy_step = self._build_policy_step(
+            depends_on=("step_input_prepare",),
+            additional_passthrough_keys=self._artifact_envelope_input_keys(contract),
+        )
         artifact_step = self._build_artifact_save_step(
             intent,
             contract=contract,
             depends_on=("step_policy_evaluate",),
             approval_required=False,
+            additional_input_keys=self._artifact_envelope_input_keys(contract),
         )
         memory_step = self._build_memory_candidate_step(
             intent,

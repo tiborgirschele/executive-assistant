@@ -9,6 +9,7 @@ from app.domain.models import (
     ApprovalDecision,
     ApprovalRequest,
     Artifact,
+    artifact_preview_text,
     ExecutionEvent,
     ExecutionQueueItem,
     ExecutionSession,
@@ -722,14 +723,54 @@ class RewriteOrchestrator:
         source_text = str(input_json.get("source_text") or "").strip()
         plan_id = str(input_json.get("plan_id") or "")
         plan_step_key = str(input_json.get("plan_step_key") or "")
+        desired_output_json = dict((rewrite_step.input_json or {}).get("desired_output_json") or {})
+        output_json = {
+            "normalized_text": source_text,
+            "text_length": len(source_text),
+            "plan_id": plan_id,
+            "plan_step_key": plan_step_key,
+        }
+        artifact_output_template = str(
+            desired_output_json.get("artifact_output_template")
+            or input_json.get("artifact_output_template")
+            or ""
+        ).strip()
+        if artifact_output_template == "evidence_pack":
+            claims = [str(value or "").strip() for value in (input_json.get("claims") or []) if str(value or "").strip()]
+            evidence_refs = [
+                str(value or "").strip()
+                for value in (input_json.get("evidence_refs") or input_json.get("context_refs") or [])
+                if str(value or "").strip()
+            ]
+            open_questions = [
+                str(value or "").strip()
+                for value in (input_json.get("open_questions") or [])
+                if str(value or "").strip()
+            ]
+            confidence_value = input_json.get("confidence")
+            if confidence_value is None:
+                confidence_value = desired_output_json.get("default_confidence")
+            try:
+                confidence = float(confidence_value if confidence_value is not None else 0.5)
+            except (TypeError, ValueError):
+                confidence = 0.5
+            confidence = min(max(confidence, 0.0), 1.0)
+            output_json.update(
+                {
+                    "structured_output_json": {
+                        "format": "evidence_pack",
+                        "claims": claims,
+                        "evidence_refs": evidence_refs,
+                        "open_questions": open_questions,
+                        "confidence": confidence,
+                    },
+                    "preview_text": artifact_preview_text(source_text),
+                    "mime_type": str(input_json.get("mime_type") or "text/plain") or "text/plain",
+                }
+            )
         output_json = self._validate_step_output_contract(
             rewrite_step,
-            {
-                "normalized_text": source_text,
-                "text_length": len(source_text),
-                "plan_id": plan_id,
-                "plan_step_key": plan_step_key,
-            },
+            output_json,
         )
         self._ledger.update_step(
             rewrite_step.step_id,
@@ -919,6 +960,9 @@ class RewriteOrchestrator:
             "retention_policy": decision.retention_policy,
             "memory_write_allowed": decision.memory_write_allowed,
         }
+        for key in ("structured_output_json", "preview_text", "mime_type"):
+            if key in input_json:
+                output_json[key] = input_json[key]
         output_json = self._validate_step_output_contract(rewrite_step, output_json)
         self._ledger.update_step(
             rewrite_step.step_id,
