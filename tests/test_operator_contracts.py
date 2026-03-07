@@ -2218,13 +2218,19 @@ def test_artifact_preview_handle_projection_is_documented_and_smoked() -> None:
 
     assert "preview_text" in readme
     assert "storage_handle" in readme
+    assert "mime_type" in readme
+    assert "body_ref" in readme
     assert "preview_text" in runbook
     assert "storage_handle" in runbook
+    assert "mime_type" in runbook
+    assert "body_ref" in runbook
     assert "preview_text and storage_handle" in http_examples
     assert "TASK_EXECUTE_ARTIFACT_FIELDS" in smoke_api
     assert "REWRITE_ARTIFACT_FIELDS" in smoke_api
+    assert 'fetched_artifact.json()["mime_type"] == "text/plain"' in smoke_runtime
     assert 'fetched_artifact.json()["preview_text"] == "Board context and stakeholder sensitivities."' in smoke_runtime
     assert 'fetched_artifact.json()["storage_handle"] == f"artifact://{body[\'artifact_id\']}"' in smoke_runtime
+    assert 'fetched_artifact.json()["body_ref"].startswith("file://")' in smoke_runtime
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "artifact_preview_handle_projection")
     assert capability["status"] == "tested"

@@ -1088,11 +1088,17 @@
       "scope": [
         "direct_artifact_preview_text",
         "direct_artifact_storage_handle",
+        "direct_artifact_mime_type",
+        "direct_artifact_body_ref",
+        "direct_artifact_structured_output_json",
+        "direct_artifact_attachments_json",
         "session_artifact_preview_text",
         "session_artifact_storage_handle",
+        "session_artifact_mime_type",
+        "session_artifact_body_ref",
         "plan_execute_artifact_preview_handle"
       ],
-      "notes": "Direct artifact reads, inline session artifact rows, and generic task execution responses now project preview text plus a stable storage handle so clients can start treating artifacts as metadata-plus-handle envelopes without losing inline content."
+      "notes": "Direct artifact reads, inline session artifact rows, and generic task execution responses now project mime type, preview text, stable storage handle, durable body ref, and structured attachment metadata so clients can treat artifacts as real metadata-plus-handle envelopes without losing inline content."
     },
     {
       "name": "task_contract_workflow_templates",
