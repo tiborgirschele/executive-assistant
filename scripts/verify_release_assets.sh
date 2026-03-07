@@ -20,6 +20,7 @@ missing=0
 required_files=(
   "README.md"
   "RUNBOOK.md"
+  "SKILLS.md"
   "ARCHITECTURE_MAP.md"
   "HTTP_EXAMPLES.http"
   "CHANGELOG.md"
@@ -3486,6 +3487,37 @@ then
   fi
 else
   echo "missing: review-then-dispatch delayed retry runtime milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "skill_catalog_layer")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "tests/test_skills.py" "scripts/test_postgres_contracts.sh" && \
+     grep -Fq "test_skill_catalog_flow_and_meeting_prep_compilation" "tests/smoke_runtime_api.py" && \
+     grep -Fq "meeting_prep" "tests/test_skills.py" && \
+     grep -Fq 'POST /v1/skills' "SKILLS.md" && \
+     grep -Fq '`meeting_prep`' "SKILLS.md" && \
+     grep -Fq "/v1/skills*" "README.md" && \
+     grep -Fq "SKILLS.md" "README.md" && \
+     grep -Fq "/v1/skills" "RUNBOOK.md" && \
+     grep -Fq "/v1/skills" "HTTP_EXAMPLES.http" && \
+     grep -Fq "meeting_prep" "scripts/smoke_api.sh" && \
+     grep -Fq "skills ok" "scripts/smoke_api.sh" && \
+     grep -Fq 'first-class `/v1/skills` catalog' "CHANGELOG.md"; then
+    echo "ok: skill catalog layer docs and contract coverage"
+  else
+    echo "missing: skill catalog layer docs or contract coverage" >&2
+    missing=1
+  fi
+else
+  echo "missing: skill catalog layer milestone" >&2
   missing=1
 fi
 

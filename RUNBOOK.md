@@ -56,6 +56,9 @@ All runtime scripts that call HTTP endpoints resolve host port in this order:
 | POST | `/v1/tasks/contracts` | `200` | validation `422` |
 | GET | `/v1/tasks/contracts` | `200` | validation `422` |
 | GET | `/v1/tasks/contracts/{task_key}` | `200` | `404 task_contract_not_found` |
+| POST | `/v1/skills` | `200` | validation `422` |
+| GET | `/v1/skills` | `200` | validation `422` |
+| GET | `/v1/skills/{skill_key}` | `200` | `404 skill_not_found` |
 | POST | `/v1/plans/compile` | `200` | validation `422`, `403 principal_scope_mismatch` |
 | POST | `/v1/plans/execute` | `200`, `202 awaiting_approval`, `202 awaiting_human`, `202 queued` | validation `422`, `403 principal_scope_mismatch`, `403 policy_denied:*` |
 | POST | `/v1/memory/candidates` | `200` | validation `422` |
@@ -141,6 +144,7 @@ Policy notes:
 - Task contracts can now also switch the compiled workflow skeleton with `budget_policy_json.workflow_template`; the built-in `artifact_then_dispatch` template emits `step_input_prepare -> step_artifact_save -> step_policy_evaluate -> step_connector_dispatch`, persists the artifact before approval, and resumes into `connector.dispatch` only after the approval-backed delivery gate is approved.
 - Task contracts can now also use the generic `workflow_template=tool_then_artifact` macro plus `budget_policy_json.pre_artifact_tool_name=<tool>` to compile a reusable pre-artifact tool branch, and the first supported slice proves `browseract.extract_account_facts` can run through `step_input_prepare -> step_browseract_extract -> step_artifact_save` without another one-off planner path.
 - Task contracts can now also switch to `workflow_template=browseract_extract_then_artifact`, compiling `step_input_prepare -> step_browseract_extract -> step_artifact_save` so BrowserAct-backed account discovery can extract tier/email/status facts and persist them as a structured artifact in one queue-backed pass.
+- `/v1/skills` now exposes a first-class executive skill catalog on top of those task contracts, preserving product metadata such as memory reads/writes, authority/tool/human policy, evaluation cases, and workflow-template selection in the existing task-contract store; [SKILLS.md](/docker/EA/SKILLS.md) tracks the current catalog and `meeting_prep` is the first fully guarded skill slice.
 - Task contracts can now also use `workflow_template=artifact_then_packs` plus `budget_policy_json.post_artifact_packs=[...]` to compose shared post-artifact planner branches (currently `dispatch` and `memory_candidate`) without adding another one-off named workflow template for every combination.
 - The built-in `artifact_then_memory_candidate` workflow template now emits `step_input_prepare -> step_policy_evaluate -> step_artifact_save -> step_memory_candidate_stage`, persists the artifact, then stages a pending principal-scoped memory candidate through the same queue runtime so task contracts can write reviewable memory without adding a second API-side post-process.
 - The built-in `artifact_then_dispatch_then_memory_candidate` workflow template now emits `step_input_prepare -> step_artifact_save -> step_policy_evaluate -> step_connector_dispatch -> step_memory_candidate_stage`, so approval-backed external sends can complete first and only then stage a pending memory candidate with delivery context from the finished workflow.

@@ -5,6 +5,7 @@ This repository is a durable executive-assistant runtime kernel with principal-s
 ## LTD Inventory
 
 Lifetime services with API keys or account-backed access that are concretely discoverable from this workspace are tracked in [LTDs.md](/docker/EA/LTDs.md).
+The first-class executive skill catalog that sits on top of task contracts is tracked in [SKILLS.md](/docker/EA/SKILLS.md).
 
 ### Workspace Integration Tier Guide
 
@@ -53,6 +54,7 @@ The Codex session skill list is separate from this LTD inventory: skills are loc
 - `/v1/tools/execute` runs built-in tool handlers through the shared execution plane, including `browseract.extract_account_facts` for BrowserAct-backed account discovery and `connector.dispatch` for queued sends
 - `/v1/connectors/bindings*` manages external connector bindings and status transitions
 - `/v1/tasks/contracts*` manages typed task contracts used by intent compilation
+- `/v1/skills*` promotes those task contracts into product-facing executive skills with explicit workflow, memory, authority, human-policy, and evaluation metadata
 - `/v1/plans/compile` emits a typed plan DSL projection from task contracts
 - `/v1/plans/execute` runs task-contract keys through the same queue-backed graph runtime used by rewrite execution
 - `/v1/memory/candidates*` stages reviewable memory candidates from runtime signals
@@ -91,6 +93,7 @@ The Codex session skill list is separate from this LTD inventory: skills are loc
 - Task contracts can now also choose a materially different workflow skeleton with `budget_policy_json.workflow_template`; the built-in `artifact_then_dispatch` template compiles `step_input_prepare -> step_artifact_save -> step_policy_evaluate -> step_connector_dispatch`, persists the artifact before approval, then resumes into `connector.dispatch` only after the approval-backed delivery gate is cleared
 - Task contracts can now also use the generic `workflow_template=tool_then_artifact` macro plus `budget_policy_json.pre_artifact_tool_name=<tool>` to compile a reusable pre-artifact tool branch, and the first supported slice proves `browseract.extract_account_facts` can run through `step_input_prepare -> step_browseract_extract -> step_artifact_save` without needing a one-off planner path
 - Task contracts can now also choose `workflow_template=browseract_extract_then_artifact`, compiling `step_input_prepare -> step_browseract_extract -> step_artifact_save` so BrowserAct-backed account discovery can extract tier/email/status facts and persist them as a structured artifact in one queue-backed flow
+- `/v1/skills` now projects a first-class skill catalog layer over task contracts, so executive capabilities like `meeting_prep` can persist product-facing metadata (`memory_reads`, `memory_writes`, authority/tool/human policy, evaluation cases, and workflow template selection) without introducing a second storage system; `SKILLS.md` tracks the initial catalog and `meeting_prep` now has focused plus API-smoke coverage
 - Task contracts can now also use `workflow_template=artifact_then_packs` plus `budget_policy_json.post_artifact_packs=[...]` to compose shared post-artifact planner branches without minting a new one-off named workflow template for every dispatch/memory combination
 - The built-in `artifact_then_memory_candidate` workflow template now compiles `step_input_prepare -> step_policy_evaluate -> step_artifact_save -> step_memory_candidate_stage`, persists the artifact, then stages a pending principal-scoped memory candidate through the queue runtime so task contracts can emit reviewable memory without a second API-side post-process
 - The built-in `artifact_then_dispatch_then_memory_candidate` workflow template now compiles `step_input_prepare -> step_artifact_save -> step_policy_evaluate -> step_connector_dispatch -> step_memory_candidate_stage`, so an approval-backed external action can complete first and then stage a pending memory candidate with delivery context from the finished workflow

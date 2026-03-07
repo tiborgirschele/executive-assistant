@@ -10,8 +10,8 @@ Usage:
 
 Runs end-to-end HTTP smoke checks for liveness/readiness/version,
 rewrite/session/policy/approvals, observations, delivery outbox, channel adapters,
-tool/connector registry endpoints, task-contract endpoints, plan compile endpoint,
-and memory candidate/item/entity/relationship/commitment/authority-binding/delivery-preference/follow-up/deadline-window/stakeholder/decision-window/communication-policy/follow-up-rule/interruption-budget endpoints.
+tool/connector registry endpoints, task-contract endpoints, skill catalog endpoints,
+plan compile endpoint, and memory candidate/item/entity/relationship/commitment/authority-binding/delivery-preference/follow-up/deadline-window/stakeholder/decision-window/communication-policy/follow-up-rule/interruption-budget endpoints.
 
 Auth:
   If EA_API_TOKEN is set, the script sends Authorization: Bearer <token>.
@@ -1369,6 +1369,23 @@ curl -fsS -X POST "${BASE}/v1/tasks/contracts" "${AUTH_ARGS[@]}" -H 'content-typ
 curl -fsS "${BASE}/v1/tasks/contracts?limit=5" "${AUTH_ARGS[@]}" >/dev/null
 curl -fsS "${BASE}/v1/tasks/contracts/rewrite_text" "${AUTH_ARGS[@]}" >/dev/null
 echo "task contracts ok"
+
+echo "== smoke: skills =="
+SKILL_JSON="$(curl -fsS -X POST "${BASE}/v1/skills" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"skill_key":"meeting_prep","task_key":"meeting_prep","name":"Meeting Prep","description":"Build an executive-ready meeting prep packet.","deliverable_type":"meeting_pack","default_risk_class":"low","default_approval_class":"none","workflow_template":"artifact_then_memory_candidate","allowed_tools":["artifact_repository"],"evidence_requirements":["stakeholder_context","decision_context"],"memory_write_policy":"reviewed_only","memory_reads":["stakeholders","commitments","decision_windows"],"memory_writes":["meeting_pack_fact"],"tags":["executive","meeting","briefing"],"authority_profile_json":{"authority_class":"draft","review_class":"operator"},"tool_policy_json":{"allowed_tools":["artifact_repository"]},"human_policy_json":{"review_roles":["briefing_reviewer"]},"evaluation_cases_json":[{"case_key":"meeting_prep_golden","priority":"high"}],"budget_policy_json":{"class":"low","memory_candidate_category":"meeting_pack_fact","memory_candidate_confidence":0.8,"memory_candidate_sensitivity":"internal"}}')"
+SKILL_LIST_JSON="$(curl -fsS "${BASE}/v1/skills?limit=10" "${AUTH_ARGS[@]}")"
+SKILL_FETCH_JSON="$(curl -fsS "${BASE}/v1/skills/meeting_prep" "${AUTH_ARGS[@]}")"
+SKILL_PLAN_JSON="$(curl -fsS -X POST "${BASE}/v1/plans/compile" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"task_key":"meeting_prep","goal":"prepare the board meeting packet"}')"
+SKILL_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.argv[1]); listed=json.loads(sys.argv[2]); fetched=json.loads(sys.argv[3]); compiled=json.loads(sys.argv[4]); steps=compiled.get('plan',{}).get('steps') or []; print('{}|{}|{}|{}|{}|{}|{}|{}|{}'.format(body.get('skill_key',''), body.get('workflow_template',''), ','.join(body.get('memory_reads') or []), ','.join(body.get('memory_writes') or []), any(row.get('skill_key') == 'meeting_prep' for row in listed), fetched.get('name',''), (fetched.get('authority_profile_json') or {}).get('authority_class',''), len(steps), ','.join(step.get('step_key','') for step in steps)))" "${SKILL_JSON}" "${SKILL_LIST_JSON}" "${SKILL_FETCH_JSON}" "${SKILL_PLAN_JSON}")"
+if [[ "${SKILL_FIELDS}" != "meeting_prep|artifact_then_memory_candidate|stakeholders,commitments,decision_windows|meeting_pack_fact|True|Meeting Prep|draft|4|step_input_prepare,step_policy_evaluate,step_artifact_save,step_memory_candidate_stage" ]]; then
+  echo "expected skill catalog endpoints plus meeting_prep compile projection to round-trip the executive skill metadata and backing plan graph; got ${SKILL_FIELDS}" >&2
+  echo "${SKILL_JSON}" >&2
+  echo "${SKILL_FETCH_JSON}" >&2
+  echo "${SKILL_PLAN_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+echo "skills ok"
 
 echo "== smoke: plans =="
 PLAN_JSON="$(curl -fsS -X POST "${BASE}/v1/plans/compile" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \

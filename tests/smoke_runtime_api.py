@@ -2876,6 +2876,64 @@ def test_task_contracts_flow_and_rewrite_compilation() -> None:
     assert rewrite.json()["next_action"] == "poll_or_subscribe"
 
 
+def test_skill_catalog_flow_and_meeting_prep_compilation() -> None:
+    client = _client(storage_backend="memory", approval_threshold_chars=20000)
+
+    created = client.post(
+        "/v1/skills",
+        json={
+            "skill_key": "meeting_prep",
+            "task_key": "meeting_prep",
+            "name": "Meeting Prep",
+            "description": "Build an executive-ready meeting prep packet.",
+            "deliverable_type": "meeting_pack",
+            "default_risk_class": "low",
+            "default_approval_class": "none",
+            "workflow_template": "artifact_then_memory_candidate",
+            "allowed_tools": ["artifact_repository"],
+            "evidence_requirements": ["stakeholder_context", "decision_context"],
+            "memory_write_policy": "reviewed_only",
+            "memory_reads": ["stakeholders", "commitments", "decision_windows"],
+            "memory_writes": ["meeting_pack_fact"],
+            "tags": ["executive", "meeting", "briefing"],
+            "authority_profile_json": {"authority_class": "draft", "review_class": "operator"},
+            "human_policy_json": {"review_roles": ["briefing_reviewer"]},
+            "evaluation_cases_json": [{"case_key": "meeting_prep_golden", "priority": "high"}],
+            "budget_policy_json": {
+                "class": "low",
+                "memory_candidate_category": "meeting_pack_fact",
+                "memory_candidate_confidence": 0.8,
+                "memory_candidate_sensitivity": "internal",
+            },
+        },
+    )
+    assert created.status_code == 200
+    assert created.json()["skill_key"] == "meeting_prep"
+    assert created.json()["workflow_template"] == "artifact_then_memory_candidate"
+
+    listed = client.get("/v1/skills", params={"limit": 10})
+    assert listed.status_code == 200
+    assert any(row["skill_key"] == "meeting_prep" for row in listed.json())
+
+    fetched = client.get("/v1/skills/meeting_prep")
+    assert fetched.status_code == 200
+    assert fetched.json()["memory_reads"] == ["stakeholders", "commitments", "decision_windows"]
+    assert fetched.json()["memory_writes"] == ["meeting_pack_fact"]
+    assert fetched.json()["human_policy_json"]["review_roles"] == ["briefing_reviewer"]
+
+    compiled = client.post(
+        "/v1/plans/compile",
+        json={"task_key": "meeting_prep", "goal": "prepare the board meeting packet"},
+    )
+    assert compiled.status_code == 200
+    assert [step["step_key"] for step in compiled.json()["plan"]["steps"]] == [
+        "step_input_prepare",
+        "step_policy_evaluate",
+        "step_artifact_save",
+        "step_memory_candidate_stage",
+    ]
+
+
 def test_plan_compile_derives_request_principal_and_rejects_mismatch() -> None:
     client = _client(storage_backend="memory", principal_id="exec-1")
 

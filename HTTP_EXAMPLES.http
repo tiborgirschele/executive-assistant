@@ -640,6 +640,74 @@ Content-Type: application/json
   }
 }
 
+### Skills -> upsert `meeting_prep` into the first-class skill catalog
+POST {{host}}/v1/skills
+Content-Type: application/json
+
+{
+  "skill_key": "meeting_prep",
+  "task_key": "meeting_prep",
+  "name": "Meeting Prep",
+  "description": "Build an executive-ready meeting prep packet.",
+  "deliverable_type": "meeting_pack",
+  "default_risk_class": "low",
+  "default_approval_class": "none",
+  "workflow_template": "artifact_then_memory_candidate",
+  "allowed_tools": [
+    "artifact_repository"
+  ],
+  "evidence_requirements": [
+    "stakeholder_context",
+    "decision_context"
+  ],
+  "memory_write_policy": "reviewed_only",
+  "memory_reads": [
+    "stakeholders",
+    "commitments",
+    "decision_windows"
+  ],
+  "memory_writes": [
+    "meeting_pack_fact"
+  ],
+  "tags": [
+    "executive",
+    "meeting",
+    "briefing"
+  ],
+  "authority_profile_json": {
+    "authority_class": "draft",
+    "review_class": "operator"
+  },
+  "tool_policy_json": {
+    "allowed_tools": [
+      "artifact_repository"
+    ]
+  },
+  "human_policy_json": {
+    "review_roles": [
+      "briefing_reviewer"
+    ]
+  },
+  "evaluation_cases_json": [
+    {
+      "case_key": "meeting_prep_golden",
+      "priority": "high"
+    }
+  ],
+  "budget_policy_json": {
+    "class": "low",
+    "memory_candidate_category": "meeting_pack_fact",
+    "memory_candidate_confidence": 0.8,
+    "memory_candidate_sensitivity": "internal"
+  }
+}
+
+### Skills -> list catalog entries
+GET {{host}}/v1/skills?limit=20
+
+### Skills -> fetch `meeting_prep`
+GET {{host}}/v1/skills/meeting_prep
+
 ### Plans -> compile dispatch workflow template
 POST {{host}}/v1/plans/compile
 Content-Type: application/json
@@ -658,6 +726,16 @@ X-EA-Principal-ID: {{principal_id}}
 {
   "task_key": "browseract_ltd_discovery",
   "goal": "extract LTD account facts for BrowserAct"
+}
+
+### Plans -> compile `meeting_prep` skill via its backing task contract
+POST {{host}}/v1/plans/compile
+Content-Type: application/json
+X-EA-Principal-ID: {{principal_id}}
+
+{
+  "task_key": "meeting_prep",
+  "goal": "prepare the board meeting packet"
 }
 
 ### Task Contracts -> upsert generic tool-then-artifact workflow template (BrowserAct via reusable macro)

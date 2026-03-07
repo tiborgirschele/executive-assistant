@@ -27,6 +27,7 @@ from app.services.memory_runtime import MemoryRuntimeService, build_memory_runti
 from app.services.orchestrator import RewriteOrchestrator, build_artifact_repo, build_default_orchestrator
 from app.services.planner import PlannerService
 from app.services.policy import PolicyDecisionService
+from app.services.skills import SkillCatalogService
 from app.services.task_contracts import TaskContractService, build_task_contract_service
 from app.services.tool_execution import ToolExecutionService
 from app.services.tool_runtime import ToolRuntimeService, build_tool_runtime
@@ -80,6 +81,7 @@ class AppContainer:
     tool_execution: ToolExecutionService
     memory_runtime: MemoryRuntimeService
     task_contracts: TaskContractService
+    skills: SkillCatalogService
     planner: PlannerService
     readiness: ReadinessService
 
@@ -102,6 +104,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
 
         task_contracts = TaskContractService(InMemoryTaskContractRepository())
     planner = PlannerService(task_contracts)
+    skills = SkillCatalogService(task_contracts)
     try:
         channel_runtime = build_channel_runtime(settings=resolved)
     except Exception as exc:
@@ -177,6 +180,7 @@ def build_container(settings: Settings | None = None) -> AppContainer:
         tool_execution=tool_execution,
         memory_runtime=memory_runtime,
         task_contracts=task_contracts,
+        skills=skills,
         planner=planner,
         readiness=ReadinessService(resolved),
     )

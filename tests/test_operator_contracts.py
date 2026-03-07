@@ -113,6 +113,7 @@ def test_postgres_contract_script_help_and_wiring() -> None:
     assert "tests/test_rewrite_scope_contracts.py" in script
     assert "tests/test_rewrite_api_scope_contracts.py" in script
     assert "tests/test_rewrite_dependency_projection_contracts.py" in script
+    assert "tests/test_skills.py" in script
     assert "tests/test_step_parent_projection_contracts.py" in script
     assert "tests/test_tool_execution.py" in script
 
@@ -366,6 +367,37 @@ def test_tool_then_artifact_workflow_template_is_documented_and_guarded() -> Non
     assert '"pre_artifact_tool_name": "browseract.extract_account_facts"' in http_examples
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "tool_then_artifact_workflow_template")
+    assert capability["status"] == "tested"
+
+
+def test_skill_catalog_layer_is_documented_and_guarded() -> None:
+    script = (ROOT / "scripts/test_postgres_contracts.sh").read_text(encoding="utf-8")
+    skill_test = (ROOT / "tests/test_skills.py").read_text(encoding="utf-8")
+    smoke_test = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    smoke_script = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    skills_doc = (ROOT / "SKILLS.md").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "tests/test_skills.py" in script
+    assert "meeting_prep" in skill_test
+    assert "/v1/skills" in skill_test
+    assert "test_skill_catalog_flow_and_meeting_prep_compilation" in smoke_test
+    assert "meeting_prep" in smoke_script
+    assert "skills ok" in smoke_script
+    assert "/v1/skills*" in readme
+    assert "SKILLS.md" in readme
+    assert "/v1/skills" in runbook
+    assert "/v1/skills" in http_examples
+    assert "meeting_prep" in http_examples
+    assert "Skill Catalog" in skills_doc
+    assert "`meeting_prep`" in skills_doc
+    assert "first-class `/v1/skills` catalog" in changelog
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "skill_catalog_layer")
     assert capability["status"] == "tested"
 
 

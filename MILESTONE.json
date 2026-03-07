@@ -1263,6 +1263,17 @@
         "review_dispatch_retry_http_smoke"
       ],
       "notes": "The built-in review-then-dispatch workflow now preserves compiled `dispatch_failure_strategy|dispatch_max_attempts|dispatch_retry_backoff_seconds` metadata on `step_connector_dispatch`, and focused plus HTTP-smoke coverage prove a delayed post-approval dispatch retry leaves the session queued behind `next_attempt_at` instead of erroring once the human-review gate has already cleared."
+    },
+    {
+      "name": "skill_catalog_layer",
+      "status": "tested",
+      "scope": [
+        "skill_catalog_upsert_round_trip",
+        "derived_skill_from_task_contract",
+        "meeting_prep_skill_compile_projection",
+        "skill_catalog_api_smoke"
+      ],
+      "notes": "The runtime now exposes a first-class `/v1/skills` catalog layered on top of task contracts, persisting product-facing executive metadata (`workflow_template`, memory reads/writes, authority/tool/human policy, and evaluation cases) in the existing task-contract store; `meeting_prep` is the first fully documented, smoke-tested skill slice."
     }
   ],
   "migrations": [
