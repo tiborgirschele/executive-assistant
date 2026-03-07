@@ -2570,7 +2570,12 @@ def test_browseract_tool_execution_and_workflow_template_flow() -> None:
                         "tier": "Tier 3",
                         "account_email": "ops@example.com",
                         "status": "activated",
-                    }
+                    },
+                    "Teable": {
+                        "tier": "License Tier 4",
+                        "account_email": "ops@teable.example",
+                        "status": "activated",
+                    },
                 }
             },
             "status": "enabled",
@@ -2582,6 +2587,7 @@ def test_browseract_tool_execution_and_workflow_template_flow() -> None:
     listed_tools = client.get("/v1/tools/registry", params={"limit": 20})
     assert listed_tools.status_code == 200
     assert any(row["tool_name"] == "browseract.extract_account_facts" for row in listed_tools.json())
+    assert any(row["tool_name"] == "browseract.extract_account_inventory" for row in listed_tools.json())
 
     executed = client.post(
         "/v1/tools/execute",
@@ -2604,6 +2610,26 @@ def test_browseract_tool_execution_and_workflow_template_flow() -> None:
     assert executed_body["output_json"]["missing_fields"] == []
     assert executed_body["receipt_json"]["handler_key"] == "browseract.extract_account_facts"
     assert executed_body["receipt_json"]["invocation_contract"] == "tool.v1"
+
+    inventory_executed = client.post(
+        "/v1/tools/execute",
+        json={
+            "tool_name": "browseract.extract_account_inventory",
+            "action_kind": "account.extract_inventory",
+            "payload_json": {
+                "binding_id": binding_id,
+                "service_names": ["BrowserAct", "Teable", "UnknownService"],
+                "requested_fields": ["tier", "account_email", "status"],
+            },
+        },
+    )
+    assert inventory_executed.status_code == 200
+    inventory_body = inventory_executed.json()
+    assert inventory_body["tool_name"] == "browseract.extract_account_inventory"
+    assert inventory_body["output_json"]["service_names"] == ["BrowserAct", "Teable", "UnknownService"]
+    assert inventory_body["output_json"]["missing_services"] == ["UnknownService"]
+    assert inventory_body["output_json"]["services_json"][1]["plan_tier"] == "License Tier 4"
+    assert inventory_body["receipt_json"]["handler_key"] == "browseract.extract_account_inventory"
 
     contract = client.post(
         "/v1/tasks/contracts",
@@ -2744,6 +2770,67 @@ def test_browseract_tool_execution_and_workflow_template_flow() -> None:
     assert generic_session.status_code == 200
     assert [row["tool_name"] for row in generic_session.json()["receipts"]] == [
         "browseract.extract_account_facts",
+        "artifact_repository",
+    ]
+
+    inventory_contract = client.post(
+        "/v1/tasks/contracts",
+        json={
+            "task_key": "browseract_ltd_inventory_refresh",
+            "deliverable_type": "ltd_inventory_profile",
+            "default_risk_class": "low",
+            "default_approval_class": "none",
+            "allowed_tools": ["browseract.extract_account_inventory", "artifact_repository"],
+            "evidence_requirements": ["account_inventory"],
+            "memory_write_policy": "none",
+            "budget_policy_json": {
+                "class": "low",
+                "workflow_template": "tool_then_artifact",
+                "pre_artifact_tool_name": "browseract.extract_account_inventory",
+            },
+        },
+    )
+    assert inventory_contract.status_code == 200
+
+    inventory_compiled = client.post(
+        "/v1/plans/compile",
+        json={
+            "task_key": "browseract_ltd_inventory_refresh",
+            "goal": "refresh LTD inventory facts",
+        },
+    )
+    assert inventory_compiled.status_code == 200
+    inventory_plan_steps = inventory_compiled.json()["plan"]["steps"]
+    assert [step["step_key"] for step in inventory_plan_steps] == [
+        "step_input_prepare",
+        "step_browseract_inventory_extract",
+        "step_artifact_save",
+    ]
+    assert inventory_plan_steps[0]["input_keys"] == ["binding_id", "service_names"]
+    assert inventory_plan_steps[1]["tool_name"] == "browseract.extract_account_inventory"
+
+    inventory_execute = client.post(
+        "/v1/plans/execute",
+        json={
+            "task_key": "browseract_ltd_inventory_refresh",
+            "goal": "refresh LTD inventory facts",
+            "input_json": {
+                "binding_id": binding_id,
+                "service_names": ["BrowserAct", "Teable", "UnknownService"],
+                "requested_fields": ["tier", "account_email", "status"],
+            },
+        },
+    )
+    assert inventory_execute.status_code == 200
+    inventory_artifact = inventory_execute.json()
+    assert inventory_artifact["task_key"] == "browseract_ltd_inventory_refresh"
+    assert inventory_artifact["kind"] == "ltd_inventory_profile"
+    assert inventory_artifact["structured_output_json"]["missing_services"] == ["UnknownService"]
+    assert inventory_artifact["structured_output_json"]["services_json"][1]["plan_tier"] == "License Tier 4"
+    inventory_session = client.get(f"/v1/rewrite/sessions/{inventory_artifact['execution_session_id']}")
+    assert inventory_session.status_code == 200
+    assert [row["tool_name"] for row in inventory_session.json()["receipts"]] == [
+        "browseract.extract_account_inventory",
         "artifact_repository",
     ]
 

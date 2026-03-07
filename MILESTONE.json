@@ -537,6 +537,17 @@
       "notes": "The built-in `browseract.extract_account_facts` handler is now wired into `ToolExecutionService`, exposed through `POST /v1/tools/execute`, and resolves BrowserAct-backed tier/email/status facts from a scoped connector binding while returning normalized `tool.v1` receipt metadata."
     },
     {
+      "name": "browseract_account_inventory_tool_execution_slice",
+      "status": "tested",
+      "scope": [
+        "browseract_inventory_builtin_registration",
+        "browseract_inventory_structured_output_projection",
+        "browseract_inventory_tool_then_artifact_runtime",
+        "browseract_inventory_ltd_tracking_docs"
+      ],
+      "notes": "The built-in `browseract.extract_account_inventory` handler now summarizes multiple BrowserAct-backed service accounts from one scoped binding, returns structured inventory rows plus missing-service markers, and can persist that output through the generic `tool_then_artifact` macro as an `ltd_inventory_profile` artifact."
+    },
+    {
       "name": "approval_async_acceptance_contract",
       "status": "tested",
       "scope": [

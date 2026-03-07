@@ -46,6 +46,7 @@ class ToolExecutionService:
         self._handlers: dict[str, ToolExecutionHandler] = {}
         self._register_builtin_artifact_repository()
         self._register_builtin_browseract_extract()
+        self._register_builtin_browseract_inventory()
         self._register_builtin_connector_dispatch()
 
     def register_handler(self, tool_name: str, handler: ToolExecutionHandler) -> None:
@@ -78,6 +79,9 @@ class ToolExecutionService:
             return
         if key == "browseract.extract_account_facts":
             self._register_builtin_browseract_extract()
+            return
+        if key == "browseract.extract_account_inventory":
+            self._register_builtin_browseract_inventory()
             return
         if key == "connector.dispatch":
             self._register_builtin_connector_dispatch()
@@ -136,6 +140,38 @@ class ToolExecutionService:
             )
         self.register_handler("browseract.extract_account_facts", self._execute_browseract_extract)
 
+    def _register_builtin_browseract_inventory(self) -> None:
+        if self._tool_runtime.get_tool("browseract.extract_account_inventory") is None:
+            self._tool_runtime.upsert_tool(
+                tool_name="browseract.extract_account_inventory",
+                version="v1",
+                input_schema_json={
+                    "type": "object",
+                    "required": ["binding_id"],
+                    "properties": {
+                        "binding_id": {"type": "string"},
+                        "service_names": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                        "requested_fields": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                        "instructions": {"type": "string"},
+                        "account_hints_json": {"type": "object"},
+                    },
+                },
+                output_schema_json={
+                    "type": "object",
+                    "required": ["service_names", "services_json", "tool_name", "action_kind"],
+                },
+                policy_json={"builtin": True, "action_kind": "account.extract_inventory"},
+                approval_default="none",
+                enabled=True,
+            )
+        self.register_handler("browseract.extract_account_inventory", self._execute_browseract_inventory)
+
     def _register_builtin_connector_dispatch(self) -> None:
         if self._channel_runtime is None:
             return
@@ -172,6 +208,67 @@ class ToolExecutionService:
         if isinstance(raw, str) and raw.strip():
             return tuple(value.strip() for value in raw.split(",") if value.strip())
         return ()
+
+    def _browseract_requested_service_names(self, payload: dict[str, object]) -> tuple[str, ...]:
+        raw = payload.get("service_names")
+        values: list[str] = []
+        if isinstance(raw, (list, tuple)):
+            values.extend(str(value or "").strip() for value in raw if str(value or "").strip())
+        elif isinstance(raw, str) and raw.strip():
+            values.extend(value.strip() for value in raw.split(",") if value.strip())
+        if not values:
+            single = str(payload.get("service_name") or "").strip()
+            if single:
+                values.append(single)
+        ordered: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            key = value.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            ordered.append(value)
+        return tuple(ordered)
+
+    def _browseract_configured_service_names(
+        self,
+        *,
+        binding_auth_metadata_json: dict[str, object],
+        binding_scope_json: dict[str, object],
+    ) -> tuple[str, ...]:
+        ordered: list[str] = []
+        seen: set[str] = set()
+
+        def add(value: object) -> None:
+            normalized = str(value or "").strip()
+            if not normalized:
+                return
+            key = normalized.lower()
+            if key in seen:
+                return
+            seen.add(key)
+            ordered.append(normalized)
+
+        raw_scope_services = binding_scope_json.get("services")
+        if isinstance(raw_scope_services, (list, tuple)):
+            for value in raw_scope_services:
+                add(value)
+
+        raw_accounts = binding_auth_metadata_json.get("service_accounts_json")
+        if isinstance(raw_accounts, dict):
+            for key, value in raw_accounts.items():
+                if isinstance(value, dict) and any(
+                    field in value for field in ("tier", "plan", "account_email", "email", "status")
+                ):
+                    add(key)
+                elif key in {"service_name", "service", "name"}:
+                    add(value)
+        elif isinstance(raw_accounts, list):
+            for value in raw_accounts:
+                if not isinstance(value, dict):
+                    continue
+                add(value.get("service_name") or value.get("service") or value.get("name"))
+        return tuple(ordered)
 
     def _browseract_service_facts(
         self,
@@ -303,6 +400,125 @@ class ToolExecutionService:
             lines.append(f"Missing fields: {', '.join(missing_fields)}")
         return "\n".join(lines)
 
+    def _browseract_inventory_summary_text(self, services_json: list[dict[str, object]]) -> str:
+        summaries = [str((row.get("normalized_text") or "")).strip() for row in services_json if str((row.get("normalized_text") or "")).strip()]
+        if not summaries:
+            return "No BrowserAct-backed service inventory facts were discovered."
+        return "\n\n".join(summaries)
+
+    def _resolve_browseract_binding(
+        self,
+        request: ToolInvocationRequest,
+        payload: dict[str, object],
+    ):
+        principal_id = str((request.context_json or {}).get("principal_id") or "").strip()
+        if not principal_id:
+            raise ToolExecutionError("principal_id_required")
+        binding_id = str(payload.get("binding_id") or "").strip()
+        if not binding_id:
+            raise ToolExecutionError("connector_binding_required:browseract.extract_account_facts")
+        binding = self._tool_runtime.get_connector_binding(binding_id)
+        if binding is None:
+            raise ToolExecutionError(f"connector_binding_not_found:{binding_id}")
+        if str(binding.status or "").strip().lower() != "enabled":
+            raise ToolExecutionError(f"connector_binding_disabled:{binding_id}")
+        if binding.principal_id != principal_id:
+            raise ToolExecutionError("principal_scope_mismatch")
+        if str(binding.connector_name or "").strip().lower() != "browseract":
+            raise ToolExecutionError(f"connector_binding_connector_mismatch:{binding_id}")
+        return principal_id, binding
+
+    def _browseract_extract_service_record(
+        self,
+        *,
+        binding_auth_metadata_json: dict[str, object],
+        payload: dict[str, object],
+        service_name: str,
+        requested_fields: tuple[str, ...],
+        allow_missing: bool,
+    ) -> dict[str, object]:
+        facts_json = self._browseract_service_facts(
+            binding_auth_metadata_json=binding_auth_metadata_json,
+            service_name=service_name,
+        )
+        if facts_json is None:
+            facts_json = self._browseract_live_extract(
+                binding_auth_metadata_json=binding_auth_metadata_json,
+                payload=payload,
+                service_name=service_name,
+                requested_fields=requested_fields,
+            )
+        verification_source = "connector_metadata"
+        if facts_json is None:
+            if not allow_missing:
+                raise ToolExecutionError(f"browseract_service_not_found:{service_name}")
+            facts_json = {}
+            verification_source = "missing"
+        else:
+            verification_source = str(facts_json.pop("verification_source", "") or "connector_metadata").strip() or "connector_metadata"
+        normalized_facts_json = {str(key): value for key, value in facts_json.items()}
+        normalized_facts_json.setdefault("service_name", service_name)
+        resolved_requested_fields = requested_fields or tuple(
+            key for key in normalized_facts_json.keys() if key != "service_name"
+        )
+        if not resolved_requested_fields and allow_missing:
+            resolved_requested_fields = ("tier", "account_email", "status")
+        missing_fields = tuple(
+            key for key in resolved_requested_fields if not self._browseract_fact_present(normalized_facts_json.get(key))
+        )
+        account_email = str(
+            normalized_facts_json.get("account_email")
+            or normalized_facts_json.get("email")
+            or normalized_facts_json.get("login_email")
+            or ""
+        ).strip()
+        plan_tier = str(
+            normalized_facts_json.get("tier")
+            or normalized_facts_json.get("plan")
+            or normalized_facts_json.get("plan_tier")
+            or normalized_facts_json.get("license_tier")
+            or ""
+        ).strip()
+        last_verified_at = now_utc_iso()
+        if verification_source == "missing":
+            discovery_status = "missing"
+        else:
+            discovery_status = "complete" if resolved_requested_fields and not missing_fields else "partial"
+        normalized_text = self._browseract_summary_text(
+            service_name=service_name,
+            facts_json=normalized_facts_json,
+            requested_fields=resolved_requested_fields,
+            missing_fields=missing_fields,
+            verification_source=verification_source,
+            last_verified_at=last_verified_at,
+        )
+        structured_output_json = {
+            "service_name": service_name,
+            "facts_json": normalized_facts_json,
+            "requested_fields": list(resolved_requested_fields),
+            "missing_fields": list(missing_fields),
+            "discovery_status": discovery_status,
+            "verification_source": verification_source,
+            "last_verified_at": last_verified_at,
+            "account_email": account_email,
+            "plan_tier": plan_tier,
+        }
+        return {
+            "service_name": service_name,
+            "facts_json": normalized_facts_json,
+            "requested_fields": list(resolved_requested_fields),
+            "missing_fields": list(missing_fields),
+            "account_email": account_email,
+            "plan_tier": plan_tier,
+            "discovery_status": discovery_status,
+            "verification_source": verification_source,
+            "last_verified_at": last_verified_at,
+            "normalized_text": normalized_text,
+            "preview_text": artifact_preview_text(normalized_text),
+            "mime_type": "text/plain",
+            "structured_output_json": structured_output_json,
+        }
+
     def _execute_artifact_repository(
         self,
         request: ToolInvocationRequest,
@@ -370,81 +586,27 @@ class ToolExecutionService:
         definition: ToolDefinition,
     ) -> ToolInvocationResult:
         payload = dict(request.payload_json or {})
-        principal_id = str((request.context_json or {}).get("principal_id") or "").strip()
-        if not principal_id:
-            raise ToolExecutionError("principal_id_required")
-        binding_id = str(payload.get("binding_id") or "").strip()
-        if not binding_id:
-            raise ToolExecutionError("connector_binding_required:browseract.extract_account_facts")
-        binding = self._tool_runtime.get_connector_binding(binding_id)
-        if binding is None:
-            raise ToolExecutionError(f"connector_binding_not_found:{binding_id}")
-        if str(binding.status or "").strip().lower() != "enabled":
-            raise ToolExecutionError(f"connector_binding_disabled:{binding_id}")
-        if binding.principal_id != principal_id:
-            raise ToolExecutionError("principal_scope_mismatch")
-        if str(binding.connector_name or "").strip().lower() != "browseract":
-            raise ToolExecutionError(f"connector_binding_connector_mismatch:{binding_id}")
+        principal_id, binding = self._resolve_browseract_binding(request, payload)
         service_name = str(payload.get("service_name") or "").strip()
         if not service_name:
             raise ToolExecutionError("service_name_required:browseract.extract_account_facts")
         requested_fields = self._browseract_requested_fields(payload)
-        facts_json = self._browseract_service_facts(
+        record = self._browseract_extract_service_record(
             binding_auth_metadata_json=dict(binding.auth_metadata_json or {}),
+            payload=payload,
             service_name=service_name,
-        )
-        if facts_json is None:
-            facts_json = self._browseract_live_extract(
-                binding_auth_metadata_json=dict(binding.auth_metadata_json or {}),
-                payload=payload,
-                service_name=service_name,
-                requested_fields=requested_fields,
-            )
-        if facts_json is None:
-            raise ToolExecutionError(f"browseract_service_not_found:{service_name}")
-        verification_source = str(facts_json.pop("verification_source", "") or "connector_metadata").strip() or "connector_metadata"
-        facts_json = {str(key): value for key, value in facts_json.items()}
-        facts_json.setdefault("service_name", service_name)
-        requested_fields = requested_fields or tuple(key for key in facts_json.keys() if key != "service_name")
-        missing_fields = tuple(key for key in requested_fields if not self._browseract_fact_present(facts_json.get(key)))
-        account_email = str(
-            facts_json.get("account_email")
-            or facts_json.get("email")
-            or facts_json.get("login_email")
-            or ""
-        ).strip()
-        plan_tier = str(
-            facts_json.get("tier")
-            or facts_json.get("plan")
-            or facts_json.get("plan_tier")
-            or facts_json.get("license_tier")
-            or ""
-        ).strip()
-        last_verified_at = now_utc_iso()
-        discovery_status = "complete" if requested_fields and not missing_fields else "partial"
-        normalized_text = self._browseract_summary_text(
-            service_name=service_name,
-            facts_json=facts_json,
             requested_fields=requested_fields,
-            missing_fields=missing_fields,
-            verification_source=verification_source,
-            last_verified_at=last_verified_at,
+            allow_missing=False,
         )
         action_kind = str(request.action_kind or "account.extract") or "account.extract"
-        structured_output_json = {
-            "service_name": service_name,
-            "facts_json": facts_json,
-            "requested_fields": list(requested_fields),
-            "missing_fields": list(missing_fields),
-            "discovery_status": discovery_status,
-            "verification_source": verification_source,
-            "last_verified_at": last_verified_at,
-            "binding_id": binding.binding_id,
-            "connector_name": binding.connector_name,
-            "external_account_ref": binding.external_account_ref,
-            "account_email": account_email,
-            "plan_tier": plan_tier,
-        }
+        structured_output_json = dict(record["structured_output_json"])
+        structured_output_json.update(
+            {
+                "binding_id": binding.binding_id,
+                "connector_name": binding.connector_name,
+                "external_account_ref": binding.external_account_ref,
+            }
+        )
         return ToolInvocationResult(
             tool_name=definition.tool_name,
             action_kind=action_kind,
@@ -453,15 +615,86 @@ class ToolExecutionService:
                 "binding_id": binding.binding_id,
                 "connector_name": binding.connector_name,
                 "external_account_ref": binding.external_account_ref,
-                "service_name": service_name,
-                "facts_json": facts_json,
-                "requested_fields": list(requested_fields),
-                "missing_fields": list(missing_fields),
-                "account_email": account_email,
-                "plan_tier": plan_tier,
-                "discovery_status": discovery_status,
-                "verification_source": verification_source,
-                "last_verified_at": last_verified_at,
+                "service_name": record["service_name"],
+                "facts_json": record["facts_json"],
+                "requested_fields": record["requested_fields"],
+                "missing_fields": record["missing_fields"],
+                "account_email": record["account_email"],
+                "plan_tier": record["plan_tier"],
+                "discovery_status": record["discovery_status"],
+                "verification_source": record["verification_source"],
+                "last_verified_at": record["last_verified_at"],
+                "normalized_text": record["normalized_text"],
+                "preview_text": record["preview_text"],
+                "mime_type": record["mime_type"],
+                "structured_output_json": structured_output_json,
+                "tool_name": definition.tool_name,
+                "action_kind": action_kind,
+            },
+            receipt_json={
+                "binding_id": binding.binding_id,
+                "connector_name": binding.connector_name,
+                "external_account_ref": binding.external_account_ref,
+                "handler_key": definition.tool_name,
+                "invocation_contract": "tool.v1",
+                "principal_id": principal_id,
+                "service_name": record["service_name"],
+                "requested_fields": record["requested_fields"],
+                "missing_fields": record["missing_fields"],
+                "discovery_status": record["discovery_status"],
+                "verification_source": record["verification_source"],
+                "tool_version": definition.version,
+            },
+        )
+
+    def _execute_browseract_inventory(
+        self,
+        request: ToolInvocationRequest,
+        definition: ToolDefinition,
+    ) -> ToolInvocationResult:
+        payload = dict(request.payload_json or {})
+        principal_id, binding = self._resolve_browseract_binding(request, payload)
+        requested_fields = self._browseract_requested_fields(payload)
+        service_names = self._browseract_requested_service_names(payload)
+        if not service_names:
+            service_names = self._browseract_configured_service_names(
+                binding_auth_metadata_json=dict(binding.auth_metadata_json or {}),
+                binding_scope_json=dict(binding.scope_json or {}),
+            )
+        if not service_names:
+            raise ToolExecutionError("service_names_required:browseract.extract_account_inventory")
+        services_json = [
+            self._browseract_extract_service_record(
+                binding_auth_metadata_json=dict(binding.auth_metadata_json or {}),
+                payload=payload,
+                service_name=service_name,
+                requested_fields=requested_fields,
+                allow_missing=True,
+            )
+            for service_name in service_names
+        ]
+        missing_services = [str(row["service_name"]) for row in services_json if str(row["discovery_status"]) == "missing"]
+        action_kind = str(request.action_kind or "account.extract_inventory") or "account.extract_inventory"
+        normalized_text = self._browseract_inventory_summary_text(services_json)
+        structured_output_json = {
+            "service_names": list(service_names),
+            "services_json": services_json,
+            "missing_services": missing_services,
+            "binding_id": binding.binding_id,
+            "connector_name": binding.connector_name,
+            "external_account_ref": binding.external_account_ref,
+        }
+        return ToolInvocationResult(
+            tool_name=definition.tool_name,
+            action_kind=action_kind,
+            target_ref=f"browseract:{binding.binding_id}:inventory",
+            output_json={
+                "binding_id": binding.binding_id,
+                "connector_name": binding.connector_name,
+                "external_account_ref": binding.external_account_ref,
+                "service_names": list(service_names),
+                "services_json": services_json,
+                "missing_services": missing_services,
                 "normalized_text": normalized_text,
                 "preview_text": artifact_preview_text(normalized_text),
                 "mime_type": "text/plain",
@@ -476,11 +709,8 @@ class ToolExecutionService:
                 "handler_key": definition.tool_name,
                 "invocation_contract": "tool.v1",
                 "principal_id": principal_id,
-                "service_name": service_name,
-                "requested_fields": list(requested_fields),
-                "missing_fields": list(missing_fields),
-                "discovery_status": discovery_status,
-                "verification_source": verification_source,
+                "service_names": list(service_names),
+                "missing_services": missing_services,
                 "tool_version": definition.version,
             },
         )

@@ -202,6 +202,66 @@ def test_tool_execution_service_executes_builtin_browseract_extract_handler() ->
     assert result.receipt_json["invocation_contract"] == "tool.v1"
 
 
+def test_tool_execution_service_executes_builtin_browseract_inventory_handler() -> None:
+    tool_runtime = ToolRuntimeService(
+        tool_registry=InMemoryToolRegistryRepository(),
+        connector_bindings=InMemoryConnectorBindingRepository(),
+    )
+    service = ToolExecutionService(
+        tool_runtime=tool_runtime,
+        artifacts=InMemoryArtifactRepository(),
+    )
+    binding = tool_runtime.upsert_connector_binding(
+        principal_id="exec-1",
+        connector_name="browseract",
+        external_account_ref="browseract-main",
+        scope_json={"services": ["BrowserAct", "Teable", "UnknownService"]},
+        auth_metadata_json={
+            "service_accounts_json": {
+                "BrowserAct": {
+                    "tier": "Tier 3",
+                    "account_email": "ops@example.com",
+                    "status": "activated",
+                },
+                "Teable": {
+                    "tier": "License Tier 4",
+                    "account_email": "ops@teable.example",
+                    "status": "activated",
+                },
+            }
+        },
+        status="enabled",
+    )
+
+    result = service.execute_invocation(
+        ToolInvocationRequest(
+            session_id="session-browseract-inventory-1",
+            step_id="step-browseract-inventory-1",
+            tool_name="browseract.extract_account_inventory",
+            action_kind="account.extract_inventory",
+            payload_json={
+                "binding_id": binding.binding_id,
+                "service_names": ["BrowserAct", "Teable", "UnknownService"],
+                "requested_fields": ["tier", "account_email", "status"],
+            },
+            context_json={"principal_id": "exec-1"},
+        )
+    )
+
+    assert result.tool_name == "browseract.extract_account_inventory"
+    assert result.action_kind == "account.extract_inventory"
+    assert result.output_json["service_names"] == ["BrowserAct", "Teable", "UnknownService"]
+    assert result.output_json["missing_services"] == ["UnknownService"]
+    assert len(result.output_json["services_json"]) == 3
+    assert result.output_json["services_json"][0]["plan_tier"] == "Tier 3"
+    assert result.output_json["services_json"][1]["account_email"] == "ops@teable.example"
+    assert result.output_json["services_json"][2]["discovery_status"] == "missing"
+    assert "Service: BrowserAct" in result.output_json["normalized_text"]
+    assert "Service: UnknownService" in result.output_json["normalized_text"]
+    assert result.receipt_json["handler_key"] == "browseract.extract_account_inventory"
+    assert result.receipt_json["invocation_contract"] == "tool.v1"
+
+
 def test_tool_execution_service_rejects_foreign_connector_binding_scope() -> None:
     tool_runtime = ToolRuntimeService(
         tool_registry=InMemoryToolRegistryRepository(),

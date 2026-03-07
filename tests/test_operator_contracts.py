@@ -370,6 +370,37 @@ def test_tool_then_artifact_workflow_template_is_documented_and_guarded() -> Non
     assert capability["status"] == "tested"
 
 
+def test_browseract_account_inventory_tool_execution_slice_is_documented_and_smoked() -> None:
+    workflow_test = (ROOT / "tests/test_task_contract_step_templates.py").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    http_examples = (ROOT / "HTTP_EXAMPLES.http").read_text(encoding="utf-8")
+    smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
+    smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    tool_execution_tests = (ROOT / "tests/test_tool_execution.py").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "/v1/tools/execute" in readme
+    assert "browseract.extract_account_inventory" in readme
+    assert "/v1/tools/execute" in runbook
+    assert "browseract.extract_account_inventory" in runbook
+    assert "/v1/tools/execute" in http_examples
+    assert "browseract.extract_account_inventory" in http_examples
+    assert "browseract_ltd_inventory_refresh" in http_examples
+    assert '"pre_artifact_tool_name": "browseract.extract_account_inventory"' in http_examples
+    assert "browseract.extract_account_inventory|BrowserAct,Teable,UnknownService|UnknownService|License Tier 4|missing" in smoke_api
+    assert "browseract_ltd_inventory_refresh" in smoke_api
+    assert "browseract.extract_account_inventory" in smoke_runtime
+    assert "browseract_ltd_inventory_refresh" in smoke_runtime
+    assert "step_browseract_inventory_extract" in workflow_test
+    assert "test_tool_execution_service_executes_builtin_browseract_inventory_handler" in tool_execution_tests
+
+    capability = next(
+        entry for entry in milestone["capabilities"] if entry["name"] == "browseract_account_inventory_tool_execution_slice"
+    )
+    assert capability["status"] == "tested"
+
+
 def test_skill_catalog_layer_is_documented_and_guarded() -> None:
     script = (ROOT / "scripts/test_postgres_contracts.sh").read_text(encoding="utf-8")
     skill_test = (ROOT / "tests/test_skills.py").read_text(encoding="utf-8")

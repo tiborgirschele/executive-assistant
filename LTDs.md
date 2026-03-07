@@ -30,7 +30,7 @@ Updated: 2026-03-07
 | `ApiX-Drive` | `Plus exclusive / License Tier 3` | `1 license` | `Activated` |  | `Tier 3` | None | Tracked LTD only; no local runtime integration yet. |
 | `ApproveThis` | `License Tier 3` | `1 license` | `Activated` |  | `Tier 3` | None | Tracked LTD only; no local runtime integration yet. |
 | `AvoMap` | `10x code-based` | `10 codes` | `9 redeemed / 1 pending` | `2026-05-02` | `Tier 3` | None | One remaining code must be redeemed by May 2, 2026. |
-| `BrowserAct` | `Tier unspecified` | `1 product` | `Unknown` |  | `Tier 1` | `browseract.extract_account_facts`, `browseract_extract_then_artifact`, local BrowserAct key slots, and connector-bound account-fact discovery | Tier, activation status, and purchase date still unclear; runtime discovery is now wired but live account verification still needs a configured BrowserAct run target. |
+| `BrowserAct` | `Tier unspecified` | `1 product` | `Unknown` |  | `Tier 1` | `browseract.extract_account_facts`, `browseract.extract_account_inventory`, `browseract_extract_then_artifact`, local BrowserAct key slots, and connector-bound account-fact discovery | Tier, activation status, and purchase date still unclear; runtime discovery is now wired for both single-service facts and multi-service LTD inventory refresh, but live verification still needs a configured BrowserAct run target. |
 | `Documentation.AI` | `License Tier 3` | `1 license` | `Activated` |  | `Tier 3` | None | Tracked LTD only; no local runtime integration yet. |
 | `Invoiless` | `1x code-based` | `1 code` | `Pending redemption` | `2026-04-29` | `Tier 3` | None | Redeem by April 29, 2026. |
 | `MarkupGo` | `7x code-based` | `7 codes` | `Pending redemption` | `2026-04-28` | `Tier 3` | None | Redeem by April 28, 2026. |
@@ -63,7 +63,7 @@ Use this section to track missing tier/email/account facts discovered through th
 | `ApiX-Drive` |  | `missing` | `manual_inventory` |  | No BrowserAct discovery run recorded yet. |
 | `ApproveThis` |  | `missing` | `manual_inventory` |  | No BrowserAct discovery run recorded yet. |
 | `AvoMap` |  | `missing` | `manual_inventory` |  | Remaining redemption work still blocks final account verification. |
-| `BrowserAct` |  | `runtime_ready` | `browseract.extract_account_facts` |  | The EA runtime can now resolve tier/email/status facts from a BrowserAct connector binding and persist them as a structured artifact; live values are still pending. |
+| `BrowserAct` |  | `runtime_ready` | `browseract.extract_account_inventory` |  | The EA runtime can now resolve tier/email/status facts from a BrowserAct connector binding for one service or a whole LTD inventory slice and persist those results as structured artifacts; live values are still pending. |
 | `Documentation.AI` |  | `missing` | `manual_inventory` |  | No BrowserAct discovery run recorded yet. |
 | `Invoiless` |  | `missing` | `manual_inventory` |  | Pending redemption before account verification. |
 | `MarkupGo` |  | `missing` | `manual_inventory` |  | Pending redemption before account verification. |

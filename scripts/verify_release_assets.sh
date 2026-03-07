@@ -3262,6 +3262,34 @@ import json
 from pathlib import Path
 
 milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "browseract_account_inventory_tool_execution_slice")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "browseract.extract_account_inventory" "tests/test_tool_execution.py" && \
+     grep -Fq "step_browseract_inventory_extract" "tests/test_task_contract_step_templates.py" && \
+     grep -Fq "browseract_ltd_inventory_refresh" "tests/smoke_runtime_api.py" && \
+     grep -Fq "browseract.extract_account_inventory" "scripts/smoke_api.sh" && \
+     grep -Fq "browseract.extract_account_inventory" "README.md" && \
+     grep -Fq "browseract.extract_account_inventory" "RUNBOOK.md" && \
+     grep -Fq "browseract.extract_account_inventory" "CHANGELOG.md" && \
+     grep -Fq "browseract_ltd_inventory_refresh" "HTTP_EXAMPLES.http" && \
+     grep -Fq "browseract.extract_account_inventory" "LTDs.md"; then
+    echo "ok: browseract inventory tool execution docs and smoke coverage"
+  else
+    echo "missing: browseract inventory tool execution docs or smoke coverage" >&2
+    missing=1
+  fi
+else
+  echo "missing: browseract inventory tool execution milestone" >&2
+  missing=1
+fi
+
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
 capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "artifact_then_memory_candidate_workflow_template")
 assert capability["status"] == "tested"
 PY

@@ -503,6 +503,29 @@ X-EA-Principal-ID: {{principal_id}}
   }
 }
 
+### Tools -> execute builtin BrowserAct LTD inventory extraction
+POST {{host}}/v1/tools/execute
+Content-Type: application/json
+X-EA-Principal-ID: {{principal_id}}
+
+{
+  "tool_name": "browseract.extract_account_inventory",
+  "action_kind": "account.extract_inventory",
+  "payload_json": {
+    "binding_id": "replace-with-browseract-binding-id",
+    "service_names": [
+      "BrowserAct",
+      "Teable",
+      "UnknownService"
+    ],
+    "requested_fields": [
+      "tier",
+      "account_email",
+      "status"
+    ]
+  }
+}
+
 ### Connectors -> upsert binding
 POST {{host}}/v1/connectors/bindings
 Content-Type: application/json
@@ -541,6 +564,11 @@ X-EA-Principal-ID: {{principal_id}}
       "BrowserAct": {
         "tier": "Tier 3",
         "account_email": "ops@example.com",
+        "status": "activated"
+      },
+      "Teable": {
+        "tier": "License Tier 4",
+        "account_email": "ops@teable.example",
         "status": "activated"
       }
     }
@@ -787,6 +815,40 @@ X-EA-Principal-ID: {{principal_id}}
   "goal": "extract LTD account facts for BrowserAct"
 }
 
+### Task Contracts -> upsert BrowserAct LTD inventory refresh workflow template (generic tool -> artifact)
+POST {{host}}/v1/tasks/contracts
+Content-Type: application/json
+
+{
+  "task_key": "browseract_ltd_inventory_refresh",
+  "deliverable_type": "ltd_inventory_profile",
+  "default_risk_class": "low",
+  "default_approval_class": "none",
+  "allowed_tools": [
+    "browseract.extract_account_inventory",
+    "artifact_repository"
+  ],
+  "evidence_requirements": [
+    "account_inventory"
+  ],
+  "memory_write_policy": "none",
+  "budget_policy_json": {
+    "class": "low",
+    "workflow_template": "tool_then_artifact",
+    "pre_artifact_tool_name": "browseract.extract_account_inventory"
+  }
+}
+
+### Plans -> compile BrowserAct LTD inventory refresh workflow template
+POST {{host}}/v1/plans/compile
+Content-Type: application/json
+X-EA-Principal-ID: {{principal_id}}
+
+{
+  "task_key": "browseract_ltd_inventory_refresh",
+  "goal": "refresh LTD inventory facts"
+}
+
 ### Task Contracts -> upsert memory-candidate workflow template (artifact -> memory candidate)
 POST {{host}}/v1/tasks/contracts
 Content-Type: application/json
@@ -989,6 +1051,29 @@ X-EA-Principal-ID: {{principal_id}}
   "input_json": {
     "binding_id": "replace-with-browseract-binding-id",
     "service_name": "BrowserAct",
+    "requested_fields": [
+      "tier",
+      "account_email",
+      "status"
+    ]
+  }
+}
+
+### Plans -> execute BrowserAct LTD inventory refresh workflow template
+POST {{host}}/v1/plans/execute
+Content-Type: application/json
+X-EA-Principal-ID: {{principal_id}}
+
+{
+  "task_key": "browseract_ltd_inventory_refresh",
+  "goal": "refresh LTD inventory facts",
+  "input_json": {
+    "binding_id": "replace-with-browseract-binding-id",
+    "service_names": [
+      "BrowserAct",
+      "Teable",
+      "UnknownService"
+    ],
     "requested_fields": [
       "tier",
       "account_email",

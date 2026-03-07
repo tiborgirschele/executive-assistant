@@ -236,15 +236,17 @@ def _build_dispatch_memory_runtime(
 def _build_browseract_runtime(
     *,
     task_key: str = "browseract_ltd_discovery",
+    deliverable_type: str = "ltd_service_profile",
+    allowed_tools: tuple[str, ...] = ("browseract.extract_account_facts", "artifact_repository"),
     budget_policy_json: dict[str, object] | None = None,
 ) -> tuple[RewriteOrchestrator, ToolRuntimeService]:
     task_contracts = TaskContractService(InMemoryTaskContractRepository())
     task_contracts.upsert_contract(
         task_key=task_key,
-        deliverable_type="ltd_service_profile",
+        deliverable_type=deliverable_type,
         default_risk_class="low",
         default_approval_class="none",
-        allowed_tools=("browseract.extract_account_facts", "artifact_repository"),
+        allowed_tools=allowed_tools,
         evidence_requirements=("account_inventory",),
         memory_write_policy="none",
         budget_policy_json=dict(
@@ -422,6 +424,49 @@ def test_planner_can_compile_generic_tool_then_artifact_workflow_template_for_br
     )
     assert plan.steps[0].input_keys == ("binding_id", "service_name")
     assert plan.steps[1].tool_name == "browseract.extract_account_facts"
+    assert plan.steps[2].input_keys == ("normalized_text", "structured_output_json", "preview_text", "mime_type")
+
+
+def test_planner_can_compile_generic_tool_then_artifact_workflow_template_for_browseract_inventory() -> None:
+    task_contracts = TaskContractService(InMemoryTaskContractRepository())
+    task_contracts.upsert_contract(
+        task_key="browseract_ltd_inventory_refresh",
+        deliverable_type="ltd_inventory_profile",
+        default_risk_class="low",
+        default_approval_class="none",
+        allowed_tools=("browseract.extract_account_inventory", "artifact_repository"),
+        evidence_requirements=("account_inventory",),
+        memory_write_policy="none",
+        budget_policy_json={
+            "class": "low",
+            "workflow_template": "tool_then_artifact",
+            "pre_artifact_tool_name": "browseract.extract_account_inventory",
+        },
+    )
+    planner = PlannerService(task_contracts)
+
+    _, plan = planner.build_plan(
+        task_key="browseract_ltd_inventory_refresh",
+        principal_id="exec-1",
+        goal="refresh LTD inventory facts",
+    )
+
+    assert _step_keys(plan) == (
+        "step_input_prepare",
+        "step_browseract_inventory_extract",
+        "step_artifact_save",
+    )
+    assert plan.steps[0].input_keys == ("binding_id", "service_names")
+    assert plan.steps[1].tool_name == "browseract.extract_account_inventory"
+    assert plan.steps[1].output_keys == (
+        "service_names",
+        "services_json",
+        "missing_services",
+        "normalized_text",
+        "preview_text",
+        "mime_type",
+        "structured_output_json",
+    )
     assert plan.steps[2].input_keys == ("normalized_text", "structured_output_json", "preview_text", "mime_type")
 
 
@@ -766,6 +811,64 @@ def test_generic_tool_then_artifact_workflow_template_persists_browseract_facts(
     assert artifact.kind == "ltd_service_profile"
     assert artifact.structured_output_json["facts_json"]["tier"] == "Tier 3"
     assert artifact.structured_output_json["account_email"] == "ops@example.com"
+
+
+def test_generic_tool_then_artifact_workflow_template_persists_browseract_inventory() -> None:
+    orchestrator, tool_runtime = _build_browseract_runtime(
+        task_key="browseract_ltd_inventory_refresh",
+        deliverable_type="ltd_inventory_profile",
+        allowed_tools=("browseract.extract_account_inventory", "artifact_repository"),
+        budget_policy_json={
+            "class": "low",
+            "workflow_template": "tool_then_artifact",
+            "pre_artifact_tool_name": "browseract.extract_account_inventory",
+        },
+    )
+    binding = tool_runtime.upsert_connector_binding(
+        principal_id="exec-1",
+        connector_name="browseract",
+        external_account_ref="browseract-main",
+        scope_json={"services": ["BrowserAct", "Teable", "UnknownService"]},
+        auth_metadata_json={
+            "service_accounts_json": {
+                "BrowserAct": {
+                    "tier": "Tier 3",
+                    "account_email": "ops@example.com",
+                    "status": "activated",
+                },
+                "Teable": {
+                    "tier": "License Tier 4",
+                    "account_email": "ops@teable.example",
+                    "status": "activated",
+                },
+            }
+        },
+        status="enabled",
+    )
+
+    artifact = orchestrator.execute_task_artifact(
+        TaskExecutionRequest(
+            task_key="browseract_ltd_inventory_refresh",
+            principal_id="exec-1",
+            goal="refresh LTD inventory facts",
+            input_json={
+                "binding_id": binding.binding_id,
+                "service_names": ["BrowserAct", "Teable", "UnknownService"],
+                "requested_fields": ["tier", "account_email", "status"],
+            },
+        )
+    )
+
+    snapshot = orchestrator.fetch_session(artifact.execution_session_id)
+    assert snapshot is not None
+    assert snapshot.session.status == "completed"
+    assert [row.tool_name for row in snapshot.receipts] == ["browseract.extract_account_inventory", "artifact_repository"]
+    assert artifact.kind == "ltd_inventory_profile"
+    assert artifact.structured_output_json["service_names"] == ["BrowserAct", "Teable", "UnknownService"]
+    assert artifact.structured_output_json["missing_services"] == ["UnknownService"]
+    assert artifact.structured_output_json["services_json"][1]["plan_tier"] == "License Tier 4"
+    assert "Service: BrowserAct" in artifact.content
+    assert "Service: UnknownService" in artifact.content
 
 
 def test_dispatch_then_memory_candidate_workflow_template_stages_candidate_after_approval() -> None:

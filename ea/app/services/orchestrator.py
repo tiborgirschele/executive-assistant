@@ -569,6 +569,8 @@ class RewriteOrchestrator:
         tool_name = str(plan_step.tool_name or "").strip()
         if tool_name == "connector.dispatch":
             return "delivery.send"
+        if tool_name == "browseract.extract_account_inventory":
+            return "account.extract_inventory"
         if tool_name == "browseract.extract_account_facts":
             return "account.extract"
         if tool_name == "artifact_repository":

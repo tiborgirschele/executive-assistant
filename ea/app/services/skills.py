@@ -66,18 +66,22 @@ class SkillCatalogService:
         pre_artifact_tool_name = str(
             dict(contract.budget_policy_json or {}).get("pre_artifact_tool_name") or ""
         ).strip()
-        if workflow_template in {"browseract_extract_then_artifact", "tool_then_artifact"} and (
-            pre_artifact_tool_name == "browseract.extract_account_facts"
-            or workflow_template == "browseract_extract_then_artifact"
+        if workflow_template == "browseract_extract_then_artifact" or (
+            workflow_template == "tool_then_artifact"
+            and pre_artifact_tool_name in {"browseract.extract_account_facts", "browseract.extract_account_inventory"}
         ):
+            required = ["binding_id", "service_name"]
+            if pre_artifact_tool_name == "browseract.extract_account_inventory":
+                required = ["binding_id"]
             return {
                 "type": "object",
                 "properties": {
                     "binding_id": {"type": "string"},
                     "service_name": {"type": "string"},
+                    "service_names": {"type": "array", "items": {"type": "string"}},
                     "requested_fields": {"type": "array", "items": {"type": "string"}},
                 },
-                "required": ["binding_id", "service_name"],
+                "required": required,
             }
         return {
             "type": "object",

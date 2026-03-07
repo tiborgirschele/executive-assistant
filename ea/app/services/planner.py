@@ -50,7 +50,7 @@ def _tool_authority_class(tool_name: str) -> str:
     normalized = str(tool_name or "").strip()
     if normalized == "connector.dispatch":
         return "execute"
-    if normalized == "browseract.extract_account_facts":
+    if normalized in {"browseract.extract_account_facts", "browseract.extract_account_inventory"}:
         return "observe"
     if normalized == "artifact_repository":
         return "draft"
@@ -221,6 +221,49 @@ class PlannerService:
             ),
         )
 
+    def _build_browseract_inventory_step(
+        self,
+        *,
+        contract: TaskContract,
+        depends_on: tuple[str, ...],
+    ) -> PlanStepSpec:
+        failure_strategy, max_attempts, retry_backoff_seconds = self._step_retry_policy(
+            contract,
+            prefix="browseract",
+        )
+        timeout_budget_seconds = max(
+            1,
+            _policy_int(contract.budget_policy_json.get("browseract_timeout_budget_seconds"), default=120),
+        )
+        return PlanStepSpec(
+            step_key="step_browseract_inventory_extract",
+            step_kind="tool_call",
+            tool_name="browseract.extract_account_inventory",
+            evidence_required=(),
+            approval_required=False,
+            reversible=False,
+            expected_artifact="account_inventory",
+            fallback="request_human_intervention",
+            owner="tool",
+            authority_class=_tool_authority_class("browseract.extract_account_inventory"),
+            review_class="none",
+            failure_strategy=failure_strategy,
+            timeout_budget_seconds=timeout_budget_seconds,
+            max_attempts=max_attempts,
+            retry_backoff_seconds=retry_backoff_seconds,
+            depends_on=depends_on,
+            input_keys=("binding_id", "service_names"),
+            output_keys=(
+                "service_names",
+                "services_json",
+                "missing_services",
+                "normalized_text",
+                "preview_text",
+                "mime_type",
+                "structured_output_json",
+            ),
+        )
+
     def _resolve_pre_artifact_tool_name(self, contract: TaskContract, *, default: str = "") -> str:
         metadata = dict(contract.budget_policy_json or {})
         tool_name = str(metadata.get("pre_artifact_tool_name") or default).strip()
@@ -241,11 +284,13 @@ class PlannerService:
         normalized = str(tool_name or "").strip()
         if normalized == "browseract.extract_account_facts":
             return self._build_browseract_extract_step(contract=contract, depends_on=depends_on)
+        if normalized == "browseract.extract_account_inventory":
+            return self._build_browseract_inventory_step(contract=contract, depends_on=depends_on)
         raise PlanValidationError(f"unsupported_pre_artifact_tool:{normalized or '<empty>'}")
 
     def _additional_artifact_inputs_for_pre_artifact_tool(self, tool_name: str) -> tuple[str, ...]:
         normalized = str(tool_name or "").strip()
-        if normalized == "browseract.extract_account_facts":
+        if normalized in {"browseract.extract_account_facts", "browseract.extract_account_inventory"}:
             return ("structured_output_json", "preview_text", "mime_type")
         return ()
 
