@@ -486,10 +486,11 @@
       "scope": [
         "tool_execution_service",
         "artifact_repository_builtin_registration",
+        "builtin_tool_registry_self_heal",
         "tool_v1_receipt_contract",
         "shared_tool_runtime_bootstrap"
       ],
-      "notes": "Tool-call rewrite steps now execute through a reusable `ToolExecutionService` backed by the tool registry, the built-in `artifact_repository` handler is registered automatically, and receipts/events expose normalized invocation metadata."
+      "notes": "Tool-call rewrite steps now execute through a reusable `ToolExecutionService` backed by the tool registry, the built-in `artifact_repository` handler is registered automatically, missing built-in tool definitions self-heal before runtime execution fails, and receipts/events expose normalized invocation metadata."
     },
     {
       "name": "connector_dispatch_tool_execution_slice",
@@ -1164,9 +1165,10 @@
       "scope": [
         "review_then_dispatch_retry_compile",
         "human_review_then_dispatch_retry_runtime",
-        "approval_resumed_dispatch_retry_queue"
+        "approval_resumed_dispatch_retry_queue",
+        "review_dispatch_retry_http_smoke"
       ],
-      "notes": "The built-in review-then-dispatch workflow now preserves compiled `dispatch_failure_strategy|dispatch_max_attempts|dispatch_retry_backoff_seconds` metadata on `step_connector_dispatch`, and focused runtime coverage proves a delayed post-approval dispatch retry leaves the session queued behind `next_attempt_at` instead of erroring once the human-review gate has already cleared."
+      "notes": "The built-in review-then-dispatch workflow now preserves compiled `dispatch_failure_strategy|dispatch_max_attempts|dispatch_retry_backoff_seconds` metadata on `step_connector_dispatch`, and focused plus HTTP-smoke coverage prove a delayed post-approval dispatch retry leaves the session queued behind `next_attempt_at` instead of erroring once the human-review gate has already cleared."
     }
   ],
   "migrations": [

@@ -34,7 +34,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Zero-backoff retries now keep draining the same session inline across create/approval/human-return entrypoints too, so immediately eligible retry rows finish in-process instead of surfacing `queued task did not execute` between attempts.
 - Task-contract metadata can now tune the built-in artifact and dispatch retry posture too, so `step_artifact_save` and `step_connector_dispatch` no longer hardcode a single `failure_strategy|max_attempts|retry_backoff_seconds` profile.
 - Nonzero-backoff retries now surface as a first-class `202 queued` async acceptance on rewrite and plan execution, and approval resumption no longer raises `approved queue item did not execute` when the resumed step legitimately requeues itself into the future.
-- Review-then-dispatch workflows now preserve compiled dispatch retry posture through human review and approval too, so a delayed `connector.dispatch` retry keeps the session queued instead of erroring once the operator gates have already cleared.
+- Review-then-dispatch workflows now preserve compiled dispatch retry posture through human review and approval too, and both focused/runtime plus HTTP smoke coverage now prove that a delayed `connector.dispatch` retry keeps the session queued instead of erroring once the operator gates have already cleared.
 - Policy decisions are now recorded from the queued `step_policy_evaluate` handler after `input_prepared`, so approval/block audit events match runtime step order instead of preflight bookkeeping.
 - Planner output can now project a first-class `human_task` review branch (`step_human_review`) from task-contract metadata via `budget_policy_json.human_review_role`.
 - Task contracts can now also select the built-in `artifact_then_dispatch` workflow template via `budget_policy_json.workflow_template`, compiling a materially different `step_input_prepare -> step_artifact_save -> step_policy_evaluate -> step_connector_dispatch` graph instead of routing every task through the rewrite-shaped skeleton.
@@ -44,7 +44,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 - Non-`rewrite_text` task contracts can now execute through the same queue-backed graph runtime and persist their own deliverable type instead of hardcoding the rewrite vertical.
 - Rewrite execution now auto-runs compiled `step_human_review` nodes into real human task packets, pauses with `202 awaiting_human`, and resumes the queue after the packet is returned.
 - Returned human-review packets can now override the downstream artifact content via `returned_payload_json.final_text`, so compiled review branches affect the final persisted artifact instead of only gating it.
-- Rewrite tool-call execution now flows through a registry-backed `ToolExecutionService`, and `artifact_repository` receipts expose a normalized `tool.v1` invocation contract.
+- Rewrite tool-call execution now flows through a registry-backed `ToolExecutionService`, `artifact_repository` receipts expose a normalized `tool.v1` invocation contract, and missing built-in tool definitions now self-heal before runtime execution fails.
 - The built-in `connector.dispatch` handler now executes through the shared tool plane and `POST /v1/tools/execute` can enqueue delivery outbox rows with normalized `tool.v1` receipt metadata.
 - `connector.dispatch` now requires an enabled connector binding owned by the request principal before the shared tool plane will queue delivery.
 - Approval-required rewrite requests now return a first-class `202 Accepted` workflow contract with `session_id` and `approval_id` instead of a `409` error envelope.
@@ -236,7 +236,7 @@ All notable changes to the rewrite-kernel baseline are documented here.
 
 ### Changed
 - Container hardening: removed `docker.io` install from app images.
-- `scripts/smoke_postgres.sh` now provisions an isolated smoke DB (`EA_SMOKE_DB`) and restores local `.env` state after smoke completion.
+- `scripts/smoke_postgres.sh` now provisions an isolated smoke DB (`EA_SMOKE_DB`), force-recreates `ea-api` when it rebuilds the image so host smoke cannot reuse stale API containers, and restores local `.env` state after smoke completion.
 - `v0_6` execution-ledger migration now infers FK identifier types from the live schema to support both UUID and TEXT session ledgers.
 - `v0_7` approvals migration now upgrades legacy approval table variants in place by adding runtime-required columns/indexes and backfilling IDs/status fields.
 - Deploy flow can optionally chain DB bootstrap (`EA_BOOTSTRAP_DB=1`).

@@ -98,7 +98,7 @@ fi
 cleanup() {
   if [[ "${restore_api_env}" == "1" && "${env_had_file}" == "1" && -n "${env_backup}" && -f "${env_backup}" ]]; then
     cp "${env_backup}" "${EA_ROOT}/.env"
-    "${DC[@]}" up -d ea-api >/dev/null 2>&1 || true
+    "${DC[@]}" up -d --force-recreate ea-api >/dev/null 2>&1 || true
   fi
   if [[ -n "${env_backup}" && -f "${env_backup}" ]]; then
     rm -f "${env_backup}"
@@ -257,7 +257,7 @@ if [[ "${legacy_fixture}" == "1" ]]; then
 fi
 
 echo "== smoke-postgres: compose up (api) =="
-"${DC[@]}" up -d --build ea-api
+"${DC[@]}" up -d --build --force-recreate ea-api
 
 echo "== smoke-postgres: readiness check =="
 ready_json=""
@@ -321,7 +321,7 @@ echo "== smoke-postgres: prod fail-fast check =="
 set_env_value "EA_RUNTIME_MODE" "prod"
 set_env_value "EA_STORAGE_BACKEND" "auto"
 set_env_value "DATABASE_URL" ""
-"${DC[@]}" up -d --build ea-api >/dev/null
+"${DC[@]}" up -d --build --force-recreate ea-api >/dev/null
 prod_status=""
 for _ in $(seq 1 10); do
   prod_status="$(docker inspect -f '{{.State.Status}}' ea-api 2>/dev/null | tr -d '[:space:]' || true)"

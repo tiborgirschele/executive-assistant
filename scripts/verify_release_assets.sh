@@ -807,6 +807,7 @@ else
 fi
 
 if grep -Fq "exports OpenAPI and verifies paused session-step dependency examples" "scripts/smoke_postgres.sh" && \
+   grep -Fq -- "--force-recreate ea-api" "scripts/smoke_postgres.sh" && \
    grep -Fq "bash scripts/export_openapi.sh" "scripts/smoke_postgres.sh" && \
    grep -Fq "step-artifact-save-waiting-approval" "scripts/smoke_postgres.sh" && \
    grep -Fq "step-artifact-save-blocked-human" "scripts/smoke_postgres.sh" && \
@@ -874,7 +875,7 @@ if grep -Fq "dependency_keys: list[str]" "ea/app/api/routes/rewrite.py" && \
    grep -Fq 'save_step.parent_step_id is None' "tests/test_step_parent_projection_contracts.py" && \
    grep -Fq 'sidecar_step.parent_step_id == input_step.step_id' "tests/test_step_parent_projection_contracts.py" && \
    grep -Fq "first.get('principal_id','')" "scripts/smoke_api.sh" && \
-   grep -Fq "approval-123|human-task-123|poll_or_subscribe|poll_or_subscribe|decision_brief_approval|stakeholder_briefing_review" "scripts/smoke_api.sh" && \
+   grep -Fq "approval-123|human-task-123|poll_or_subscribe|poll_or_subscribe|poll_or_subscribe|decision_brief_approval|stakeholder_briefing_review|rewrite_retry_delayed" "scripts/smoke_api.sh" && \
    grep -Fq "decision_brief_approval|awaiting_approval|waiting_approval|True|True|True|True|True" "scripts/smoke_api.sh" && \
    grep -Fq "stakeholder_briefing_review|awaiting_human|waiting_human|True|True|True|True|queued|True|True|True" "scripts/smoke_api.sh"; then
   echo "ok: session step dependency projection contract and smoke coverage"
@@ -1609,12 +1610,16 @@ PY
 then
   if grep -Fq "ToolExecutionService" "README.md" && \
      grep -Fq "tool.v1" "README.md" && \
+     grep -Fq "self-heals missing built-in tool definitions" "README.md" && \
      grep -Fq "ToolExecutionService" "RUNBOOK.md" && \
      grep -Fq "tool.v1" "RUNBOOK.md" && \
+     grep -Fq "self-heals its registry definition" "RUNBOOK.md" && \
      grep -Fq "artifact_repository|tool.v1" "scripts/smoke_api.sh" && \
      grep -Fq "tool_execution_completed" "scripts/smoke_api.sh" && \
      grep -Fq "tool_execution_completed" "tests/smoke_runtime_api.py" && \
      grep -Fq "invocation_contract" "tests/smoke_runtime_api.py" && \
+     grep -Fq "test_tool_execution_service_self_heals_missing_builtin_artifact_definition" "tests/test_tool_execution.py" && \
+     grep -Fq "test_tool_execution_service_self_heals_missing_builtin_connector_dispatch_definition" "tests/test_tool_execution.py" && \
      test -f "tests/test_tool_execution.py"; then
     echo "ok: registry-backed tool execution service docs"
   else
@@ -3338,9 +3343,14 @@ PY
 then
   if grep -Fq "test_planner_can_compile_review_then_dispatch_retry_policy_from_task_contract_metadata" "tests/test_task_contract_step_templates.py" && \
      grep -Fq "test_review_then_dispatch_workflow_template_keeps_delayed_dispatch_retry_async_after_approval" "tests/test_task_contract_step_templates.py" && \
+     grep -Fq "test_review_then_dispatch_delayed_retry_stays_queued_after_http_approval" "tests/smoke_runtime_api.py" && \
+     grep -Fq "stakeholder_review_dispatch_retry" "scripts/smoke_api.sh" && \
+     grep -Fq "hybrid-retry@example.com" "scripts/smoke_api.sh" && \
+     grep -Fq "expected delayed review-then-dispatch approval flow to leave dispatch queued behind next_attempt_at" "scripts/smoke_api.sh" && \
      grep -Fq "dispatch_failure_strategy|max_attempts|retry_backoff_seconds" "README.md" && \
      grep -Fq "dispatch_failure_strategy|dispatch_max_attempts|dispatch_retry_backoff_seconds" "RUNBOOK.md" && \
-     grep -Fq "Review-then-dispatch workflows now preserve compiled dispatch retry posture" "CHANGELOG.md"; then
+     grep -Fq "Review-then-dispatch workflows now preserve compiled dispatch retry posture" "CHANGELOG.md" && \
+     grep -Fq "HTTP smoke coverage now prove" "CHANGELOG.md"; then
     echo "ok: review-then-dispatch delayed retry runtime docs and contract coverage"
   else
     echo "missing: review-then-dispatch delayed retry runtime docs or contract coverage" >&2

@@ -3230,6 +3230,99 @@ def test_review_then_dispatch_workflow_template_pauses_for_human_then_approval_o
     assert queued["recipient"] == "hybrid@example.com"
 
 
+def test_review_then_dispatch_delayed_retry_stays_queued_after_http_approval() -> None:
+    client = _client(storage_backend="memory", principal_id="exec-1")
+
+    contract = client.post(
+        "/v1/tasks/contracts",
+        json={
+            "task_key": "stakeholder_review_dispatch_retry",
+            "deliverable_type": "stakeholder_briefing",
+            "default_risk_class": "low",
+            "default_approval_class": "none",
+            "allowed_tools": ["artifact_repository", "connector.dispatch"],
+            "evidence_requirements": ["stakeholder_context"],
+            "memory_write_policy": "reviewed_only",
+            "budget_policy_json": {
+                "class": "low",
+                "workflow_template": "artifact_then_dispatch",
+                "human_review_role": "briefing_reviewer",
+                "human_review_task_type": "briefing_review",
+                "human_review_brief": "Review before stakeholder dispatch.",
+                "human_review_priority": "high",
+                "human_review_desired_output_json": {"format": "review_packet"},
+                "dispatch_failure_strategy": "retry",
+                "dispatch_max_attempts": 2,
+                "dispatch_retry_backoff_seconds": 45,
+            },
+        },
+    )
+    assert contract.status_code == 200
+
+    execute = client.post(
+        "/v1/plans/execute",
+        json={
+            "task_key": "stakeholder_review_dispatch_retry",
+            "goal": "review and send a stakeholder briefing",
+            "input_json": {
+                "source_text": "Board context and stakeholder sensitivities.",
+                "binding_id": "missing-review-dispatch-binding",
+                "channel": "email",
+                "recipient": "hybrid-retry@example.com",
+            },
+        },
+    )
+    assert execute.status_code == 202
+    execute_body = execute.json()
+    assert execute_body["status"] == "awaiting_human"
+    assert execute_body["human_task_id"]
+    session_id = execute_body["session_id"]
+
+    returned = client.post(
+        f"/v1/human/tasks/{execute_body['human_task_id']}/return",
+        json={
+            "operator_id": "briefing-reviewer",
+            "resolution": "ready_for_dispatch",
+            "returned_payload_json": {"final_text": "Reviewed stakeholder briefing."},
+            "provenance_json": {"review_mode": "human"},
+        },
+    )
+    assert returned.status_code == 200
+
+    awaiting_approval = client.get(f"/v1/rewrite/sessions/{session_id}")
+    assert awaiting_approval.status_code == 200
+    awaiting_approval_body = awaiting_approval.json()
+    assert awaiting_approval_body["status"] == "awaiting_approval"
+
+    approvals = client.get("/v1/policy/approvals/pending", params={"limit": 20})
+    assert approvals.status_code == 200
+    approval_row = next(row for row in approvals.json() if row["session_id"] == session_id)
+
+    approved = client.post(
+        f"/v1/policy/approvals/{approval_row['approval_id']}/approve",
+        json={"decided_by": "operator", "reason": "approve reviewed dispatch retry"},
+    )
+    assert approved.status_code == 200
+    assert approved.json()["task_key"] == "stakeholder_review_dispatch_retry"
+    assert approved.json()["deliverable_type"] == "stakeholder_briefing"
+
+    queued = client.get(f"/v1/rewrite/sessions/{session_id}")
+    assert queued.status_code == 200
+    queued_body = queued.json()
+    assert queued_body["status"] == "queued"
+    queued_steps = {step["input_json"]["plan_step_key"]: step for step in queued_body["steps"]}
+    assert queued_steps["step_human_review"]["state"] == "completed"
+    assert queued_steps["step_artifact_save"]["state"] == "completed"
+    assert queued_steps["step_policy_evaluate"]["state"] == "completed"
+    assert queued_steps["step_connector_dispatch"]["state"] == "queued"
+    assert queued_steps["step_connector_dispatch"]["error_json"]["reason"] == "retry_scheduled"
+    assert queued_body["queue_items"][-1]["state"] == "queued"
+    assert queued_body["queue_items"][-1]["next_attempt_at"]
+    pending_after = client.get("/v1/delivery/outbox/pending", params={"limit": 20})
+    assert pending_after.status_code == 200
+    assert all(row["recipient"] != "hybrid-retry@example.com" for row in pending_after.json())
+
+
 def test_rewrite_compiled_human_review_branch_pauses_and_resumes() -> None:
     client = _client(storage_backend="memory")
     contract = client.post(

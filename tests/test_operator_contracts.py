@@ -103,6 +103,7 @@ def test_postgres_smoke_exports_openapi_dependency_examples() -> None:
     smoke = (ROOT / "scripts/smoke_postgres.sh").read_text(encoding="utf-8")
 
     assert "exports OpenAPI and verifies paused session-step dependency examples" in smoke
+    assert "--force-recreate ea-api" in smoke
     assert "bash scripts/export_openapi.sh" in smoke
     assert "step-artifact-save-waiting-approval" in smoke
     assert "step-artifact-save-blocked-human" in smoke
@@ -173,7 +174,7 @@ def test_openapi_async_acceptance_examples_are_guarded() -> None:
     assert 'plan_human["task_key"] == "stakeholder_briefing_review"' in openapi_test
     assert "rewrite_examples=(schemas.get('RewriteAcceptedOut') or {}).get('examples') or []" in smoke_script
     assert "plan_examples=(schemas.get('PlanExecuteAcceptedOut') or {}).get('examples') or []" in smoke_script
-    assert "approval-123|human-task-123|poll_or_subscribe|poll_or_subscribe|decision_brief_approval|stakeholder_briefing_review" in smoke_script
+    assert "approval-123|human-task-123|poll_or_subscribe|poll_or_subscribe|poll_or_subscribe|decision_brief_approval|stakeholder_briefing_review|rewrite_retry_delayed" in smoke_script
 
 
 def test_plan_scope_contracts_are_wired_into_focused_contract_bundle() -> None:
@@ -415,6 +416,8 @@ def test_delayed_retry_async_acceptance_is_documented_and_guarded() -> None:
 
 def test_review_dispatch_delayed_retry_runtime_is_documented_and_guarded() -> None:
     workflow_test = (ROOT / "tests/test_task_contract_step_templates.py").read_text(encoding="utf-8")
+    smoke_test = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    smoke_script = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
@@ -422,9 +425,14 @@ def test_review_dispatch_delayed_retry_runtime_is_documented_and_guarded() -> No
 
     assert "test_planner_can_compile_review_then_dispatch_retry_policy_from_task_contract_metadata" in workflow_test
     assert "test_review_then_dispatch_workflow_template_keeps_delayed_dispatch_retry_async_after_approval" in workflow_test
+    assert "test_review_then_dispatch_delayed_retry_stays_queued_after_http_approval" in smoke_test
+    assert "stakeholder_review_dispatch_retry" in smoke_script
+    assert "hybrid-retry@example.com" in smoke_script
+    assert "expected delayed review-then-dispatch approval flow to leave dispatch queued behind next_attempt_at" in smoke_script
     assert "dispatch_failure_strategy|max_attempts|retry_backoff_seconds" in readme
     assert "dispatch_failure_strategy|dispatch_max_attempts|dispatch_retry_backoff_seconds" in runbook
     assert "Review-then-dispatch workflows now preserve compiled dispatch retry posture" in changelog
+    assert "HTTP smoke coverage now prove" in changelog
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "review_dispatch_delayed_retry_runtime")
     assert capability["status"] == "tested"
@@ -2388,20 +2396,26 @@ def test_registry_backed_tool_execution_service_is_documented_and_smoked() -> No
     runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
     smoke_api = (ROOT / "scripts/smoke_api.sh").read_text(encoding="utf-8")
     smoke_runtime = (ROOT / "tests/smoke_runtime_api.py").read_text(encoding="utf-8")
+    tool_execution_tests = (ROOT / "tests/test_tool_execution.py").read_text(encoding="utf-8")
     milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
 
     assert "ToolExecutionService" in readme
     assert "tool.v1" in readme
+    assert "self-heals missing built-in tool definitions" in readme
     assert "ToolExecutionService" in runbook
     assert "tool.v1" in runbook
+    assert "self-heals its registry definition" in runbook
     assert "artifact_repository|tool.v1" in smoke_api
     assert "tool_execution_completed" in smoke_api
     assert "artifact_repository" in smoke_runtime
     assert "tool_execution_completed" in smoke_runtime
     assert "invocation_contract" in smoke_runtime
+    assert "test_tool_execution_service_self_heals_missing_builtin_artifact_definition" in tool_execution_tests
+    assert "test_tool_execution_service_self_heals_missing_builtin_connector_dispatch_definition" in tool_execution_tests
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "registry_backed_tool_execution_service")
     assert capability["status"] == "tested"
+    assert "builtin_tool_registry_self_heal" in capability["scope"]
 
 
 def test_connector_dispatch_tool_execution_slice_is_documented_and_smoked() -> None:

@@ -47,6 +47,9 @@ class ToolExecutionService:
             raise ToolExecutionError("tool_name_required")
         definition = self._tool_runtime.get_tool(tool_name)
         if definition is None:
+            self._ensure_builtin_tool_registered(tool_name)
+            definition = self._tool_runtime.get_tool(tool_name)
+        if definition is None:
             raise ToolExecutionError(f"tool_not_registered:{tool_name}")
         if not definition.enabled:
             raise ToolExecutionError(f"tool_disabled:{tool_name}")
@@ -54,6 +57,14 @@ class ToolExecutionService:
         if handler is None:
             raise ToolExecutionError(f"tool_handler_missing:{tool_name}")
         return handler(request, definition)
+
+    def _ensure_builtin_tool_registered(self, tool_name: str) -> None:
+        key = str(tool_name or "").strip()
+        if key == "artifact_repository":
+            self._register_builtin_artifact_repository()
+            return
+        if key == "connector.dispatch":
+            self._register_builtin_connector_dispatch()
 
     def _register_builtin_artifact_repository(self) -> None:
         if self._tool_runtime.get_tool("artifact_repository") is None:

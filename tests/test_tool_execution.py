@@ -189,3 +189,80 @@ def test_tool_execution_service_rejects_foreign_connector_binding_scope() -> Non
                 context_json={"principal_id": "exec-2"},
             )
         )
+
+
+def test_tool_execution_service_self_heals_missing_builtin_artifact_definition() -> None:
+    artifacts = InMemoryArtifactRepository()
+    registry = InMemoryToolRegistryRepository()
+    tool_runtime = ToolRuntimeService(
+        tool_registry=registry,
+        connector_bindings=InMemoryConnectorBindingRepository(),
+    )
+    service = ToolExecutionService(tool_runtime=tool_runtime, artifacts=artifacts)
+
+    registry._rows.clear()  # type: ignore[attr-defined]
+    registry._order.clear()  # type: ignore[attr-defined]
+
+    result = service.execute_invocation(
+        ToolInvocationRequest(
+            session_id="session-4",
+            step_id="step-4",
+            tool_name="artifact_repository",
+            action_kind="artifact.save",
+            payload_json={"source_text": "self-healed artifact"},
+            context_json={"principal_id": "exec-1"},
+        )
+    )
+
+    assert result.tool_name == "artifact_repository"
+    assert tool_runtime.get_tool("artifact_repository") is not None
+    saved = artifacts.get(result.target_ref)
+    assert saved is not None
+    assert saved.content == "self-healed artifact"
+
+
+def test_tool_execution_service_self_heals_missing_builtin_connector_dispatch_definition() -> None:
+    registry = InMemoryToolRegistryRepository()
+    tool_runtime = ToolRuntimeService(
+        tool_registry=registry,
+        connector_bindings=InMemoryConnectorBindingRepository(),
+    )
+    channel_runtime = ChannelRuntimeService(
+        observations=InMemoryObservationEventRepository(),
+        outbox=InMemoryDeliveryOutboxRepository(),
+    )
+    service = ToolExecutionService(
+        tool_runtime=tool_runtime,
+        artifacts=InMemoryArtifactRepository(),
+        channel_runtime=channel_runtime,
+    )
+    binding = tool_runtime.upsert_connector_binding(
+        principal_id="exec-1",
+        connector_name="gmail",
+        external_account_ref="acct-self-heal",
+        scope_json={"scopes": ["mail.send"]},
+        auth_metadata_json={"provider": "google"},
+        status="enabled",
+    )
+
+    registry._rows.pop("connector.dispatch", None)  # type: ignore[attr-defined]
+    registry._order = [key for key in registry._order if key != "connector.dispatch"]  # type: ignore[attr-defined]
+
+    result = service.execute_invocation(
+        ToolInvocationRequest(
+            session_id="session-5",
+            step_id="step-5",
+            tool_name="connector.dispatch",
+            action_kind="delivery.send",
+            payload_json={
+                "binding_id": binding.binding_id,
+                "channel": "email",
+                "recipient": "ops@example.com",
+                "content": "self-healed dispatch",
+            },
+            context_json={"principal_id": "exec-1"},
+        )
+    )
+
+    assert result.tool_name == "connector.dispatch"
+    assert tool_runtime.get_tool("connector.dispatch") is not None

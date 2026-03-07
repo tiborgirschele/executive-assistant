@@ -67,9 +67,9 @@ curl -fsS "${BASE}/version" >/dev/null
 echo "health/version ok"
 
 echo "== smoke: openapi =="
-OPENAPI_FIELDS="$(curl -fsS "${BASE}/openapi.json" | python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); schemas=((body.get('components') or {}).get('schemas') or {}); step_schema=schemas.get('SessionStepOut') or {}; step_examples=step_schema.get('examples') or []; waiting=next((row for row in step_examples if row.get('step_id') == 'step-artifact-save-waiting-approval'), {}); blocked=next((row for row in step_examples if row.get('step_id') == 'step-artifact-save-blocked-human'), {}); rewrite_examples=(schemas.get('RewriteAcceptedOut') or {}).get('examples') or []; rewrite_approval=next((row for row in rewrite_examples if row.get('status') == 'awaiting_approval'), {}); rewrite_human=next((row for row in rewrite_examples if row.get('status') == 'awaiting_human'), {}); plan_examples=(schemas.get('PlanExecuteAcceptedOut') or {}).get('examples') or []; plan_approval=next((row for row in plan_examples if row.get('status') == 'awaiting_approval'), {}); plan_human=next((row for row in plan_examples if row.get('status') == 'awaiting_human'), {}); print('{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}'.format(waiting.get('state',''), waiting.get('dependency_states') == {'step_policy_evaluate': 'completed'}, waiting.get('blocked_dependency_keys') == [], waiting.get('dependencies_satisfied') is True, blocked.get('state',''), blocked.get('blocked_dependency_keys') == ['step_human_review'], blocked.get('dependencies_satisfied') is False, rewrite_approval.get('approval_id',''), rewrite_human.get('human_task_id',''), rewrite_approval.get('next_action',''), rewrite_human.get('next_action',''), plan_approval.get('task_key',''), plan_human.get('task_key','')))")"
-if [[ "${OPENAPI_FIELDS}" != "waiting_approval|True|True|True|queued|True|True|approval-123|human-task-123|poll_or_subscribe|poll_or_subscribe|decision_brief_approval|stakeholder_briefing_review" ]]; then
-  echo "expected live OpenAPI session-step and async acceptance examples for approval/human flows; got ${OPENAPI_FIELDS}" >&2
+OPENAPI_FIELDS="$(curl -fsS "${BASE}/openapi.json" | python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); schemas=((body.get('components') or {}).get('schemas') or {}); step_schema=schemas.get('SessionStepOut') or {}; step_examples=step_schema.get('examples') or []; waiting=next((row for row in step_examples if row.get('step_id') == 'step-artifact-save-waiting-approval'), {}); blocked=next((row for row in step_examples if row.get('step_id') == 'step-artifact-save-blocked-human'), {}); rewrite_examples=(schemas.get('RewriteAcceptedOut') or {}).get('examples') or []; rewrite_approval=next((row for row in rewrite_examples if row.get('status') == 'awaiting_approval'), {}); rewrite_human=next((row for row in rewrite_examples if row.get('status') == 'awaiting_human'), {}); rewrite_queued=next((row for row in rewrite_examples if row.get('status') == 'queued'), {}); plan_examples=(schemas.get('PlanExecuteAcceptedOut') or {}).get('examples') or []; plan_approval=next((row for row in plan_examples if row.get('status') == 'awaiting_approval'), {}); plan_human=next((row for row in plan_examples if row.get('status') == 'awaiting_human'), {}); plan_queued=next((row for row in plan_examples if row.get('status') == 'queued'), {}); print('{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}'.format(waiting.get('state',''), waiting.get('dependency_states') == {'step_policy_evaluate': 'completed'}, waiting.get('blocked_dependency_keys') == [], waiting.get('dependencies_satisfied') is True, blocked.get('state',''), blocked.get('blocked_dependency_keys') == ['step_human_review'], blocked.get('dependencies_satisfied') is False, rewrite_approval.get('approval_id',''), rewrite_human.get('human_task_id',''), rewrite_approval.get('next_action',''), rewrite_human.get('next_action',''), rewrite_queued.get('next_action',''), plan_approval.get('task_key',''), plan_human.get('task_key',''), plan_queued.get('task_key','')))")"
+if [[ "${OPENAPI_FIELDS}" != "waiting_approval|True|True|True|queued|True|True|approval-123|human-task-123|poll_or_subscribe|poll_or_subscribe|poll_or_subscribe|decision_brief_approval|stakeholder_briefing_review|rewrite_retry_delayed" ]]; then
+  echo "expected live OpenAPI session-step and async acceptance examples for approval/human/queued flows; got ${OPENAPI_FIELDS}" >&2
   fail 12 "policy contract mismatch"
 fi
 echo "openapi ok"
@@ -1661,6 +1661,58 @@ HYBRID_DELIVERY_ID="$(python3 -c "import json,sys; body=json.loads(sys.stdin.rea
 HYBRID_PENDING_AFTER_FIELDS="$(curl -fsS "${BASE}/v1/delivery/outbox/pending?limit=20" "${AUTH_ARGS[@]}" | python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); delivery_id='${HYBRID_DELIVERY_ID}'; row=next((row for row in rows if (row or {}).get('delivery_id') == delivery_id), {}); print('{}|{}'.format(row.get('recipient',''), row.get('status','')))" )"
 if [[ "${HYBRID_PENDING_AFTER_FIELDS}" != "hybrid@example.com|queued" ]]; then
   echo "expected approved review-then-dispatch workflow to queue delivery outbox row; got ${HYBRID_PENDING_AFTER_FIELDS}" >&2
+  fail 12 "policy contract mismatch"
+fi
+curl -fsS -X POST "${BASE}/v1/tasks/contracts" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"task_key":"stakeholder_review_dispatch_retry","deliverable_type":"stakeholder_briefing","default_risk_class":"low","default_approval_class":"none","allowed_tools":["artifact_repository","connector.dispatch"],"evidence_requirements":["stakeholder_context"],"memory_write_policy":"reviewed_only","budget_policy_json":{"class":"low","workflow_template":"artifact_then_dispatch","human_review_role":"briefing_reviewer","human_review_task_type":"briefing_review","human_review_brief":"Review before stakeholder dispatch.","human_review_priority":"high","human_review_desired_output_json":{"format":"review_packet"},"dispatch_failure_strategy":"retry","dispatch_max_attempts":2,"dispatch_retry_backoff_seconds":45}}' >/dev/null
+HYBRID_RETRY_EXECUTE_JSON="$(curl -fsS -X POST "${BASE}/v1/plans/execute" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"task_key":"stakeholder_review_dispatch_retry","goal":"review and send a stakeholder briefing","input_json":{"source_text":"Board context and stakeholder sensitivities.","binding_id":"missing-review-dispatch-binding","channel":"email","recipient":"hybrid-retry@example.com"}}')"
+HYBRID_RETRY_EXECUTE_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); print('{}|{}|{}|{}|{}|{}'.format(body.get('task_key',''), body.get('status',''), body.get('next_action',''), bool(body.get('human_task_id','')), bool(body.get('session_id','')), bool(body.get('approval_id',''))))" <<<"${HYBRID_RETRY_EXECUTE_JSON}")"
+if [[ "${HYBRID_RETRY_EXECUTE_FIELDS}" != "stakeholder_review_dispatch_retry|awaiting_human|poll_or_subscribe|True|True|False" ]]; then
+  echo "expected delayed review-then-dispatch workflow to pause behind human review first; got ${HYBRID_RETRY_EXECUTE_FIELDS}" >&2
+  echo "${HYBRID_RETRY_EXECUTE_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HYBRID_RETRY_SESSION_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("session_id",""))' <<<"${HYBRID_RETRY_EXECUTE_JSON}")"
+HYBRID_RETRY_HUMAN_TASK_ID="$(python3 -c 'import json,sys; body=json.loads(sys.stdin.read() or "{}"); print(body.get("human_task_id",""))' <<<"${HYBRID_RETRY_EXECUTE_JSON}")"
+HYBRID_RETRY_RETURN_JSON="$(curl -fsS -X POST "${BASE}/v1/human/tasks/${HYBRID_RETRY_HUMAN_TASK_ID}/return" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"operator_id":"briefing-reviewer","resolution":"ready_for_dispatch","returned_payload_json":{"final_text":"Reviewed stakeholder briefing."},"provenance_json":{"review_mode":"human"}}')"
+HYBRID_RETRY_RETURN_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); print('{}|{}|{}'.format(body.get('task_key',''), body.get('status',''), body.get('resolution','')))" <<<"${HYBRID_RETRY_RETURN_JSON}")"
+if [[ "${HYBRID_RETRY_RETURN_FIELDS}" != "stakeholder_review_dispatch_retry|returned|ready_for_dispatch" ]]; then
+  echo "expected delayed review-then-dispatch human return to preserve task identity; got ${HYBRID_RETRY_RETURN_FIELDS}" >&2
+  echo "${HYBRID_RETRY_RETURN_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HYBRID_RETRY_AWAITING_APPROVAL_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${HYBRID_RETRY_SESSION_ID}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+HYBRID_RETRY_AWAITING_APPROVAL_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); steps={str((row.get('input_json') or {}).get('plan_step_key') or ''): row for row in (body.get('steps') or [])}; artifacts=body.get('artifacts') or []; print('{}|{}|{}|{}|{}|{}|{}'.format(body.get('status',''), steps.get('step_human_review',{}).get('state',''), steps.get('step_artifact_save',{}).get('state',''), steps.get('step_policy_evaluate',{}).get('state',''), steps.get('step_connector_dispatch',{}).get('state',''), len(artifacts) == 1, (artifacts[0] or {}).get('content','') if artifacts else ''))" <<<"${HYBRID_RETRY_AWAITING_APPROVAL_JSON}")"
+if [[ "${HYBRID_RETRY_AWAITING_APPROVAL_FIELDS}" != "awaiting_approval|completed|completed|completed|waiting_approval|True|Reviewed stakeholder briefing." ]]; then
+  echo "expected delayed review-then-dispatch workflow to pause for approval after human return; got ${HYBRID_RETRY_AWAITING_APPROVAL_FIELDS}" >&2
+  echo "${HYBRID_RETRY_AWAITING_APPROVAL_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HYBRID_RETRY_APPROVAL_ID="$(curl -fsS "${BASE}/v1/policy/approvals/pending?limit=20" "${AUTH_ARGS[@]}" | python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); session_id='${HYBRID_RETRY_SESSION_ID}'; row=next((row for row in rows if (row or {}).get('session_id') == session_id), {}); print(row.get('approval_id',''))" )"
+if [[ -z "${HYBRID_RETRY_APPROVAL_ID}" ]]; then
+  echo "expected delayed review-then-dispatch workflow to create a pending approval after human return" >&2
+  fail 12 "policy contract mismatch"
+fi
+HYBRID_RETRY_APPROVE_JSON="$(curl -fsS -X POST "${BASE}/v1/policy/approvals/${HYBRID_RETRY_APPROVAL_ID}/approve" "${AUTH_ARGS[@]}" -H 'content-type: application/json' \
+  -d '{"decided_by":"operator","reason":"approved reviewed dispatch retry"}')"
+HYBRID_RETRY_APPROVE_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); print('{}|{}|{}'.format(body.get('task_key',''), body.get('deliverable_type',''), body.get('decision','')))" <<<"${HYBRID_RETRY_APPROVE_JSON}")"
+if [[ "${HYBRID_RETRY_APPROVE_FIELDS}" != "stakeholder_review_dispatch_retry|stakeholder_briefing|approved" ]]; then
+  echo "expected delayed review-then-dispatch approval decision to keep task identity; got ${HYBRID_RETRY_APPROVE_FIELDS}" >&2
+  echo "${HYBRID_RETRY_APPROVE_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HYBRID_RETRY_QUEUED_JSON="$(curl -fsS "${BASE}/v1/rewrite/sessions/${HYBRID_RETRY_SESSION_ID}" "${AUTH_ARGS[@]}" "${PRINCIPAL_ARGS[@]}")"
+HYBRID_RETRY_QUEUED_FIELDS="$(python3 -c "import json,sys; body=json.loads(sys.stdin.read() or '{}'); steps={str((row.get('input_json') or {}).get('plan_step_key') or ''): row for row in (body.get('steps') or [])}; queues=body.get('queue_items') or []; latest=(queues[-1] if queues else {}); print('{}|{}|{}|{}|{}|{}|{}|{}'.format(body.get('status',''), steps.get('step_human_review',{}).get('state',''), steps.get('step_artifact_save',{}).get('state',''), steps.get('step_policy_evaluate',{}).get('state',''), steps.get('step_connector_dispatch',{}).get('state',''), (steps.get('step_connector_dispatch',{}).get('error_json') or {}).get('reason',''), latest.get('state',''), bool(latest.get('next_attempt_at',''))))" <<<"${HYBRID_RETRY_QUEUED_JSON}")"
+if [[ "${HYBRID_RETRY_QUEUED_FIELDS}" != "queued|completed|completed|completed|queued|retry_scheduled|queued|True" ]]; then
+  echo "expected delayed review-then-dispatch approval flow to leave dispatch queued behind next_attempt_at; got ${HYBRID_RETRY_QUEUED_FIELDS}" >&2
+  echo "${HYBRID_RETRY_QUEUED_JSON}" >&2
+  fail 12 "policy contract mismatch"
+fi
+HYBRID_RETRY_PENDING_AFTER_FIELDS="$(curl -fsS "${BASE}/v1/delivery/outbox/pending?limit=20" "${AUTH_ARGS[@]}" | python3 -c "import json,sys; rows=json.loads(sys.stdin.read() or '[]'); print(any((row or {}).get('recipient') == 'hybrid-retry@example.com' for row in rows))" )"
+if [[ "${HYBRID_RETRY_PENDING_AFTER_FIELDS}" != "False" ]]; then
+  echo "expected delayed review-then-dispatch retry to avoid queueing delivery before a successful dispatch run" >&2
   fail 12 "policy contract mismatch"
 fi
 echo "generic task async contracts ok"
