@@ -89,6 +89,7 @@ def test_postgres_contract_script_help_and_wiring() -> None:
     assert "tests/test_openapi_async_acceptance_examples_contracts.py" in script
     assert "tests/test_openapi_dependency_examples_contracts.py" in script
     assert "tests/test_plan_scope_contracts.py" in script
+    assert "tests/test_planner.py" in script
     assert "tests/test_principal_fallback_contracts.py" in script
     assert "tests/test_queue_retry_contracts.py" in script
     assert "tests/test_rewrite_scope_contracts.py" in script
@@ -356,6 +357,30 @@ def test_inline_retry_drain_runtime_is_documented_and_guarded() -> None:
     assert "Zero-backoff retries now keep draining the same session inline" in changelog
 
     capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "inline_retry_drain_runtime")
+    assert capability["status"] == "tested"
+
+
+def test_contract_retry_policy_metadata_is_documented_and_guarded() -> None:
+    planner_test = (ROOT / "tests/test_planner.py").read_text(encoding="utf-8")
+    workflow_test = (ROOT / "tests/test_task_contract_step_templates.py").read_text(encoding="utf-8")
+    retry_test = (ROOT / "tests/test_queue_retry_contracts.py").read_text(encoding="utf-8")
+    planner = (ROOT / "ea/app/services/planner.py").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    runbook = (ROOT / "RUNBOOK.md").read_text(encoding="utf-8")
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    milestone = json.loads((ROOT / "MILESTONE.json").read_text(encoding="utf-8"))
+
+    assert "test_planner_can_compile_artifact_retry_policy_from_task_contract_metadata" in planner_test
+    assert "test_planner_can_compile_dispatch_retry_policy_from_task_contract_metadata" in workflow_test
+    assert "test_execute_task_artifact_uses_compiled_artifact_retry_policy_from_contract_metadata" in retry_test
+    assert "_step_retry_policy" in planner
+    assert 'prefix="artifact"' in planner
+    assert 'prefix="dispatch"' in planner
+    assert "budget_policy_json.artifact_failure_strategy|artifact_max_attempts|artifact_retry_backoff_seconds" in readme
+    assert "artifact_failure_strategy|artifact_max_attempts|artifact_retry_backoff_seconds" in runbook
+    assert "Task-contract metadata can now tune the built-in artifact and dispatch retry posture" in changelog
+
+    capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "contract_retry_policy_metadata")
     assert capability["status"] == "tested"
 
 

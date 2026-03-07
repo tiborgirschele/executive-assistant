@@ -102,3 +102,30 @@ def test_planner_can_compile_human_review_branch_from_task_contract_metadata() -
     assert plan.steps[2].quality_rubric_json["checks"][0] == "tone"
     assert plan.steps[3].step_key == "step_artifact_save"
     assert plan.steps[3].depends_on == ("step_human_review",)
+
+
+def test_planner_can_compile_artifact_retry_policy_from_task_contract_metadata() -> None:
+    contracts = TaskContractService(InMemoryTaskContractRepository())
+    contracts.upsert_contract(
+        task_key="rewrite_retry",
+        deliverable_type="rewrite_note",
+        default_risk_class="low",
+        default_approval_class="none",
+        allowed_tools=("artifact_repository",),
+        memory_write_policy="reviewed_only",
+        budget_policy_json={
+            "class": "low",
+            "artifact_failure_strategy": "retry",
+            "artifact_max_attempts": 3,
+            "artifact_retry_backoff_seconds": 15,
+        },
+    )
+    planner = PlannerService(contracts)
+
+    _, plan = planner.build_plan(task_key="rewrite_retry", principal_id="exec-1", goal="retry this rewrite")
+
+    artifact_step = plan.steps[-1]
+    assert artifact_step.step_key == "step_artifact_save"
+    assert artifact_step.failure_strategy == "retry"
+    assert artifact_step.max_attempts == 3
+    assert artifact_step.retry_backoff_seconds == 15

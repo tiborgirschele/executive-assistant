@@ -80,6 +80,15 @@ class PlannerService:
             output_keys=("normalized_text", "text_length"),
         )
 
+    def _step_retry_policy(self, contract: TaskContract, *, prefix: str) -> tuple[str, int, int]:
+        metadata = dict(contract.budget_policy_json or {})
+        failure_strategy = str(metadata.get(f"{prefix}_failure_strategy") or "fail").strip().lower() or "fail"
+        if failure_strategy not in {"fail", "retry", "fallback_human", "skip"}:
+            failure_strategy = "fail"
+        max_attempts = max(1, _policy_int(metadata.get(f"{prefix}_max_attempts"), default=1))
+        retry_backoff_seconds = _policy_int(metadata.get(f"{prefix}_retry_backoff_seconds"), default=0)
+        return failure_strategy, max_attempts, retry_backoff_seconds
+
     def _build_policy_step(
         self,
         *,
@@ -110,9 +119,14 @@ class PlannerService:
         self,
         intent: IntentSpecV3,
         *,
+        contract: TaskContract,
         depends_on: tuple[str, ...],
         approval_required: bool,
     ) -> PlanStepSpec:
+        failure_strategy, max_attempts, retry_backoff_seconds = self._step_retry_policy(
+            contract,
+            prefix="artifact",
+        )
         return PlanStepSpec(
             step_key="step_artifact_save",
             step_kind="tool_call",
@@ -125,10 +139,10 @@ class PlannerService:
             owner="tool",
             authority_class=_tool_authority_class("artifact_repository"),
             review_class="none",
-            failure_strategy="fail",
+            failure_strategy=failure_strategy,
             timeout_budget_seconds=60,
-            max_attempts=1,
-            retry_backoff_seconds=0,
+            max_attempts=max_attempts,
+            retry_backoff_seconds=retry_backoff_seconds,
             depends_on=depends_on,
             input_keys=("normalized_text",),
             output_keys=("artifact_id", "receipt_id", "cost_id"),
@@ -137,8 +151,13 @@ class PlannerService:
     def _build_dispatch_step(
         self,
         *,
+        contract: TaskContract,
         depends_on: tuple[str, ...],
     ) -> PlanStepSpec:
+        failure_strategy, max_attempts, retry_backoff_seconds = self._step_retry_policy(
+            contract,
+            prefix="dispatch",
+        )
         return PlanStepSpec(
             step_key="step_connector_dispatch",
             step_kind="tool_call",
@@ -151,10 +170,10 @@ class PlannerService:
             owner="tool",
             authority_class=_tool_authority_class("connector.dispatch"),
             review_class="none",
-            failure_strategy="fail",
+            failure_strategy=failure_strategy,
             timeout_budget_seconds=60,
-            max_attempts=1,
-            retry_backoff_seconds=0,
+            max_attempts=max_attempts,
+            retry_backoff_seconds=retry_backoff_seconds,
             depends_on=depends_on,
             input_keys=("binding_id", "channel", "recipient", "content"),
             output_keys=("delivery_id", "status", "binding_id"),
@@ -269,6 +288,7 @@ class PlannerService:
         steps.append(
             self._build_artifact_save_step(
                 intent,
+                contract=contract,
                 depends_on=save_depends_on,
                 approval_required=approval_required,
             )
@@ -296,12 +316,13 @@ class PlannerService:
         steps.append(
             self._build_artifact_save_step(
                 intent,
+                contract=contract,
                 depends_on=artifact_depends_on,
                 approval_required=False,
             )
         )
         steps.append(self._build_policy_step(depends_on=("step_artifact_save",)))
-        steps.append(self._build_dispatch_step(depends_on=("step_policy_evaluate",)))
+        steps.append(self._build_dispatch_step(contract=contract, depends_on=("step_policy_evaluate",)))
         return tuple(steps)
 
     def _workflow_template_key(self, contract: TaskContract) -> str:

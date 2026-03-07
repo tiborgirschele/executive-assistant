@@ -3269,6 +3269,34 @@ else
   missing=1
 fi
 
+if python3 - <<'PY'
+import json
+from pathlib import Path
+
+milestone = json.loads(Path("MILESTONE.json").read_text(encoding="utf-8"))
+capability = next(entry for entry in milestone["capabilities"] if entry["name"] == "contract_retry_policy_metadata")
+assert capability["status"] == "tested"
+PY
+then
+  if grep -Fq "test_planner_can_compile_artifact_retry_policy_from_task_contract_metadata" "tests/test_planner.py" && \
+     grep -Fq "test_planner_can_compile_dispatch_retry_policy_from_task_contract_metadata" "tests/test_task_contract_step_templates.py" && \
+     grep -Fq "test_execute_task_artifact_uses_compiled_artifact_retry_policy_from_contract_metadata" "tests/test_queue_retry_contracts.py" && \
+     grep -Fq "_step_retry_policy" "ea/app/services/planner.py" && \
+     grep -Fq 'prefix="artifact"' "ea/app/services/planner.py" && \
+     grep -Fq 'prefix="dispatch"' "ea/app/services/planner.py" && \
+     grep -Fq "budget_policy_json.artifact_failure_strategy|artifact_max_attempts|artifact_retry_backoff_seconds" "README.md" && \
+     grep -Fq "artifact_failure_strategy|artifact_max_attempts|artifact_retry_backoff_seconds" "RUNBOOK.md" && \
+     grep -Fq "Task-contract metadata can now tune the built-in artifact and dispatch retry posture" "CHANGELOG.md"; then
+    echo "ok: contract retry policy metadata docs and contract coverage"
+  else
+    echo "missing: contract retry policy metadata docs or contract coverage" >&2
+    missing=1
+  fi
+else
+  echo "missing: contract retry policy metadata milestone" >&2
+  missing=1
+fi
+
 if [[ "${missing}" -ne 0 ]]; then
   echo "release asset verification failed" >&2
   exit 1

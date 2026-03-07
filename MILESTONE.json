@@ -1136,6 +1136,16 @@
         "approval_resume_inline_retry_completion"
       ],
       "notes": "If a retry-scheduled queue row is already immediately eligible (`retry_backoff_seconds=0`), the inline create/approval/human-return flows now keep draining that same session until it reaches completion, pause, or terminal failure instead of surfacing an intermediate `queued task did not execute` error."
+    },
+    {
+      "name": "contract_retry_policy_metadata",
+      "status": "tested",
+      "scope": [
+        "artifact_retry_policy_compile",
+        "dispatch_retry_policy_compile",
+        "compiled_artifact_retry_runtime"
+      ],
+      "notes": "Task contracts can now tune the built-in artifact and dispatch retry posture directly from `budget_policy_json`: `artifact_failure_strategy|artifact_max_attempts|artifact_retry_backoff_seconds` compile onto `step_artifact_save`, `dispatch_*` compiles onto `step_connector_dispatch`, and focused runtime coverage proves compiled artifact retries execute through the queue runtime."
     }
   ],
   "migrations": [

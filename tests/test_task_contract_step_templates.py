@@ -233,6 +233,39 @@ def test_planner_can_compile_review_then_dispatch_workflow_template() -> None:
     assert plan.steps[4].depends_on == ("step_policy_evaluate",)
 
 
+def test_planner_can_compile_dispatch_retry_policy_from_task_contract_metadata() -> None:
+    task_contracts = TaskContractService(InMemoryTaskContractRepository())
+    task_contracts.upsert_contract(
+        task_key="stakeholder_dispatch_retry",
+        deliverable_type="stakeholder_briefing",
+        default_risk_class="low",
+        default_approval_class="none",
+        allowed_tools=("artifact_repository", "connector.dispatch"),
+        evidence_requirements=("stakeholder_context",),
+        memory_write_policy="reviewed_only",
+        budget_policy_json={
+            "class": "low",
+            "workflow_template": "artifact_then_dispatch",
+            "dispatch_failure_strategy": "retry",
+            "dispatch_max_attempts": 4,
+            "dispatch_retry_backoff_seconds": 25,
+        },
+    )
+    planner = PlannerService(task_contracts)
+
+    _, plan = planner.build_plan(
+        task_key="stakeholder_dispatch_retry",
+        principal_id="exec-1",
+        goal="prepare and send a stakeholder briefing",
+    )
+
+    dispatch_step = plan.steps[-1]
+    assert dispatch_step.step_key == "step_connector_dispatch"
+    assert dispatch_step.failure_strategy == "retry"
+    assert dispatch_step.max_attempts == 4
+    assert dispatch_step.retry_backoff_seconds == 25
+
+
 def test_review_then_dispatch_workflow_template_pauses_for_human_then_approval() -> None:
     orchestrator, channel_runtime, tool_runtime = _build_dispatch_runtime(
         task_key="stakeholder_review_dispatch",

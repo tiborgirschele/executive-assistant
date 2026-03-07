@@ -16,11 +16,14 @@ from app.domain.models import (
 )
 from app.repositories.approvals import InMemoryApprovalRepository
 from app.repositories.artifacts import InMemoryArtifactRepository
+from app.repositories.task_contracts import InMemoryTaskContractRepository
 from app.repositories.ledger import InMemoryExecutionLedgerRepository
 from app.repositories.connector_bindings import InMemoryConnectorBindingRepository
 from app.repositories.tool_registry import InMemoryToolRegistryRepository
 from app.services.orchestrator import RewriteOrchestrator
 from app.services.policy import ApprovalRequiredError
+from app.services.planner import PlannerService
+from app.services.task_contracts import TaskContractService
 from app.services.tool_execution import ToolExecutionService
 from app.services.tool_runtime import ToolRuntimeService
 
@@ -343,4 +346,78 @@ def test_approval_resume_drains_zero_backoff_retries_inline_to_completion() -> N
     assert snapshot.queue_items[-1].attempt_count == 2
     assert len(snapshot.artifacts) == 1
     assert snapshot.artifacts[0].content == "approval gated retry"
+    assert calls["count"] == 2
+
+
+def test_execute_task_artifact_uses_compiled_artifact_retry_policy_from_contract_metadata() -> None:
+    artifacts = InMemoryArtifactRepository()
+    contracts = TaskContractService(InMemoryTaskContractRepository())
+    contracts.upsert_contract(
+        task_key="rewrite_retry_contract",
+        deliverable_type="rewrite_note",
+        default_risk_class="low",
+        default_approval_class="none",
+        allowed_tools=("artifact_repository",),
+        memory_write_policy="reviewed_only",
+        budget_policy_json={
+            "class": "low",
+            "artifact_failure_strategy": "retry",
+            "artifact_max_attempts": 2,
+            "artifact_retry_backoff_seconds": 0,
+        },
+    )
+    tool_runtime = ToolRuntimeService(
+        tool_registry=InMemoryToolRegistryRepository(),
+        connector_bindings=InMemoryConnectorBindingRepository(),
+    )
+    tool_execution = ToolExecutionService(tool_runtime=tool_runtime, artifacts=artifacts)
+    calls = {"count": 0}
+
+    def handler(request, definition):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RuntimeError("temporary_failure")
+        artifact = Artifact(
+            artifact_id=str(uuid.uuid4()),
+            kind=str(request.payload_json.get("expected_artifact") or "rewrite_note"),
+            content=str(request.payload_json.get("normalized_text") or request.payload_json.get("source_text") or ""),
+            execution_session_id=request.session_id,
+            principal_id=str(request.context_json.get("principal_id") or ""),
+        )
+        artifacts.save(artifact)
+        return ToolInvocationResult(
+            tool_name=definition.tool_name,
+            action_kind=str(request.action_kind or "artifact.save") or "artifact.save",
+            target_ref=artifact.artifact_id,
+            output_json={"artifact_id": artifact.artifact_id},
+            receipt_json={"handler_key": definition.tool_name},
+            artifacts=(artifact,),
+        )
+
+    tool_execution.register_handler("artifact_repository", handler)
+    orchestrator = RewriteOrchestrator(
+        artifacts=artifacts,
+        approvals=InMemoryApprovalRepository(),
+        ledger=InMemoryExecutionLedgerRepository(),
+        task_contracts=contracts,
+        planner=PlannerService(contracts),
+        tool_execution=tool_execution,
+    )
+
+    artifact = orchestrator.execute_task_artifact(
+        TaskExecutionRequest(
+            task_key="rewrite_retry_contract",
+            principal_id="exec-1",
+            goal="retry compiled rewrite",
+            input_json={"source_text": "compiled retry"},
+        )
+    )
+
+    assert artifact.content == "compiled retry"
+    snapshot = orchestrator.fetch_session(artifact.execution_session_id)
+    assert snapshot is not None
+    assert snapshot.steps[-1].input_json["failure_strategy"] == "retry"
+    assert snapshot.steps[-1].input_json["max_attempts"] == 2
+    assert snapshot.steps[-1].input_json["retry_backoff_seconds"] == 0
+    assert snapshot.steps[-1].attempt_count == 2
     assert calls["count"] == 2
