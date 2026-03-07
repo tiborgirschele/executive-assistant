@@ -2,6 +2,24 @@
 
 This repository is a durable executive-assistant runtime kernel with principal-scoped API surfaces, queued execution, policy/approval gates, human-task routing, tools/connectors, observations/delivery, and executive memory domains.
 
+## LTD Inventory
+
+Lifetime services with API keys or account-backed access that are concretely discoverable from this workspace are tracked in [LTDs.md](/docker/EA/LTDs.md).
+
+### Tier Guide
+
+- `Tier 1`: actively wired into the local workspace/runtime and ready for operational use
+- `Tier 2`: account or key exists, but local runtime wiring is partial or parked
+- `Tier 3`: known service/account placeholder with no active local integration yet
+
+### Current List
+
+| Service | Tier | Access Model | Local Integration | Description |
+|---|---|---|---|---|
+| `1min.AI` | `Tier 1` | API key | Local `.env` key rotation slots: `ONEMIN_AI_API_KEY` and `ONEMIN_AI_API_KEY_FALLBACK_1` | Lifetime AI service access for model/API usage. The workspace reserves a primary slot and protected fallback rotation slot in the gitignored `.env`, plus `scripts/resolve_onemin_ai_key.sh` for local key-resolution order. |
+
+The Codex session skill list is separate from this LTD inventory: skills are local agent capabilities, while LTDs are your external services/accounts.
+
 ## Runtime Spine
 
 - `app.main` exposes a FastAPI app

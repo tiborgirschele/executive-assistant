@@ -17,4 +17,6 @@ Workspace-scoped inventory of discovered lifetime services with API keys or acco
 ## Notes
 
 - This file reflects LTDs discoverable from the current workspace and local repo configuration.
+- The Codex session skill list is not used as the LTD source of truth; skills are local agent capabilities, while this file tracks external services/accounts with keys or logins.
+- No additional AI-service LTDs are listed until they are concretely discoverable from local config, tracked docs, or local-only secret wiring.
 - Secrets are intentionally omitted here; only the service inventory and local integration contract are documented.
